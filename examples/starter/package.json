@@ -1,0 +1,38 @@
+{
+  "name": "@dotreact/example-starter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0 <25",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "dev": "concurrently --kill-others --names renderer,server \"npm:dev:renderer\" \"npm:dev:server\"",
+    "dev:renderer": "cross-env DOTREACT_APP_ROOT=. DOTREACT_RENDERER_PORT=5173 DOTREACT_RENDERER_TOKEN=dotreact-dev node ../../packages/renderer/dist/server.js",
+    "dev:server": "cross-env ASPNETCORE_ENVIRONMENT=Development DOTREACT_RENDERER_TOKEN=dotreact-dev dotnet watch --project Server/Server.csproj run --no-launch-profile --urls http://127.0.0.1:5080",
+    "generate": "dotnet build Server/Server.csproj -c Release && dotnet run --project ../../dotnet/src/DotReact.TypeGen/DotReact.TypeGen.csproj -- Server/bin/Release/net10.0/Server.dll src/contracts.ts --discover --manifest src/backend-manifest.json --actions src/actions.ts",
+    "check:contracts": "dotnet build Server/Server.csproj -c Release && dotnet run --project ../../dotnet/src/DotReact.TypeGen/DotReact.TypeGen.csproj -- Server/bin/Release/net10.0/Server.dll src/contracts.ts --discover --manifest src/backend-manifest.json --actions src/actions.ts --check",
+    "build:client": "vite build",
+    "build:ssr": "vite build --ssr src/entry-server.tsx",
+    "build": "npm run generate && npm run build:client && npm run build:ssr && dotnet build Server/Server.csproj -c Release",
+    "typecheck": "tsc -p tsconfig.json --noEmit && dotreact-check --project tsconfig.json --manifest src/backend-manifest.json --contracts src/contracts.ts"
+  },
+  "dependencies": {
+    "@dotreact/client": "0.1.0",
+    "@dotreact/protocol": "0.1.0",
+    "@dotreact/renderer": "0.1.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@dotreact/vite": "0.1.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.3",
+    "concurrently": "9.2.4",
+    "cross-env": "10.1.0",
+    "typescript": "7.0.2",
+    "vite": "8.1.5"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "appName": { "value": "replace-with-a-globally-unique-name" },
+    "containerImage": { "value": "example.azurecr.io/dotreact@sha256:replace-me" },
+    "registryAccess": { "value": "acrManagedIdentity" },
+    "acrPullIdentityResourceId": { "value": "/subscriptions/replace-me/resourceGroups/replace-me/providers/Microsoft.ManagedIdentity/userAssignedIdentities/dotreact-acr-pull" },
+    "acrPullIdentityClientId": { "value": "replace-with-identity-client-id" }
+  }
+}

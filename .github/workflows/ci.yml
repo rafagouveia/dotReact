@@ -1,0 +1,88 @@
+name: DotReact CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  vscode-extension:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w dotreact-vscode
+      - run: xvfb-run -a npm run test:integration -w dotreact-vscode
+      - run: npm run package:vsix -w dotreact-vscode
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dotreact-vscode-vsix
+          path: editors/vscode-dotreact/dotreact-vscode.vsix
+
+  azure-infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Bicep CLI
+        run: az bicep install
+      - name: Compile Azure templates
+        run: |
+          mkdir -p work/azure-arm
+          az bicep build --file deploy/azure/app-service.bicep --outfile work/azure-arm/app-service.json
+          az bicep build --file deploy/azure/container-apps.bicep --outfile work/azure-arm/container-apps.json
+      - name: Scan compiled Azure templates
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: config
+          scan-ref: work/azure-arm
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          hide-progress: true
+
+  quality:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: npm ci
+      - run: dotnet restore dotnet/DotReact.slnx
+      - run: dotnet restore examples/crud/Server.Tests/Server.Tests.csproj
+      - run: npm run build --workspaces --if-present
+      - run: npm run check:contracts -w @dotreact/example-starter
+      - run: npm run check:contracts -w @dotreact/example-crud
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --audit-level=high
+
+  container:
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: dotreact:ci
+          provenance: mode=max
+          sbom: true

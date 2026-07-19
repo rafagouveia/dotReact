@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>dotreact-typegen</AssemblyName>
+    <RootNamespace>DotReact.TypeGen</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="../DotReact.AspNetCore/DotReact.AspNetCore.csproj" />
+  </ItemGroup>
+</Project>

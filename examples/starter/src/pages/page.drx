@@ -1,0 +1,41 @@
+import { useState } from "react";
+import type { HomePageProps } from "../contracts";
+import { demoIncrement } from "../actions";
+import type { DotReactMetadata } from "@dotreact/vite";
+
+export const metadata: DotReactMetadata = {
+  title: "DotReact · C# + React SSR",
+  description: "Starter DotReact com ASP.NET Core, React SSR, hidratação e Server Actions."
+};
+
+export default function HomePage({ message, generatedAt }: HomePageProps) {
+  const [count, setCount] = useState(0);
+  const [executedBy, setExecutedBy] = useState("Ainda não executada");
+  const [error, setError] = useState<string>();
+
+  async function incrementOnServer() {
+    setError(undefined);
+    try {
+      const result = await demoIncrement({ value: count });
+      setCount(result.value);
+      setExecutedBy(result.executedBy);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Falha ao chamar a action.");
+    }
+  }
+
+  return (
+    <main className="shell">
+      <p className="eyebrow">ASP.NET Core + React SSR + DRX</p>
+      <h1>{message}</h1>
+      <p>Esta view é um arquivo <code>page.drx</code>; suas props nasceram no loader C#.</p>
+      <p className="muted">Gerado em {generatedAt}</p>
+      <button type="button" onClick={incrementOnServer}>
+        Server Action C#: {count}
+      </button>
+      <p className="muted" data-action-result>{executedBy}</p>
+      {error && <p role="alert">{error}</p>}
+      <p><a href="/products/42">Abrir rota dinâmica /products/42</a></p>
+    </main>
+  );
+}

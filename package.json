@@ -1,0 +1,26 @@
+{
+  "name": "dotreact-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "examples/*",
+    "editors/*"
+  ],
+  "scripts": {
+    "build:tooling": "npm run build -w @dotreact/protocol && npm run build -w @dotreact/renderer && npm run build -w @dotreact/client && npm run build -w @dotreact/vite && npm run build -w @dotreact/cli && npm run build -w dotreact-vscode",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present && dotnet test dotnet/DotReact.slnx -c Release && dotnet test examples/crud/Server.Tests/Server.Tests.csproj -c Release",
+    "dev": "npm run dev -w @dotreact/example-starter",
+    "create": "npm run start -w @dotreact/cli --",
+    "docs:dev": "npm --prefix docs run dev",
+    "docs:build": "npm --prefix docs run build",
+    "docs:typecheck": "npm --prefix docs run typecheck",
+    "verify": "npm run build:tooling && npm run check:contracts -w @dotreact/example-starter && npm run check:contracts -w @dotreact/example-crud && npm run typecheck && npm run docs:build && npm test && npm run build && npm audit --audit-level=high && npm audit --prefix docs --audit-level=high"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}

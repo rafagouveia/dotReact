@@ -1,0 +1,7 @@
+.vscode/**
+integration/**
+core.test.cjs
+node_modules/**
+*.vsix
+*.log
+

@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="src/DotReact.AspNetCore/DotReact.AspNetCore.csproj" />
+  <Project Path="src/DotReact.TypeGen/DotReact.TypeGen.csproj" />
+  <Project Path="tests/DotReact.AspNetCore.Tests/DotReact.AspNetCore.Tests.csproj" />
+  <Project Path="tests/DotReact.TypeGen.Tests/DotReact.TypeGen.Tests.csproj" />
+</Solution>

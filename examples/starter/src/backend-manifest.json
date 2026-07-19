@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 2,
+  "pages": [
+    {
+      "moduleId": "page",
+      "pattern": "/",
+      "routing": "convention",
+      "propsType": "DotReact.Starter.HomePageProps"
+    },
+    {
+      "moduleId": "products/[id]/page",
+      "pattern": "/products/{id}",
+      "routing": "convention",
+      "propsType": "DotReact.Starter.ProductPageProps"
+    }
+  ],
+  "actions": [
+    {
+      "id": "demo/increment",
+      "exportName": "demoIncrement",
+      "requestType": "DotReact.Starter.IncrementDemoRequest",
+      "responseType": "DotReact.Starter.IncrementDemoResponse"
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "name": "dotreact-vscode",
+  "displayName": "DotReact",
+  "description": "TypeScript React language support for DotReact .drx pages.",
+  "version": "0.1.0",
+  "publisher": "dotreact",
+  "private": true,
+  "main": "./extension.cjs",
+  "scripts": {
+    "build": "node --check extension.cjs && node --check core.cjs",
+    "typecheck": "node --check extension.cjs && node --check core.cjs",
+    "test": "node --test core.test.cjs",
+    "test:integration": "node integration/run.cjs",
+    "package:vsix": "vsce package --pre-release --no-dependencies --allow-missing-repository --skip-license --out dotreact-vscode.vsix"
+  },
+  "activationEvents": ["onLanguage:typescriptreact", "onCommand:dotreact.checkProject"],
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": ["Programming Languages", "Other"],
+  "contributes": {
+    "commands": [
+      { "command": "dotreact.openBackendLoader", "title": "DotReact: Abrir loader C#" },
+      { "command": "dotreact.checkProject", "title": "DotReact: Verificar projeto" }
+    ],
+    "configuration": {
+      "title": "DotReact",
+      "properties": {
+        "dotreact.checkOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Executa o checker semântico DRX ao salvar."
+        }
+      }
+    },
+    "languages": [
+      {
+        "id": "typescriptreact",
+        "extensions": [".drx"],
+        "aliases": ["DotReact", "drx"]
+      }
+    ]
+  },
+  "devDependencies": {
+    "@vscode/test-electron": "3.0.0",
+    "@vscode/vsce": "3.9.2"
+  }
+}

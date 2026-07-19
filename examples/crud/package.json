@@ -1,0 +1,30 @@
+{
+  "name": "@dotreact/example-crud",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently --kill-others --names renderer,server \"npm:dev:renderer\" \"npm:dev:server\"",
+    "dev:renderer": "cross-env DOTREACT_APP_ROOT=. DOTREACT_RENDERER_PORT=5174 DOTREACT_RENDERER_TOKEN=dotreact-crud-dev node ../../packages/renderer/dist/server.js",
+    "dev:server": "cross-env ASPNETCORE_ENVIRONMENT=Development DOTREACT_RENDERER_TOKEN=dotreact-crud-dev dotnet watch --project Server/Server.csproj run --no-launch-profile --urls http://127.0.0.1:5090",
+    "generate": "dotnet build Server/Server.csproj -c Release && dotnet run --project ../../dotnet/src/DotReact.TypeGen/DotReact.TypeGen.csproj -- Server/bin/Release/net10.0/Server.dll src/contracts.ts DotReact.Crud.DashboardProps DotReact.Crud.CreateWorkItemRequest DotReact.Crud.UpdateWorkItemRequest",
+    "check:contracts": "dotnet build Server/Server.csproj -c Release && dotnet run --project ../../dotnet/src/DotReact.TypeGen/DotReact.TypeGen.csproj -- Server/bin/Release/net10.0/Server.dll src/contracts.ts DotReact.Crud.DashboardProps DotReact.Crud.CreateWorkItemRequest DotReact.Crud.UpdateWorkItemRequest --check",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "npm run generate && vite build && dotnet build Server/Server.csproj -c Release"
+  },
+  "dependencies": {
+    "@dotreact/protocol": "0.1.0",
+    "@dotreact/renderer": "0.1.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.3",
+    "concurrently": "9.2.4",
+    "cross-env": "10.1.0",
+    "typescript": "7.0.2",
+    "vite": "8.1.5"
+  }
+}

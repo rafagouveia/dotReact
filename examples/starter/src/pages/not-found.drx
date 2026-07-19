@@ -1,0 +1,16 @@
+import type { DotReactBoundaryProps } from "@dotreact/vite";
+import type { DotReactMetadata } from "@dotreact/vite";
+
+export const metadata: DotReactMetadata = { title: "Página não encontrada · DotReact", noIndex: true };
+
+export default function NotFoundPage({ requestId }: DotReactBoundaryProps) {
+  return (
+    <main className="shell">
+      <p className="eyebrow">404 · DotReact boundary</p>
+      <h1>Página não encontrada</h1>
+      <p>A resposta 404 nasceu no loader ou no fallback do ASP.NET Core e foi renderizada pelo React.</p>
+      <p className="muted">Request ID: {requestId}</p>
+      <a href="/">Voltar ao início</a>
+    </main>
+  );
+}
