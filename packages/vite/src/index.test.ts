@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { localFont } from "@dotreact/font";
-import { checkDotReactProject, collectDotReactRouteStyles, createDotReactRouteAssetManifest, createDotReactRouteStyleSheet, defineDotReactConfig, dotReact, inferDotReactRoute, resolveDotReactDiagnosticFile, scanDotReactGraph, scanDotReactPages } from "./index.js";
+import { checkDotReactProject, collectDotReactRouteStyles, createDotReactDevelopmentStyleSheet, createDotReactRouteAssetManifest, createDotReactRouteStyleSheet, defineDotReactConfig, dotReact, inferDotReactRoute, resolveDotReactDiagnosticFile, scanDotReactGraph, scanDotReactPages } from "./index.js";
 
 async function fixture(): Promise<string> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "dotreact-vite-"));
@@ -83,6 +83,15 @@ test("collects modular route CSS in blocking cascade order", async (context) => 
     '@import url("/_dotreact/dev/src/features/panel.css");',
     '@import url("/_dotreact/dev/src/error.css");'
   ].join("\n"));
+
+  const blockingCss = createDotReactDevelopmentStyleSheet(
+    root,
+    "/_dotreact/dev/",
+    styles,
+    '@font-face { font-family: "Example"; src: url("/example.woff2"); }'
+  );
+  assert.ok(blockingCss.indexOf("@import") < blockingCss.indexOf("@font-face"));
+  assert.doesNotMatch(blockingCss, /@font-face[^]*@import/u);
 });
 
 test("rejects a pages directory outside the canonical root", async (context) => {

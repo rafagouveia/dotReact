@@ -77,6 +77,7 @@ export function Flow() {
 }
 
 export function RouteLab() {
+  const locale = useLocale();
   const [moduleId, setModuleId] = useState("catalog/[slug]/page");
   const segments = moduleId.trim().split("/");
   const valid = /^(?:(?:[A-Za-z0-9][A-Za-z0-9._-]*|\([A-Za-z_][A-Za-z0-9_]*\)|\[[A-Za-z_][A-Za-z0-9_]*\]|\[\.\.\.[A-Za-z_][A-Za-z0-9_]*\])\/)*page$/.test(moduleId);
@@ -91,26 +92,27 @@ export function RouteLab() {
       <label htmlFor="module-id">Module ID</label>
       <input id="module-id" value={moduleId} onChange={event => setModuleId(event.target.value)} />
       <div className={valid ? "result ok" : "result bad"}>
-        <span>{valid ? "Rota inferida" : "Module ID inválido"}</span>
-        <strong>{valid ? route : "Use segmentos canônicos terminando em /page"}</strong>
+        <span>{valid ? (locale === "pt" ? "Rota inferida" : "Inferred route") : (locale === "pt" ? "Module ID inválido" : "Invalid module ID")}</span>
+        <strong>{valid ? route : (locale === "pt" ? "Use segmentos canônicos terminando em /page" : "Use canonical segments ending in /page")}</strong>
       </div>
     </div>
   );
 }
 
 export function CliLab() {
+  const locale = useLocale();
   const [template, setTemplate] = useState("starter");
-  const [name, setName] = useState("minha-app");
-  const safeName = name.toLowerCase().replace(/[^a-z0-9._-]/g, "-") || "minha-app";
+  const [name, setName] = useState(locale === "pt" ? "minha-app" : "my-app");
+  const safeName = name.toLowerCase().replace(/[^a-z0-9._-]/g, "-") || (locale === "pt" ? "minha-app" : "my-app");
   return (
     <div className="lab grid-lab">
       <label>Template
         <select value={template} onChange={event => setTemplate(event.target.value)}>
-          <option value="starter">Starter completo</option>
+          <option value="starter">{locale === "pt" ? "Starter completo" : "Complete starter"}</option>
           <option value="minimal">Minimal</option>
         </select>
       </label>
-      <label>Projeto
+      <label>{locale === "pt" ? "Projeto" : "Project"}
         <input value={name} onChange={event => setName(event.target.value)} />
       </label>
       <CodeBlock label="Terminal" code={`npm run create -- create ${safeName} --template ${template}\ncd ${safeName}\nnpm install\ndotreact doctor\ndotreact dev`} />
@@ -122,10 +124,11 @@ export function ReferenceTable({ rows, valueHeading = "Padrão" }: {
   readonly rows: readonly ReferenceRow[];
   readonly valueHeading?: string;
 }) {
+  const locale = useLocale();
   return (
     <div className="reference-table-wrap">
       <table className="reference-table">
-        <thead><tr><th>Nome</th><th>{valueHeading}</th><th>Uso</th></tr></thead>
+        <thead><tr><th>{locale === "pt" ? "Nome" : "Name"}</th><th>{valueHeading === "Padrão" && locale !== "pt" ? "Default" : valueHeading}</th><th>{locale === "pt" ? "Uso" : "Usage"}</th></tr></thead>
         <tbody>{rows.map(row => (
           <tr key={row.name}>
             <td><code>{row.name}</code></td>

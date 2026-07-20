@@ -17,6 +17,7 @@ this order:
 7. `docs/ai/05-CACHING-PRODUCTION.md`
 8. `docs/ai/06-WORKFLOW-RECIPES.md`
 9. `docs/ai/07-SOLID-FEATURES.md`
+10. `docs/ai/08-AUTHENTICATION-SESSIONS.md`
 
 These files are the project-local framework specification. Do not infer
 DotReact behavior from Next.js, Razor, Blazor or a similarly named library. If
@@ -47,6 +48,11 @@ verify the behavior in framework tests before changing application code.
 - Treat every Server Action and route as a security boundary. Apply explicit
   authorization policies and validate input in C#. Anonymous access must be a
   deliberate, reviewed decision.
+- Keep browser authentication in an `HttpOnly` cookie. Never place session IDs,
+  access tokens or refresh tokens in DRX props, hydration, Web Storage or logs.
+- Authentication use cases verify identity through application-owned ports;
+  only Presentation maps a successful result to `IDotReactSessionManager`,
+  ASP.NET Core Identity or an external authentication handler.
 - Preserve SSR and hydration equivalence: server and browser must render the
   same route module, layouts, boundaries and initial props.
 - Import modular CSS from its owning DRX/layout/component. Keep only reset,

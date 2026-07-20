@@ -29,6 +29,9 @@ public static class DotReactNodeRendererHostingExtensions
             .Validate(value => value.RestartWindow > TimeSpan.Zero, "Node renderer restart window must be positive.")
             .Validate(value => value.RestartBackoff >= TimeSpan.Zero && value.RestartBackoff <= TimeSpan.FromMinutes(1),
                 "Node renderer restart backoff must be between zero and one minute.")
+            .Validate(static value => value.PublicEnvironmentVariables.All(static pair =>
+                    DotReactNodeRendererEnvironment.IsSafePublicVariable(pair.Key, pair.Value)),
+                "Node renderer public environment variables contain a reserved name or invalid value.")
             .ValidateOnStart();
         services.TryAddSingleton(static _ => new DotReactManagedRendererCredentials(
             Convert.ToBase64String(RandomNumberGenerator.GetBytes(48))));

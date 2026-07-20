@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { access, cp, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { watch as watchFiles } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
@@ -37,6 +38,106 @@ const workspaceInfrastructure = [
   "src/dotreact.d.ts"
 ] as const;
 
+interface ProjectIdentity {
+  readonly packageName: string;
+  readonly namespace: string;
+  readonly displayName: string;
+}
+
+function createProjectIdentity(name: string): ProjectIdentity {
+  const words = name.split(/[^A-Za-z0-9]+/u).filter(Boolean);
+  if (words.length === 0) throw new Error("Project name must contain a letter.");
+  const namespace = words.map(word => `${word[0]!.toUpperCase()}${word.slice(1)}`).join("");
+  const displayName = words.map(word => `${word[0]!.toUpperCase()}${word.slice(1)}`).join(" ");
+  return { packageName: name.toLowerCase(), namespace, displayName };
+}
+
+async function copyRuntime(sourceRoot: string, targetVendor: string): Promise<void> {
+  const mappings = [
+    ["dotnet/src/DotReact.AspNetCore", "DotReact.AspNetCore", shouldCopy],
+    ["dotnet/src/DotReact.AppGenerator", "DotReact.AppGenerator", shouldCopy],
+    ["dotnet/src/DotReact.Hosting", "DotReact.Hosting", shouldCopy],
+    ["dotnet/src/DotReact.Images.SkiaSharp", "DotReact.Images.SkiaSharp", shouldCopy],
+    ["dotnet/src/DotReact.Redis", "DotReact.Redis", shouldCopy],
+    ["dotnet/src/DotReact.TypeGen", "DotReact.TypeGen", shouldCopy],
+    ["packages/protocol", "protocol", shouldCopy],
+    ["packages/renderer", "renderer", shouldCopy],
+    ["packages/client", "client", shouldCopy],
+    ["packages/image", "image", shouldCopy],
+    ["packages/font", "font", shouldCopy],
+    ["packages/script", "script", shouldCopy],
+    ["packages/adapter", "adapter", shouldCopy],
+    ["packages/vite", "vite", shouldCopyExecutablePackage],
+    ["packages/cli", "cli", shouldCopyExecutablePackage]
+  ] as const;
+  await mkdir(targetVendor, { recursive: true });
+  for (const [source, target, filter] of mappings) {
+    const sourcePath = resolve(sourceRoot, source);
+    if (!await exists(sourcePath)) throw new Error(`Framework runtime source is incomplete: ${source}.`);
+    await cp(sourcePath, resolve(targetVendor, target), { recursive: true, filter });
+  }
+  await cp(resolve(sourceRoot, "dotnet/Directory.Build.props"), resolve(targetVendor, "Directory.Build.props"));
+  const frameworkPackage = JSON.parse(await readFile(resolve(sourceRoot, "package.json"), "utf8")) as { version?: string };
+  await writeFile(resolve(targetVendor, "README.md"), `# Managed DotReact runtime\n\nThis directory is a pinned pre-release runtime snapshot. Application developers and coding agents must not edit it. Upgrade it only through \`dotreact upgrade --from <framework-root>\` or by regenerating the project. It remains vendored until the npm and NuGet packages are published.\n`);
+  await writeFile(resolve(targetVendor, "dotreact-runtime.json"), `${JSON.stringify({
+    schemaVersion: 1,
+    frameworkVersion: frameworkPackage.version ?? "0.0.0-preview",
+    channel: "private-preview"
+  }, null, 2)}\n`);
+}
+
+async function clearDirectoryContents(directory: string): Promise<void> {
+  for (const entry of await readdir(directory))
+    await rm(resolve(directory, entry), { recursive: true, force: true });
+}
+
+async function applyProjectIdentity(target: string, identity: ProjectIdentity): Promise<void> {
+  const textExtensions = new Set([".cs", ".drx", ".json"]);
+  const visit = async (directory: string): Promise<void> => {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = resolve(directory, entry.name);
+      if (entry.isDirectory()) await visit(path);
+      else if (entry.isFile() && textExtensions.has(entry.name.slice(entry.name.lastIndexOf(".")))) {
+        const original = await readFile(path, "utf8");
+        const updated = original
+          .replaceAll("DotReact.Starter", identity.namespace)
+          .replaceAll("DotReact minimal", `${identity.displayName} · DotReact`)
+          .replaceAll("DotReact · C# + React SSR", `${identity.displayName} · DotReact`)
+          .replaceAll("Seu primeiro app DotReact com page.drx", `${identity.displayName} executando com DotReact`);
+        if (updated !== original) await writeFile(path, updated);
+      }
+    }
+  };
+  await visit(resolve(target, "app"));
+  await visit(resolve(target, "Server"));
+  await visit(resolve(target, "src"));
+
+  const csprojPath = resolve(target, "Server/Server.csproj");
+  let csproj = await readFile(csprojPath, "utf8");
+  csproj = replaceRequired(csproj, "    <ImplicitUsings>enable</ImplicitUsings>",
+    `    <ImplicitUsings>enable</ImplicitUsings>\n    <RootNamespace>${identity.namespace}.Server</RootNamespace>\n    <AssemblyName>${identity.namespace}.Server</AssemblyName>`,
+    "project namespace anchor");
+  await writeFile(csprojPath, csproj);
+
+  const readmePath = resolve(target, "README.md");
+  const readme = await readFile(readmePath, "utf8");
+  await writeFile(readmePath, readme.replace(/^# [^\r\n]+/u, `# ${identity.displayName}`));
+  const profilePath = resolve(target, "docs/ai/PROJECT.md");
+  const profile = await readFile(profilePath, "utf8");
+  await writeFile(profilePath, profile.replace("- Product name: replace with the real product name.",
+    `- Product name: ${identity.displayName}.`));
+  const packagePath = resolve(target, "package.json");
+  const packageJson = JSON.parse(await readFile(packagePath, "utf8")) as { scripts?: Record<string, string> };
+  for (const script of ["generate", "check:contracts"]) {
+    const value = packageJson.scripts?.[script];
+    if (value !== undefined) packageJson.scripts![script] = value.replaceAll("Server.dll", `${identity.namespace}.Server.dll`);
+  }
+  await writeFile(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`);
+  const dockerfilePath = resolve(target, "Dockerfile");
+  const dockerfile = await readFile(dockerfilePath, "utf8");
+  await writeFile(dockerfilePath, dockerfile.replaceAll("Server.dll", `${identity.namespace}.Server.dll`));
+}
+
 function replaceRequired(source: string, search: string, replacement: string, label: string): string {
   const occurrences = source.split(search).length - 1;
   if (occurrences !== 1)
@@ -69,6 +170,7 @@ async function create(name: string | undefined, template: string | undefined): P
   }
   if (template !== undefined && template !== "starter" && template !== "minimal")
     throw new Error(`Unknown template '${template}'. Run dotreact templates.`);
+  const identity = createProjectIdentity(name);
   const target = resolve(process.cwd(), name);
   await mkdir(target, { recursive: false });
   try {
@@ -85,23 +187,7 @@ async function create(name: string | undefined, template: string | undefined): P
   await cp(resolve(repoRoot, "global.json"), resolve(target, "global.json"));
   await cp(resolve(repoRoot, "deploy/azure"), resolve(target, "deploy/azure"), { recursive: true, filter: shouldCopy });
   await cp(resolve(repoRoot, "dotnet/Directory.Build.props"), resolve(target, "Directory.Build.props"));
-  await cp(resolve(repoRoot, "dotnet/src/DotReact.AspNetCore"), resolve(target, "vendor/DotReact.AspNetCore"), { recursive: true, filter: shouldCopy });
-  await cp(resolve(repoRoot, "dotnet/src/DotReact.AppGenerator"), resolve(target, "vendor/DotReact.AppGenerator"), { recursive: true, filter: shouldCopy });
-  await cp(resolve(repoRoot, "dotnet/src/DotReact.Hosting"), resolve(target, "vendor/DotReact.Hosting"), { recursive: true, filter: shouldCopy });
-  await cp(resolve(repoRoot, "dotnet/src/DotReact.Images.SkiaSharp"), resolve(target, "vendor/DotReact.Images.SkiaSharp"), { recursive: true, filter: shouldCopy });
-  await cp(resolve(repoRoot, "dotnet/src/DotReact.Redis"), resolve(target, "vendor/DotReact.Redis"), { recursive: true, filter: shouldCopy });
-  await cp(resolve(repoRoot, "dotnet/src/DotReact.TypeGen"), resolve(target, "vendor/DotReact.TypeGen"), { recursive: true, filter: shouldCopy });
-  await cp(resolve(repoRoot, "dotnet/Directory.Build.props"), resolve(target, "vendor/Directory.Build.props"));
-  await cp(resolve(repoRoot, "packages/protocol"), resolve(target, "vendor/protocol"), { recursive: true, filter: shouldCopy });
-  await cp(resolve(repoRoot, "packages/renderer"), resolve(target, "vendor/renderer"), { recursive: true, filter: shouldCopy });
-  await cp(resolve(repoRoot, "packages/client"), resolve(target, "vendor/client"), { recursive: true, filter: shouldCopy });
-  await cp(resolve(repoRoot, "packages/image"), resolve(target, "vendor/image"), { recursive: true, filter: shouldCopy });
-  await cp(resolve(repoRoot, "packages/font"), resolve(target, "vendor/font"), { recursive: true, filter: shouldCopy });
-  await cp(resolve(repoRoot, "packages/script"), resolve(target, "vendor/script"), { recursive: true, filter: shouldCopy });
-  await cp(resolve(repoRoot, "packages/adapter"), resolve(target, "vendor/adapter"), { recursive: true, filter: shouldCopy });
-  await cp(resolve(repoRoot, "packages/vite"), resolve(target, "vendor/vite"), { recursive: true, filter: shouldCopyExecutablePackage });
-  await cp(resolve(repoRoot, "packages/cli"), resolve(target, "vendor/cli"), { recursive: true, filter: shouldCopyExecutablePackage });
-  await writeFile(resolve(target, "vendor/README.md"), `# Managed DotReact runtime\n\nThis directory is a pinned pre-release runtime snapshot. Application developers and coding agents must not edit it. Upgrade it only through a DotReact CLI upgrade command or by regenerating the project. It remains vendored until the npm and NuGet packages are published.\n`);
+  await copyRuntime(repoRoot, resolve(target, "vendor"));
   await cp(resolve(repoRoot, "tsconfig.base.json"), resolve(target, "tsconfig.base.json"));
   const csprojPath = resolve(target, "Server/Server.csproj");
   const csproj = await readFile(csprojPath, "utf8");
@@ -118,7 +204,7 @@ async function create(name: string | undefined, template: string | undefined): P
     devDependencies: Record<string, string>;
     name: string;
   };
-  packageJson.name = name.toLowerCase();
+  packageJson.name = identity.packageName;
   packageJson.dependencies["@dotreact/protocol"] = "file:vendor/protocol";
   packageJson.dependencies["@dotreact/renderer"] = "file:vendor/renderer";
   packageJson.dependencies["@dotreact/client"] = "file:vendor/client";
@@ -145,6 +231,7 @@ async function create(name: string | undefined, template: string | undefined): P
   const appTsconfig = await readFile(appTsconfigPath, "utf8");
   await writeFile(appTsconfigPath, replaceRequired(appTsconfig, "../../tsconfig.base.json", "./tsconfig.base.json",
     "TypeScript base configuration path"));
+  await applyProjectIdentity(target, identity);
   await assertNoMonorepoPaths(target);
   process.stdout.write(`Created ${name}.\nNext: cd ${name} && npm install && npm run dev\n`);
   } catch (error) {
@@ -172,7 +259,7 @@ async function applyMinimalTemplate(target: string): Promise<void> {
     }],
     actions: []
   }, null, 2)}\n`);
-  await writeFile(resolve(target, "README.md"), `# DotReact minimal project\n\nASP.NET Core owns HTTP and data; React renders on the server and hydrates in the browser.\n\nThe scaffold is repository-ready but deliberately does not run \`git init\`. Run \`npm install\` and commit the resulting \`package-lock.json\` before relying on the included CI workflow. Repository defaults cover Git, editors, Node/npm, .NET and Docker.\n\n\`\`\`powershell\nnpm install\nnpm exec -- dotreact doctor\nnpm exec -- dotreact dev\n\`\`\`\n\nGenerate application artifacts without overwriting existing files:\n\n\`\`\`powershell\nnpm exec -- dotreact generate page catalog/[slug]\nnpm exec -- dotreact generate layout catalog\nnpm exec -- dotreact generate action SaveCatalog\nnpm exec -- dotreact sync\nnpm exec -- dotreact check\n\`\`\`\n\nUse \`npm exec -- dotreact build\`, \`npm exec -- dotreact analyze\` and \`npm exec -- dotreact start\` for the production lifecycle. Set \`OTEL_EXPORTER_OTLP_ENDPOINT\` to export DotReact traces and metrics through OTLP.\n`);
+  await writeFile(resolve(target, "README.md"), `# DotReact minimal project\n\nASP.NET Core owns HTTP, security and data; React renders on the server and hydrates in the browser. Keep routes in \`app/\`, backend capabilities in \`Server/\`, shared presentation in \`src/\` and public assets in \`public/\`. Treat \`vendor/\` as managed framework runtime.\n\nThe scaffold is repository-ready but deliberately does not run \`git init\`. Run \`npm install\` and commit the resulting \`package-lock.json\` before relying on the included CI workflow. Repository defaults cover Git, editors, Node/npm, .NET, Docker and dependency updates.\n\n\`\`\`powershell\nnpm install\nnpm exec -- dotreact doctor\nnpm exec -- dotreact dev\n\`\`\`\n\nGenerate application artifacts without overwriting existing files:\n\n\`\`\`powershell\nnpm exec -- dotreact generate page catalog/[slug]\nnpm exec -- dotreact generate layout catalog\nnpm exec -- dotreact generate action SaveCatalog\nnpm exec -- dotreact sync\nnpm exec -- dotreact check\n\`\`\`\n\nUse \`npm exec -- dotreact build\`, \`npm exec -- dotreact analyze\` and \`npm exec -- dotreact start\` for the production lifecycle. Run \`npm run verify\` before integration. Set \`OTEL_EXPORTER_OTLP_ENDPOINT\` to export DotReact traces and metrics through OTLP. During the vendored preview, update only through \`dotreact upgrade --from <framework-root>\`.\n`);
 }
 
 function run(executable: string, commandArgs: string[], cwd = process.cwd(), env?: NodeJS.ProcessEnv): Promise<void> {
@@ -306,7 +393,9 @@ async function start(): Promise<void> {
     ASPNETCORE_ENVIRONMENT: "Production",
     DOTREACT_CLIENT_SCRIPT_SRC: "/_dotreact/client.js"
   };
-  await run(dotnetExecutable, ["Server.dll"], publishRoot, startEnvironment);
+  const projectSource = await readFile(resolve(root, "Server/Server.csproj"), "utf8");
+  const assemblyName = /<AssemblyName>([^<]+)<\/AssemblyName>/u.exec(projectSource)?.[1]?.trim() || "Server";
+  await run(dotnetExecutable, [`${assemblyName}.dll`], publishRoot, startEnvironment);
 }
 
 async function doctor(): Promise<void> {
@@ -326,6 +415,7 @@ async function doctor(): Promise<void> {
   if (vendorRuntime) {
     for (const file of [
       "vendor/README.md",
+      "vendor/dotreact-runtime.json",
       "vendor/DotReact.AspNetCore/DotReact.AspNetCore.csproj",
       "vendor/DotReact.AppGenerator/DotReact.AppGenerator.csproj",
       "vendor/DotReact.Hosting/DotReact.Hosting.csproj",
@@ -334,12 +424,83 @@ async function doctor(): Promise<void> {
       "vendor/font/package.json",
       "vendor/script/package.json"
     ]) if (!await exists(resolve(root, file))) throw new Error(`Managed runtime is incomplete: ${file}`);
+    const runtime = JSON.parse(await readFile(resolve(root, "vendor/dotreact-runtime.json"), "utf8")) as {
+      schemaVersion?: number;
+      frameworkVersion?: string;
+    };
+    if (runtime.schemaVersion !== 1 || typeof runtime.frameworkVersion !== "string")
+      throw new Error("Managed runtime metadata is invalid. Run dotreact upgrade from a valid framework checkout.");
+    process.stdout.write(`[dotreact] Managed runtime ${runtime.frameworkVersion}.\n`);
   }
   for (const file of ["src/contracts.ts", "src/actions.ts", "src/backend-manifest.json"]) {
     if (!await exists(resolve(root, file))) throw new Error(`Generated boundary artifact is missing: ${file}`);
   }
   process.stdout.write(`[dotreact] Project zones: routes=app/; backend=Server/; React support=src/; generated=src/contracts.ts,src/actions.ts,src/backend-manifest.json; runtime=${vendorRuntime ? "vendor/" : "packages"}.\n`);
   process.stdout.write("DotReact doctor: runtimes, project structure and scripts are ready.\n");
+}
+
+async function upgrade(values: string[]): Promise<void> {
+  const root = await requireProject();
+  const sourceOption = optionValue(values, "--from");
+  const allowed = new Set(["--from", "--dry-run"]);
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index]!;
+    if (!allowed.has(value)) throw new Error("Use: dotreact upgrade --from <framework-root> [--dry-run].");
+    if (value === "--from") index += 1;
+  }
+  const sourceRoot = resolve(sourceOption ?? repoRoot);
+  if (!await exists(resolve(sourceRoot, "dotnet/src/DotReact.AspNetCore/DotReact.AspNetCore.csproj"))
+    || !await exists(resolve(sourceRoot, "packages/renderer/package.json")))
+    throw new Error("--from must point to a complete DotReact framework checkout.");
+  if (!await exists(resolve(root, "vendor")))
+    throw new Error("This project has no managed vendor/ runtime to upgrade.");
+  const sourcePackage = JSON.parse(await readFile(resolve(sourceRoot, "package.json"), "utf8")) as { version?: string };
+  if (values.includes("--dry-run")) {
+    process.stdout.write(`Would upgrade vendor/ to DotReact ${sourcePackage.version ?? "preview"} from ${sourceRoot}.\nNo files were written.\n`);
+    return;
+  }
+
+  const operationRoot = resolve(root, ".dotreact", `runtime-upgrade-${randomUUID()}`);
+  const stagedVendor = resolve(operationRoot, "vendor");
+  const backupVendor = resolve(operationRoot, "previous-vendor");
+  await mkdir(operationRoot, { recursive: true });
+  try {
+    await copyRuntime(sourceRoot, stagedVendor);
+    let usedInPlaceFallback = false;
+    try {
+      await rename(resolve(root, "vendor"), backupVendor);
+    } catch (error) {
+      const code = error instanceof Error && "code" in error ? String(error.code) : "";
+      if (process.platform !== "win32" || !["EPERM", "EACCES"].includes(code)) throw error;
+      usedInPlaceFallback = true;
+      await cp(resolve(root, "vendor"), backupVendor, { recursive: true, filter: shouldCopyExecutablePackage });
+      await clearDirectoryContents(resolve(root, "vendor"));
+    }
+    try {
+      if (usedInPlaceFallback) {
+        await cp(stagedVendor, resolve(root, "vendor"), { recursive: true });
+        await rm(stagedVendor, { recursive: true, force: true });
+      } else {
+        await rename(stagedVendor, resolve(root, "vendor"));
+      }
+    } catch (error) {
+      if (usedInPlaceFallback) {
+        await clearDirectoryContents(resolve(root, "vendor"));
+        await cp(backupVendor, resolve(root, "vendor"), { recursive: true });
+      } else {
+        await rename(backupVendor, resolve(root, "vendor"));
+      }
+      throw error;
+    }
+    await rm(backupVendor, { recursive: true, force: true });
+    process.stdout.write(`Upgraded vendor/ to DotReact ${sourcePackage.version ?? "preview"}.\nNext: npm install && npm run dotreact:runtime && npm run verify\n`);
+  } catch (error) {
+    if (!await exists(resolve(root, "vendor")) && await exists(backupVendor))
+      await rename(backupVendor, resolve(root, "vendor"));
+    throw new Error(`Runtime upgrade failed without changing application files: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    await rm(operationRoot, { recursive: true, force: true });
+  }
 }
 
 async function workspace(values: string[]): Promise<void> {
@@ -509,6 +670,7 @@ function help(): void {
     "  dotreact check",
     "  dotreact start",
     "  dotreact doctor",
+    "  dotreact upgrade --from <framework-root> [--dry-run]  Replace only the managed vendor runtime",
     "  dotreact workspace <focus|reveal|status>  Control advanced infrastructure visibility"
   ].join("\n") + "\n");
 }
@@ -526,6 +688,7 @@ try {
   else if (command === "check") await check();
   else if (command === "start") await start();
   else if (command === "doctor") await doctor();
+  else if (command === "upgrade") await upgrade(args);
   else if (command === "workspace") await workspace(args);
   else help();
 } catch (error) {

@@ -73,6 +73,36 @@ public sealed class DotReactSecurityObservabilityTests
             provider.GetRequiredService<IOptions<DotReactSecurityHeadersOptions>>().Value);
     }
 
+    [Theory]
+    [InlineData("*")]
+    [InlineData("'unsafe-inline'")]
+    [InlineData("data:")]
+    [InlineData("https:")]
+    [InlineData("https://cdn.example.test/assets/")]
+    public void Broad_or_unsafe_additional_csp_sources_are_rejected(string source)
+    {
+        var services = new ServiceCollection();
+        services.AddDotReactSecurityHeaders(options => options.AdditionalScriptSources.Add(source));
+        using var provider = services.BuildServiceProvider();
+
+        Assert.Throws<OptionsValidationException>(() =>
+            provider.GetRequiredService<IOptions<DotReactSecurityHeadersOptions>>().Value);
+    }
+
+    [Fact]
+    public void Exact_https_and_wss_csp_origins_are_accepted()
+    {
+        var services = new ServiceCollection();
+        services.AddDotReactSecurityHeaders(options =>
+        {
+            options.AdditionalScriptSources.Add("https://cdn.example.test");
+            options.AdditionalConnectSources.Add("wss://events.example.test:443");
+        });
+        using var provider = services.BuildServiceProvider();
+
+        _ = provider.GetRequiredService<IOptions<DotReactSecurityHeadersOptions>>().Value;
+    }
+
     [Fact]
     public async Task Registered_action_rate_limit_rejects_excess_requests_without_echoing_input()
     {

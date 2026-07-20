@@ -130,22 +130,7 @@ internal sealed class DotReactNodeRendererHostedService(
 
     private Process StartProcess(DotReactNodeRendererOptions value)
     {
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = value.ExecutablePath,
-            WorkingDirectory = value.WorkingDirectory,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true
-        };
-        startInfo.ArgumentList.Add($"--max-old-space-size={value.NodeMemoryMb}");
-        startInfo.ArgumentList.Add(value.ScriptPath);
-        startInfo.Environment["NODE_ENV"] = "production";
-        startInfo.Environment["DOTREACT_RENDERER_HOST"] = "127.0.0.1";
-        startInfo.Environment["DOTREACT_RENDERER_PORT"] = value.Port.ToString(CultureInfo.InvariantCulture);
-        startInfo.Environment["DOTREACT_RENDERER_TOKEN"] = credentials.Token;
-        startInfo.Environment["DOTREACT_SERVER_ENTRY"] = value.ServerEntryPath;
+        var startInfo = DotReactNodeRendererEnvironment.CreateStartInfo(value, credentials.Token);
 
         var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
         process.OutputDataReceived += (_, eventArgs) => LogLine(eventArgs.Data, false);
@@ -282,5 +267,55 @@ internal sealed class DotReactNodeRendererHostedService(
         _lifecycleClient.Dispose();
         _process?.Dispose();
         foreach (var process in _retiredProcesses) process.Dispose();
+    }
+}
+
+internal static class DotReactNodeRendererEnvironment
+{
+    private static readonly string[] PlatformVariables = OperatingSystem.IsWindows()
+        ? ["SystemRoot", "WINDIR", "COMSPEC", "PATHEXT", "PATH", "TEMP", "TMP"]
+        : ["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TZ"];
+
+    internal static ProcessStartInfo CreateStartInfo(DotReactNodeRendererOptions value, string token)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = value.ExecutablePath,
+            WorkingDirectory = value.WorkingDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+        startInfo.ArgumentList.Add($"--max-old-space-size={value.NodeMemoryMb}");
+        startInfo.ArgumentList.Add(value.ScriptPath);
+
+        // ProcessStartInfo otherwise inherits every host variable, including database, Redis and cloud secrets.
+        startInfo.Environment.Clear();
+        foreach (var name in PlatformVariables)
+        {
+            if (Environment.GetEnvironmentVariable(name) is { Length: > 0 } platformValue)
+                startInfo.Environment[name] = platformValue;
+        }
+        foreach (var (name, publicValue) in value.PublicEnvironmentVariables)
+            startInfo.Environment[name] = publicValue;
+
+        startInfo.Environment["NODE_ENV"] = "production";
+        startInfo.Environment["DOTREACT_RENDERER_HOST"] = "127.0.0.1";
+        startInfo.Environment["DOTREACT_RENDERER_PORT"] = value.Port.ToString(CultureInfo.InvariantCulture);
+        startInfo.Environment["DOTREACT_RENDERER_TOKEN"] = token;
+        startInfo.Environment["DOTREACT_SERVER_ENTRY"] = value.ServerEntryPath;
+        return startInfo;
+    }
+
+    internal static bool IsSafePublicVariable(string name, string? value)
+    {
+        if (string.IsNullOrEmpty(name) || name.Length > 128 || value is null || value.Length > 4096
+            || name.Equals("NODE_OPTIONS", StringComparison.OrdinalIgnoreCase)
+            || name.StartsWith("DOTREACT_", StringComparison.OrdinalIgnoreCase)
+            || value.IndexOf('\0') >= 0)
+            return false;
+        if (!(char.IsAsciiLetter(name[0]) || name[0] == '_')) return false;
+        return name.All(static character => char.IsAsciiLetterOrDigit(character) || character == '_');
     }
 }

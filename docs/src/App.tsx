@@ -3,6 +3,7 @@ import { docs as docsPt } from "./content";
 import { docsEn } from "./content.en";
 import { detectLocale, LocaleProvider, type Locale } from "./i18n";
 import { LandingPage } from "./LandingPage";
+import { dotReactLogoSource } from "./assets";
 
 export type ThemePreference = "system" | "light" | "dark";
 
@@ -14,7 +15,7 @@ interface ArticleHeading {
 
 const copy = {
   pt: {
-    groups: ["Começar", "Migração do Next.js", "Fundamentos", "Pages", "Full-stack", "Operações", "Ferramentas", "Referência", "Projeto"],
+    groups: ["Começar", "Guias", "Fundamentos", "Pages", "Full-stack", "Segurança", "Hospedagem e deploy", "Operações", "Migração do Next.js", "Ferramentas", "Referência", "Projeto"],
     skip: "Pular para o conteúdo", open: "Abrir navegação", close: "Fechar navegação",
     search: "Buscar na documentação", searchPlaceholder: "Buscar na documentação...", clear: "Limpar",
     noResults: "Nenhum resultado encontrado", noResultsHint: "Tente outro termo ou limpe a busca.",
@@ -23,7 +24,7 @@ const copy = {
     backTop: "Voltar ao topo", verified: "Documentação verificada", home: "Início"
   },
   en: {
-    groups: ["Getting started", "Migrating from Next.js", "Fundamentals", "Pages", "Full-stack", "Operations", "Tooling", "Reference", "Project"],
+    groups: ["Getting started", "Guides", "Fundamentals", "Pages", "Full-stack", "Security", "Hosting and deployment", "Operations", "Migrating from Next.js", "Tooling", "Reference", "Project"],
     skip: "Skip to content", open: "Open navigation", close: "Close navigation",
     search: "Search documentation", searchPlaceholder: "Search documentation...", clear: "Clear",
     noResults: "No results found", noResultsHint: "Try another term or clear the search.",
@@ -141,19 +142,21 @@ export function App() {
     return () => cancelAnimationFrame(frame);
   }, [current, locale]);
 
+  const groupOrder: readonly string[] = t.groups;
+  const orderedDocs = useMemo(() => [...localizedDocs].sort((left, right) =>
+    groupOrder.indexOf(left.group) - groupOrder.indexOf(right.group)), [groupOrder, localizedDocs]);
   const visible = useMemo(() => {
     const normalizedQuery = query.toLocaleLowerCase(locale).trim();
-    return normalizedQuery.length === 0 ? localizedDocs : localizedDocs.filter(page =>
+    return normalizedQuery.length === 0 ? orderedDocs : orderedDocs.filter(page =>
       `${page.title} ${page.summary} ${page.tags.join(" ")} ${page.group}`.toLocaleLowerCase(locale).includes(normalizedQuery));
-  }, [locale, localizedDocs, query]);
+  }, [locale, orderedDocs, query]);
 
-  const activeIndex = Math.max(0, localizedDocs.findIndex(page => page.id === current));
-  const active = localizedDocs[activeIndex] ?? localizedDocs[0]!;
-  const previous = activeIndex > 0 ? localizedDocs[activeIndex - 1] : undefined;
-  const next = activeIndex < localizedDocs.length - 1 ? localizedDocs[activeIndex + 1] : undefined;
-  const groupOrder: readonly string[] = t.groups;
+  const activeIndex = Math.max(0, orderedDocs.findIndex(page => page.id === current));
+  const active = orderedDocs[activeIndex] ?? orderedDocs[0]!;
+  const previous = activeIndex > 0 ? orderedDocs[activeIndex - 1] : undefined;
+  const next = activeIndex < orderedDocs.length - 1 ? orderedDocs[activeIndex + 1] : undefined;
   const groups = [...new Set(visible.map(page => page.group))].sort((left, right) => groupOrder.indexOf(left) - groupOrder.indexOf(right));
-  const progressStyle = { "--doc-progress": `${((activeIndex + 1) / localizedDocs.length) * 100}%` } as CSSProperties;
+  const progressStyle = { "--doc-progress": `${((activeIndex + 1) / orderedDocs.length) * 100}%` } as CSSProperties;
 
   const updateLocale = (value: Locale) => {
     setLocale(value);
@@ -178,7 +181,7 @@ export function App() {
           <span className="h-px w-3.5 bg-slate-700 dark:bg-slate-200" /><span className="h-px w-3.5 bg-slate-700 dark:bg-slate-200" /><span className="h-px w-3.5 bg-slate-700 dark:bg-slate-200" />
         </button>
         <a className="flex shrink-0 items-center gap-2 no-underline" href="#home" aria-label="DotReact">
-          <img className="size-8 object-contain" src="/dotreact-logo-v4.png" alt="" width="32" height="32" />
+          <img className="size-8 object-contain" src={dotReactLogoSource} alt="" width="32" height="32" />
           <b className="text-[15px] font-semibold tracking-[-.02em] text-slate-950 dark:text-white">DotReact</b>
           <span className="hidden border-l border-slate-200 pl-2 text-[12px] text-slate-500 sm:inline dark:border-slate-700 dark:text-slate-400">{t.docs}</span>
         </a>

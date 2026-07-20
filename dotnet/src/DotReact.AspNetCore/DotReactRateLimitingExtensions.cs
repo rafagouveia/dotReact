@@ -44,6 +44,8 @@ public static class DotReactRateLimitingServiceCollectionExtensions
                 context => CreatePartition(context, "actions"));
             options.AddPolicy(DotReactRateLimiting.WebVitalsPolicyName,
                 context => CreatePartition(context, "web-vitals"));
+            options.AddPolicy(DotReactRateLimiting.ImagePolicyName,
+                context => CreatePartition(context, "images"));
         });
         return services;
     }

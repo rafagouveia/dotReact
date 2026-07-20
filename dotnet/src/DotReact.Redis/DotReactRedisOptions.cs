@@ -14,4 +14,7 @@ public sealed class DotReactRedisOptions
 
     /// <summary>Additional retention for expired ISR artifacts, enabling stale-on-error recovery.</summary>
     public TimeSpan ArtifactRetentionAfterStale { get; set; } = TimeSpan.FromDays(1);
+
+    /// <summary>Retention for all-device session revocation markers.</summary>
+    public TimeSpan SessionRevocationRetention { get; set; } = TimeSpan.FromDays(31);
 }

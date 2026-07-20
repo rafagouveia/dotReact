@@ -26,6 +26,13 @@ internal sealed class RedisKeyCodec(IOptions<DotReactRedisOptions> options)
         return $"{_prefix}:{{action-{slot}}}:lock";
     }
 
+    public string Session(string sessionId) => $"{_prefix}:session:{Hash(sessionId)}";
+
+    public string SessionRevokedBefore(string subject) =>
+        $"{_prefix}:session-subject:{Hash(subject)}:revoked-before";
+
+    public string SessionSubject(string subject) => Hash(subject);
+
     private static string Hash(string value) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
 }

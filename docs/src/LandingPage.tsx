@@ -1,6 +1,7 @@
 import type { Locale } from "./i18n";
 import type { ThemePreference } from "./App";
 import { SyntaxCode } from "./SyntaxCode";
+import { dotReactLogoSource } from "./assets";
 
 const copy = {
   pt: {
@@ -12,7 +13,7 @@ const copy = {
     codeStatus: "Contrato gerado · SSR concluído · hidratação pronta",
     purposeEyebrow: "Por que o DotReact existe",
     purposeTitle: "Uma arquitetura para equipes que não querem escolher entre React e .NET.",
-    purposeText: "O framework define responsabilidades claras. C# concentra regras de negócio, segurança e dados; React concentra composição visual e interação no navegador.",
+    purposeText: "O framework define responsabilidades claras. C# concentra regras de negócio, segurança e dados; React concentra composição visual e interação no navegador.", purposeLink: "Ver onde aplicar",
     values: [
       ["Backend soberano", "ASP.NET Core controla HTTP, autenticação, autorização, injeção de dependência, domínio e persistência."],
       ["React sem adaptações", "Componentes, hooks, Suspense, hidratação e Fast Refresh com a experiência nativa do ecossistema."],
@@ -33,7 +34,7 @@ const copy = {
       ["Observabilidade", "Tracing distribuído, métricas, health checks e budgets."]
     ],
     finalTitle: "Construa interfaces React sem mover seu backend para JavaScript.",
-    finalText: "Comece pelo tutorial guiado ou use o mapa de equivalências para traduzir conceitos do Next.js para o DotReact.", now: "Começar agora", footerDocs: "Documentação", compatibility: "Compatibilidade"
+    finalText: "Comece pelo tutorial guiado e siga até uma publicação segura em Docker ou Azure.", now: "Começar agora", deploy: "Hospedagem e deploy", footerDocs: "Documentação", compatibility: "Compatibilidade"
   },
   en: {
     nav: ["Purpose", "Architecture", "Features"], open: "Documentation", language: "Language", appearance: "Appearance",
@@ -44,7 +45,7 @@ const copy = {
     codeStatus: "Contract generated · SSR complete · hydration ready",
     purposeEyebrow: "Why DotReact exists",
     purposeTitle: "An architecture for teams that should not have to choose between React and .NET.",
-    purposeText: "The framework defines clear responsibilities. C# owns business rules, security and data; React owns visual composition and browser interaction.",
+    purposeText: "The framework defines clear responsibilities. C# owns business rules, security and data; React owns visual composition and browser interaction.", purposeLink: "See where it fits",
     values: [
       ["Sovereign backend", "ASP.NET Core controls HTTP, authentication, authorization, dependency injection, domain and persistence."],
       ["Native React", "Components, hooks, Suspense, hydration and Fast Refresh with the native ecosystem experience."],
@@ -65,7 +66,7 @@ const copy = {
       ["Observability", "Distributed tracing, metrics, health checks and budgets."]
     ],
     finalTitle: "Build React interfaces without moving your backend to JavaScript.",
-    finalText: "Start with the guided tutorial or use the equivalence map to translate Next.js concepts into DotReact.", now: "Get started", footerDocs: "Documentation", compatibility: "Compatibility"
+    finalText: "Start with the guided tutorial and continue through a secure Docker or Azure deployment.", now: "Get started", deploy: "Hosting and deployment", footerDocs: "Documentation", compatibility: "Compatibility"
   }
 } as const;
 
@@ -82,7 +83,7 @@ export function LandingPage({ locale, theme, onLocaleChange, onThemeChange }: {
     <header className="relative z-10 border-b border-[var(--dr-border)] bg-[var(--dr-canvas)]">
       <div className="mx-auto flex h-16 max-w-7xl items-center px-5 sm:px-8">
         <a href="#home" className="flex items-center gap-2 no-underline">
-          <img className="size-9 object-contain" src="/dotreact-logo-v4.png" alt="" />
+          <img className="size-9 object-contain" src={dotReactLogoSource} alt="" width="36" height="36" />
           <b className="text-[16px] font-semibold tracking-[-.025em]">DotReact</b>
         </a>
         <nav className="ml-12 hidden items-center gap-7 text-[11px] font-medium text-slate-500 md:flex dark:text-slate-400">
@@ -126,7 +127,7 @@ export function LandingPage({ locale, theme, onLocaleChange, onThemeChange }: {
 
       <section id="purpose" className="bg-[var(--dr-canvas)] py-24">
         <div className="mx-auto max-w-7xl px-5 sm:px-8">
-          <div className="max-w-3xl"><Eyebrow>{t.purposeEyebrow}</Eyebrow><h2 className="mt-4 text-4xl font-semibold tracking-[-.045em] sm:text-5xl">{t.purposeTitle}</h2><p className="mt-5 max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-400">{t.purposeText}</p></div>
+          <div className="max-w-3xl"><Eyebrow>{t.purposeEyebrow}</Eyebrow><h2 className="mt-4 text-4xl font-semibold tracking-[-.045em] sm:text-5xl">{t.purposeTitle}</h2><p className="mt-5 max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-400">{t.purposeText}</p><a href="#purpose-applications" className="mt-6 inline-flex text-[11px] font-semibold text-blue-700 no-underline dark:text-blue-400">{t.purposeLink} →</a></div>
           <div className="mt-12 grid border-t-2 border-l border-[var(--dr-border)] border-t-blue-700 md:grid-cols-2 lg:grid-cols-4 dark:border-t-blue-400">
             {t.values.map(([title, description], index) => <article key={title} className="min-h-52 border-r border-b border-[var(--dr-border)] bg-[var(--dr-surface)] p-6"><span className="font-mono text-[9px] text-blue-700 dark:text-blue-400">0{index + 1}</span><h3 className="mt-8 text-sm font-semibold">{title}</h3><p className="mt-3 text-[11px] leading-6 text-slate-600 dark:text-slate-400">{description}</p></article>)}
           </div>
@@ -152,10 +153,10 @@ export function LandingPage({ locale, theme, onLocaleChange, onThemeChange }: {
         </div>
       </section>
 
-      <section className="border-b border-[var(--dr-border)] bg-[var(--dr-surface)]"><div className="mx-auto max-w-4xl px-5 py-28 text-center sm:px-8"><img className="mx-auto size-16 object-contain" src="/dotreact-logo-v4.png" alt="" /><h2 className="mt-8 text-4xl font-semibold tracking-[-.05em] sm:text-5xl">{t.finalTitle}</h2><p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-slate-600 dark:text-slate-400">{t.finalText}</p><div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row"><a href="#first-project" className="rounded-md bg-blue-700 px-6 py-3.5 text-[11px] font-semibold text-white no-underline">{t.now} →</a><a href="#next-equivalents" className="rounded-md border border-[var(--dr-border)] bg-[var(--dr-canvas)] px-6 py-3.5 text-[11px] font-semibold no-underline">Next.js → DotReact</a></div></div></section>
+      <section className="border-b border-[var(--dr-border)] bg-[var(--dr-surface)]"><div className="mx-auto max-w-4xl px-5 py-28 text-center sm:px-8"><img className="mx-auto size-16 object-contain" src={dotReactLogoSource} alt="" width="64" height="64" /><h2 className="mt-8 text-4xl font-semibold tracking-[-.05em] sm:text-5xl">{t.finalTitle}</h2><p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-slate-600 dark:text-slate-400">{t.finalText}</p><div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row"><a href="#first-project" className="rounded-md bg-blue-700 px-6 py-3.5 text-[11px] font-semibold text-white no-underline">{t.now} →</a><a href="#hosting-overview" className="rounded-md border border-[var(--dr-border)] bg-[var(--dr-canvas)] px-6 py-3.5 text-[11px] font-semibold no-underline">{t.deploy} →</a></div></div></section>
     </main>
 
-    <footer className="border-t border-slate-200 py-8 dark:border-slate-800"><div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 text-[9px] text-slate-400 sm:flex-row sm:items-center sm:justify-between sm:px-8"><span>DotReact 0.1 · ASP.NET Core × React</span><div className="flex gap-5"><a href="#overview" className="no-underline hover:text-blue-600">{t.footerDocs}</a><a href="#roadmap" className="no-underline hover:text-blue-600">Roadmap</a><a href="#compatibility" className="no-underline hover:text-blue-600">{t.compatibility}</a></div></div></footer>
+    <footer className="border-t border-slate-200 py-8 dark:border-slate-800"><div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 text-[9px] text-slate-400 sm:flex-row sm:items-center sm:justify-between sm:px-8"><span>DotReact 0.1 · ASP.NET Core × React</span><div className="flex gap-5"><a href="#overview" className="no-underline hover:text-blue-600">{t.footerDocs}</a><a href="#hosting-overview" className="no-underline hover:text-blue-600">{t.deploy}</a><a href="#roadmap" className="no-underline hover:text-blue-600">Roadmap</a><a href="#compatibility" className="no-underline hover:text-blue-600">{t.compatibility}</a></div></div></footer>
   </div>;
 }
 

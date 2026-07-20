@@ -77,4 +77,54 @@ public sealed class DotReactNodeRendererHostingTests
         Assert.Throws<OptionsValidationException>(() =>
             provider.GetRequiredService<IOptions<DotReactNodeRendererOptions>>().Value);
     }
+
+    [Fact]
+    public void Renderer_process_receives_only_platform_public_and_framework_environment()
+    {
+        const string secretName = "DOTREACT_TEST_DATABASE_PASSWORD";
+        var original = Environment.GetEnvironmentVariable(secretName);
+        Environment.SetEnvironmentVariable(secretName, "must-not-cross-the-process-boundary");
+        try
+        {
+            var options = new DotReactNodeRendererOptions
+            {
+                ExecutablePath = "node",
+                ScriptPath = "renderer.js",
+                ServerEntryPath = "entry-server.js",
+                WorkingDirectory = AppContext.BaseDirectory,
+                Port = 6123
+            };
+            options.PublicEnvironmentVariables["PUBLIC_API_ORIGIN"] = "https://api.example.test";
+
+            var startInfo = DotReactNodeRendererEnvironment.CreateStartInfo(options, "managed-token");
+
+            Assert.False(startInfo.Environment.ContainsKey(secretName));
+            Assert.Equal("https://api.example.test", startInfo.Environment["PUBLIC_API_ORIGIN"]);
+            Assert.Equal("production", startInfo.Environment["NODE_ENV"]);
+            Assert.Equal("managed-token", startInfo.Environment["DOTREACT_RENDERER_TOKEN"]);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(secretName, original);
+        }
+    }
+
+    [Theory]
+    [InlineData("NODE_OPTIONS")]
+    [InlineData("DOTREACT_RENDERER_TOKEN")]
+    [InlineData("BAD-NAME")]
+    public void Reserved_or_invalid_public_renderer_environment_fails_validation(string name)
+    {
+        var services = new ServiceCollection();
+        services.AddDotReactNodeRenderer(options =>
+        {
+            options.ScriptPath = "renderer.js";
+            options.ServerEntryPath = "entry-server.js";
+            options.PublicEnvironmentVariables[name] = "value";
+        });
+        using var provider = services.BuildServiceProvider();
+
+        Assert.Throws<OptionsValidationException>(() =>
+            provider.GetRequiredService<IOptions<DotReactNodeRendererOptions>>().Value);
+    }
 }

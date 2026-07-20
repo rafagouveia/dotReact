@@ -43,6 +43,11 @@ Cache keys must be based on normalized, bounded server inputs. Include tenant or
 authorization scope when output varies by actor. Never cache personalized HTML
 under a public/shared key.
 
+`[DotReactCache]` is the framework's shared anonymous props cache and therefore
+requires an explicit `[AllowAnonymous]`. It must not be used for authenticated,
+tenant-specific or user-specific loaders, including pages protected only by a
+global fallback policy.
+
 ## Invalidation
 
 Prefer explicit invalidation from successful use cases/actions. Route paths and
@@ -58,6 +63,10 @@ binding. `Development` must be false. React Refresh is never served in
 production. Request timeout, response limits and renderer concurrency remain
 bounded.
 
+The managed renderer does not inherit the ASP.NET process environment. Add only
+non-secret values through `DotReactNodeRendererOptions.PublicEnvironmentVariables`.
+Database, Redis, identity and cloud credentials stay in server configuration.
+
 The renderer is replaceable infrastructure. It must not access the application
 database or domain container. A renderer crash should fail health/readiness and
 be recovered by the supervised process/platform, not silently fall back to
@@ -67,7 +76,7 @@ client-only rendering.
 
 Use `AddDotReactSecurityHeaders` and `UseDotReactSecurityHeaders`. Per-request
 CSP nonces authorize framework scripts without enabling arbitrary inline code.
-Allow only required origins for scripts, styles, images and connections. Do not
+Allow only required exact HTTPS/WSS origins for scripts, styles, images and connections. Do not
 add `unsafe-inline` as a development shortcut that leaks into production.
 
 Secrets live in environment/platform configuration or a managed secret store.
@@ -111,3 +120,4 @@ Use `@dotreact/script` for external application/third-party scripts. Inline code
 is unsupported; choose `beforeInteractive` only for truly critical consent or
 bootstrap code, and prefer `lazyOnload` for analytics. Root-relative and
 credential-free HTTPS sources are validated and deduplicated by the framework.
+Every remote script requires a SHA-256/384/512 Subresource Integrity value.

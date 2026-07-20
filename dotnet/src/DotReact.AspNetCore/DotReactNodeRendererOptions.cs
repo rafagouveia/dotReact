@@ -25,4 +25,10 @@ public sealed class DotReactNodeRendererOptions
     public TimeSpan RestartWindow { get; set; } = TimeSpan.FromMinutes(5);
     /// <summary>Initial delay before restarting an unexpectedly terminated renderer.</summary>
     public TimeSpan RestartBackoff { get; set; } = TimeSpan.FromSeconds(1);
+    /// <summary>
+    /// Explicit non-secret values exposed to the isolated Node renderer. The renderer never inherits the
+    /// ASP.NET Core host environment, so connection strings, credentials and cloud identity variables stay private.
+    /// </summary>
+    public IDictionary<string, string> PublicEnvironmentVariables { get; } =
+        new Dictionary<string, string>(StringComparer.Ordinal);
 }

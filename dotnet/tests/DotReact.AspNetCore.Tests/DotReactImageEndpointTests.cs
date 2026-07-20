@@ -12,6 +12,18 @@ namespace DotReact.AspNetCore.Tests;
 public sealed class DotReactImageEndpointTests
 {
     [Fact]
+    public void Default_widths_cover_icons_logos_and_content_images()
+    {
+        var widths = new DotReactImageOptions().AllowedWidths;
+
+        Assert.Contains(32, widths);
+        Assert.Contains(48, widths);
+        Assert.Contains(96, widths);
+        Assert.Contains(320, widths);
+        Assert.Contains(1920, widths);
+    }
+
+    [Fact]
     public void Mapping_without_a_processor_fails_early()
     {
         var builder = WebApplication.CreateBuilder();
@@ -116,12 +128,50 @@ public sealed class DotReactImageEndpointTests
         }
     }
 
-    private static async Task<WebApplication> BuildAppAsync(string root, Action<DotReactImageOptions> configure)
+    [Fact]
+    public async Task Concurrent_image_transforms_are_bounded_before_decode()
+    {
+        var root = CreateRoot();
+        try
+        {
+            await File.WriteAllBytesAsync(Path.Combine(root, "photo.png"), [1, 2, 3, 4]);
+            var processor = new BlockingImageProcessor();
+            await using var app = await BuildAppAsync(root, options =>
+            {
+                options.MaxConcurrentTransforms = 1;
+                options.AllowedWidths.Clear();
+                options.AllowedWidths.Add(4);
+                options.AllowedFormats.Clear();
+                options.AllowedFormats.Add(DotReactImageFormat.Png);
+            }, processor);
+            var client = app.GetTestClient();
+
+            var first = client.GetAsync("/_dotreact/image?src=%2Fphoto.png&w=4&f=png&q=80");
+            await processor.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            using var rejected = await client.GetAsync("/_dotreact/image?src=%2Fphoto.png&w=4&f=png&q=80");
+            processor.Release.TrySetResult();
+            using var completed = await first;
+
+            Assert.Equal(HttpStatusCode.TooManyRequests, rejected.StatusCode);
+            Assert.Equal("1", rejected.Headers.RetryAfter?.Delta?.TotalSeconds.ToString()
+                ?? rejected.Headers.GetValues("Retry-After").Single());
+            Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static async Task<WebApplication> BuildAppAsync(
+        string root,
+        Action<DotReactImageOptions> configure,
+        IDotReactImageProcessor? processor = null)
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { WebRootPath = root });
         builder.WebHost.UseTestServer();
         builder.Services.AddDotReactImages(configure);
-        builder.Services.AddSingleton<IDotReactImageProcessor, TestImageProcessor>();
+        builder.Services.AddSingleton(processor ?? new TestImageProcessor());
         var app = builder.Build();
         app.MapDotReactImages();
         await app.StartAsync();
@@ -149,6 +199,22 @@ public sealed class DotReactImageEndpointTests
             Assert.Equal(DotReactImageFormat.Png, transform.Format);
             Assert.NotEmpty(source.Content);
             return Task.FromResult(new DotReactOptimizedImage(Output, "image/png"));
+        }
+    }
+
+    private sealed class BlockingImageProcessor : IDotReactImageProcessor
+    {
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<DotReactOptimizedImage> ProcessAsync(
+            DotReactImageSource source,
+            DotReactImageTransform transform,
+            CancellationToken cancellationToken)
+        {
+            Started.TrySetResult();
+            await Release.Task.WaitAsync(cancellationToken);
+            return new DotReactOptimizedImage(TestImageProcessor.Output, "image/png");
         }
     }
 }

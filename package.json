@@ -19,7 +19,8 @@
     "docs:build": "npm --prefix docs run build",
     "docs:typecheck": "npm --prefix docs run typecheck",
     "test:e2e": "playwright test",
-    "verify": "npm run build:tooling && npm run check:contracts -w @dotreact/example-starter && npm run check:contracts -w @dotreact/example-crud && npm run typecheck && npm run docs:build && npm test && npm run build && npm audit --audit-level=high && npm audit --prefix docs --audit-level=high"
+    "audit:dotnet": "node scripts/audit-dotnet-packages.mjs",
+    "verify": "npm run build:tooling && npm run check:contracts -w @dotreact/example-starter && npm run check:contracts -w @dotreact/example-crud && npm run typecheck && npm run docs:build && npm test && npm run build && npm audit --audit-level=high && npm audit --prefix docs --audit-level=high && npm run audit:dotnet"
   },
   "engines": {
     "node": ">=20.19.0"

@@ -151,6 +151,14 @@ public sealed partial class DotReactDiscoveryEndpointTests
     }
 
     [Fact]
+    public void Shared_page_cache_requires_explicit_anonymous_metadata()
+    {
+        Assert.Throws<InvalidOperationException>(() =>
+            DotReactServiceCollectionExtensions.ValidateSharedCachePolicy(typeof(ImplicitlyPublicCachedPage)));
+        DotReactServiceCollectionExtensions.ValidateSharedCachePolicy(typeof(CachedPage));
+    }
+
+    [Fact]
     public void Multi_assembly_registration_discovers_all_candidates_and_page_authorization_metadata()
     {
         var services = new ServiceCollection();
@@ -506,6 +514,7 @@ public sealed partial class DotReactDiscoveryEndpointTests
             CancellationToken cancellationToken) => ValueTask.FromResult(new PageProps(1));
     }
 
+    [AllowAnonymous]
     [DotReactCache(60)]
     [DotReactPage("/cache/items", "cache/items/page")]
     public sealed class CachedPage(CacheInvocationCounter counter) : IDotReactPage<PageProps>
@@ -514,6 +523,14 @@ public sealed partial class DotReactDiscoveryEndpointTests
             DotReactPageContext context,
             CancellationToken cancellationToken) =>
             ValueTask.FromResult(new PageProps(counter.Increment()));
+    }
+
+    [DotReactCache(60)]
+    private sealed class ImplicitlyPublicCachedPage : IDotReactPage<PageProps>
+    {
+        public ValueTask<PageProps> LoadAsync(
+            DotReactPageContext context,
+            CancellationToken cancellationToken) => ValueTask.FromResult(new PageProps(1));
     }
 
     [DotReactPrerender(60)]

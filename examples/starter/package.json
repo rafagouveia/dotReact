@@ -19,7 +19,9 @@
     "build:client": "vite build",
     "build:ssr": "vite build --ssr",
     "build": "npm run generate && npm run build:client && npm run build:ssr && dotnet build Server/Server.csproj -c Release",
-    "typecheck": "tsc -p tsconfig.json --noEmit && dotreact-check --project tsconfig.json --pages app --manifest src/backend-manifest.json --contracts src/contracts.ts"
+    "typecheck": "tsc -p tsconfig.json --noEmit && dotreact-check --project tsconfig.json --pages app --manifest src/backend-manifest.json --contracts src/contracts.ts",
+    "audit:dotnet": "node scripts/audit-dotnet-packages.mjs",
+    "verify": "npm run check:contracts && npm run typecheck && npm run build && npm audit --audit-level=high && npm run audit:dotnet"
   },
   "dependencies": {
     "@dotreact/client": "0.1.0",

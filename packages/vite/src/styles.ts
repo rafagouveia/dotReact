@@ -138,3 +138,21 @@ export function createDotReactRouteStyleSheet(
     return `@import url(${JSON.stringify(`${normalizedBase}${assetPath}`)});`;
   }).join("\n");
 }
+
+/**
+ * Composes the blocking development stylesheet without violating CSS import
+ * ordering. CSS requires every @import to precede ordinary at-rules and style
+ * rules; otherwise browsers ignore the route imports and paint unstyled HTML
+ * until the hydrated module graph loads them.
+ */
+export function createDotReactDevelopmentStyleSheet(
+  root: string,
+  base: string,
+  styleFiles: readonly string[],
+  frameworkCss: string
+): string {
+  const routeCss = createDotReactRouteStyleSheet(root, base, styleFiles);
+  if (routeCss.length === 0) return frameworkCss;
+  if (frameworkCss.length === 0) return routeCss;
+  return `${routeCss}\n${frameworkCss}`;
+}

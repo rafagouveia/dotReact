@@ -1,6 +1,12 @@
 using DotReact.AspNetCore;
+using DotReact.AspNetCore.Authentication;
 using DotReact.Hosting;
+using DotReact.Redis;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -11,6 +17,46 @@ namespace DotReact.AspNetCore.Tests;
 
 public sealed class DotReactHostingTests
 {
+    [Fact]
+    public void Existing_application_authentication_is_not_replaced_by_the_hosting_facade()
+    {
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            EnvironmentName = Environments.Development
+        });
+        builder.Services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = "application-owned";
+            options.DefaultChallengeScheme = "application-owned";
+        });
+
+        builder.AddDotReactApplication(hosting =>
+            hosting.ApplicationAssembly = typeof(DotReactApplicationOptions).Assembly);
+        using var app = builder.Build();
+
+        var authentication = app.Services.GetRequiredService<IOptions<AuthenticationOptions>>().Value;
+        Assert.Equal("application-owned", authentication.DefaultAuthenticateScheme);
+        Assert.Equal("application-owned", authentication.DefaultChallengeScheme);
+    }
+
+    [Fact]
+    public void Hosting_derives_an_application_specific_redis_namespace()
+    {
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            ApplicationName = "Accounting.Arxis.Server",
+            EnvironmentName = Environments.Development
+        });
+        builder.Configuration["DOTREACT_REDIS_CONNECTION"] = "127.0.0.1:6379,abortConnect=false";
+
+        builder.AddDotReactApplication(hosting =>
+            hosting.ApplicationAssembly = typeof(DotReactApplicationOptions).Assembly);
+        using var app = builder.Build();
+
+        var redis = app.Services.GetRequiredService<IOptions<DotReactRedisOptions>>().Value;
+        Assert.Equal("dotreact.accounting.arxis.server", redis.KeyPrefix);
+    }
+
     [Fact]
     public void DevelopmentFacadeAppliesViteHydrationAndStreamingDefaults()
     {
@@ -34,6 +80,8 @@ public sealed class DotReactHostingTests
         Assert.Equal("/_dotreact/dev/@react-refresh", options.ReactRefreshPreambleSrc);
         Assert.Equal("/_dotreact/dev/runtime", options.DevelopmentRuntimeProbePath);
         Assert.DoesNotContain("127.0.0.1", options.ClientScriptSrc, StringComparison.Ordinal);
+        using var scope = app.Services.CreateScope();
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IDotReactSessionManager>());
         Assert.NotEmpty(((IEndpointRouteBuilder)app).DataSources);
     }
 
@@ -57,6 +105,9 @@ public sealed class DotReactHostingTests
 
         var runtime = app.Services.GetRequiredService<IOptions<DotReactOptions>>().Value;
         var renderer = app.Services.GetRequiredService<IOptions<DotReactNodeRendererOptions>>().Value;
+        var antiforgery = app.Services.GetRequiredService<IOptions<AntiforgeryOptions>>().Value;
+        var sessionCookie = app.Services.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>()
+            .Get(DotReactSessionDefaults.AuthenticationScheme);
         Assert.False(runtime.Development);
         Assert.True(runtime.RequireRendererToken);
         Assert.NotNull(runtime.RendererToken);
@@ -67,6 +118,14 @@ public sealed class DotReactHostingTests
         Assert.Equal(["/_dotreact/client.js", "/_dotreact/page.js"], routeAssets.Value.ModulePreloads);
         Assert.Equal(5199, renderer.Port);
         Assert.EndsWith("production-server.js", renderer.ScriptPath, StringComparison.Ordinal);
+        Assert.True(antiforgery.Cookie.HttpOnly);
+        Assert.Equal(SameSiteMode.Strict, antiforgery.Cookie.SameSite);
+        Assert.Equal(CookieSecurePolicy.Always, antiforgery.Cookie.SecurePolicy);
+        Assert.Equal("__Host-DotReact.Session", sessionCookie.Cookie.Name);
+        Assert.True(sessionCookie.Cookie.HttpOnly);
+        Assert.Equal(SameSiteMode.Lax, sessionCookie.Cookie.SameSite);
+        Assert.Equal(CookieSecurePolicy.Always, sessionCookie.Cookie.SecurePolicy);
+        Assert.False(sessionCookie.SlidingExpiration);
     }
 
     private sealed class ProductionAssets : IDisposable

@@ -8,6 +8,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using DotReact.AspNetCore;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
@@ -1240,7 +1241,8 @@ public static class DotReactEndpointRouteBuilderExtensions
         StringBuilder builder,
         IReadOnlyDictionary<string, string>? attributes)
     {
-        if (attributes is null || !attributes.TryGetValue("src", out var source) || !IsSafeScriptSource(source))
+        if (attributes is null || !attributes.TryGetValue("src", out var source) || !IsSafeScriptSource(source)
+            || (IsRemoteScriptSource(source) && !HasValidScriptIntegrity(attributes)))
             return;
         builder.Append("<script");
         foreach (var (name, value) in attributes)
@@ -1250,6 +1252,9 @@ public static class DotReactEndpointRouteBuilderExtensions
             builder.Append(' ').Append(normalizedName).Append("=\"")
                 .Append(HtmlEncoder.Default.Encode(value)).Append('"');
         }
+        if (IsRemoteScriptSource(source) && !attributes.Keys.Any(static name =>
+                name.Equals("crossorigin", StringComparison.OrdinalIgnoreCase)))
+            builder.Append(" crossorigin=\"anonymous\"");
         builder.Append("></script>");
     }
 
@@ -1264,6 +1269,19 @@ public static class DotReactEndpointRouteBuilderExtensions
         return Uri.TryCreate(source, UriKind.Absolute, out var uri)
             && uri.Scheme == Uri.UriSchemeHttps
             && string.IsNullOrEmpty(uri.UserInfo);
+    }
+
+    private static bool IsRemoteScriptSource(string source) =>
+        Uri.TryCreate(source, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;
+
+    private static bool HasValidScriptIntegrity(IReadOnlyDictionary<string, string> attributes)
+    {
+        var integrity = attributes.FirstOrDefault(static pair =>
+            pair.Key.Equals("integrity", StringComparison.OrdinalIgnoreCase)).Value;
+        return integrity is not null && Regex.IsMatch(integrity,
+            "^sha(?:256|384|512)-[A-Za-z0-9+/]+={0,2}(?:\\s+sha(?:256|384|512)-[A-Za-z0-9+/]+={0,2})*$",
+            RegexOptions.CultureInvariant,
+            TimeSpan.FromMilliseconds(100));
     }
 
     private static async Task WriteErrorAsync(

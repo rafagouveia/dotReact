@@ -22,6 +22,7 @@ import {
 } from "react";
 
 export const DOTREACT_NAVIGATION_MEDIA_TYPE = "application/vnd.dotreact.navigation+json";
+const scriptIntegrityPattern = /^sha(?:256|384|512)-[A-Za-z0-9+/]+={0,2}(?:\s+sha(?:256|384|512)-[A-Za-z0-9+/]+={0,2})*$/;
 
 export interface DotReactMetadata {
   readonly title?: string;
@@ -245,7 +246,7 @@ function updateMetadata(document: Document, module: DotReactPageModule, props: R
 }
 
 function installMetadataScript(document: Document, descriptor: DotReactScriptDescriptor): void {
-  if (!isSafeScriptSource(descriptor.src)) return;
+  if (!isSafeScriptDescriptor(descriptor)) return;
   const key = descriptor.id ?? descriptor.src;
   if ([...document.scripts].some(script => script.dataset.dotreactScript === key)) return;
   const install = (): void => {
@@ -256,6 +257,7 @@ function installMetadataScript(document: Document, descriptor: DotReactScriptDes
     if (descriptor.type !== undefined) script.type = descriptor.type;
     if (descriptor.integrity !== undefined) script.integrity = descriptor.integrity;
     if (descriptor.crossOrigin !== undefined) script.crossOrigin = descriptor.crossOrigin;
+    else if (isRemoteScriptSource(descriptor.src)) script.crossOrigin = "anonymous";
     if (descriptor.referrerPolicy !== undefined) script.referrerPolicy = descriptor.referrerPolicy;
     document.head.append(script);
   };
@@ -268,13 +270,20 @@ function installMetadataScript(document: Document, descriptor: DotReactScriptDes
   else window.addEventListener("load", () => window.setTimeout(install, 0), { once: true });
 }
 
-function isSafeScriptSource(src: string): boolean {
+function isSafeScriptDescriptor(descriptor: DotReactScriptDescriptor): boolean {
+  const { src } = descriptor;
   if (src.startsWith("/") && !src.startsWith("//") && !src.includes("\\") && !src.includes("\0"))
     return !src.split(/[?#]/, 1)[0]!.split("/").some(segment => segment === "." || segment === "..");
   try {
     const parsed = new URL(src);
-    return parsed.protocol === "https:" && parsed.username === "" && parsed.password === "";
+    return parsed.protocol === "https:" && parsed.username === "" && parsed.password === ""
+      && descriptor.integrity !== undefined && scriptIntegrityPattern.test(descriptor.integrity);
   } catch { return false; }
+}
+
+function isRemoteScriptSource(src: string): boolean {
+  try { return new URL(src).protocol === "https:"; }
+  catch { return false; }
 }
 
 export function DotReactApp({ initial, pages, routeModules = pages, routeLayouts = {}, boundaries = {}, routeLoaders = {}, fetch: fetchOption, window: windowOption,

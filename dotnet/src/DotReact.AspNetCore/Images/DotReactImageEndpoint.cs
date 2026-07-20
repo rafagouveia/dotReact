@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Security.Cryptography;
+using DotReact.AspNetCore;
 using DotReact.AspNetCore.Images;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -20,8 +21,11 @@ public static class DotReactImageEndpointRouteBuilderExtensions
             ?? throw new InvalidOperationException(
                 "Register an IDotReactImageProcessor implementation before mapping DotReact images.");
         var path = endpoints.ServiceProvider.GetRequiredService<IOptions<DotReactImageOptions>>().Value.EndpointPath;
-        return endpoints.MapMethods(path, [HttpMethods.Get, HttpMethods.Head], DotReactImageEndpoint.HandleAsync)
+        var endpoint = endpoints.MapMethods(path, [HttpMethods.Get, HttpMethods.Head], DotReactImageEndpoint.HandleAsync)
             .WithDisplayName("DotReact image optimization");
+        if (endpoints.ServiceProvider.GetService<DotReactRateLimitingRegistration>() is not null)
+            endpoint.RequireRateLimiting(DotReactRateLimiting.ImagePolicyName);
+        return endpoint;
     }
 }
 
@@ -31,6 +35,7 @@ internal static class DotReactImageEndpoint
         HttpContext context,
         IDotReactImageSourceReader sourceReader,
         IDotReactImageProcessor processor,
+        DotReactImageConcurrencyGate concurrency,
         IOptions<DotReactImageOptions> optionsAccessor)
     {
         var options = optionsAccessor.Value;
@@ -46,6 +51,14 @@ internal static class DotReactImageEndpoint
             var formatValue = OptionalSingleQuery(context, "f") ?? "auto";
             var format = SelectFormat(formatValue, context.Request.GetTypedHeaders().Accept, options);
 
+            using var lease = await concurrency.TryAcquireAsync(context.RequestAborted);
+            if (lease is null)
+            {
+                context.Response.Headers.RetryAfter = "1";
+                throw new DotReactImageRequestException(
+                    StatusCodes.Status429TooManyRequests,
+                    "Too many image transformations are already running.");
+            }
             var input = await sourceReader.ReadAsync(source, context.RequestAborted);
             var output = await processor.ProcessAsync(
                 input,

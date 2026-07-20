@@ -1,5 +1,9 @@
 # DotReact
 
+[![Quality](https://github.com/rafagouveia/dotReact/actions/workflows/ci.yml/badge.svg)](https://github.com/rafagouveia/dotReact/actions/workflows/ci.yml)
+[![Documentation](https://github.com/rafagouveia/dotReact/actions/workflows/pages.yml/badge.svg)](https://rafagouveia.github.io/dotReact/)
+[![License: MPL 2.0](https://img.shields.io/badge/license-MPL--2.0-blue.svg)](LICENSE)
+
 DotReact is an experimental full-stack framework that keeps ASP.NET Core in
 charge of HTTP, authentication, services, and data while React renders the UI
 on the server and hydrates it in the browser.
@@ -8,6 +12,11 @@ This repository contains a reusable pre-release framework, CLI scaffold and thre
 reference applications. The runtime boundary and production lifecycle are
 implemented; the public API remains version `0.1.0` until packages are published.
 Public surfaces follow the repository's [compatibility and deprecation policy](COMPATIBILITY.md).
+
+The source is licensed under [MPL 2.0](LICENSE). Applications may use DotReact,
+including commercially, without opening unrelated application code. When a
+covered framework file is modified and distributed, that file remains available
+under MPL 2.0 with its notices preserved.
 
 ## What works now
 
@@ -26,6 +35,7 @@ Public surfaces follow the repository's [compatibility and deprecation policy](C
 - Discovered dynamic C# page loaders and typed C# server actions.
 - Multi-assembly page/action discovery shared by runtime and TypeGen.
 - Declarative page policies and resource-based Server Action authorization.
+- Revocable, rotated `HttpOnly` cookie sessions with Redis-backed cross-replica invalidation.
 - Opt-in distributed loader-result caching with automatic action invalidation.
 - Build-scoped SSG/ISR with single-flight, stale-while-revalidate and static export.
 - Typed C# static-path providers and automatic prerender-manifest discovery for export.
@@ -51,7 +61,7 @@ Public surfaces follow the repository's [compatibility and deprecation policy](C
 - Installable pre-release VSIX with a real VS Code extension-host test.
 - Renderer health endpoint, correlation IDs, timeouts, and safe production errors.
 - Bounded renderer restart supervision, graceful shutdown, token redaction and metrics.
-- Azure App Service/Container Apps Bicep templates and cross-platform CI gates.
+- Azure App Service/Container Apps Bicep templates and reproducible CI gates.
 - TypeScript protocol tests and .NET integration tests.
 - An isolated, version-pinned Vite RSC pipeline and React 19.2 PPR primitives with real tests.
 
@@ -217,8 +227,10 @@ docs/adr                        architectural decisions
 
 ## Interactive documentation
 
-The framework guide is also an interactive local application with searchable
-navigation, paired C#/React examples, a route explorer and a CLI command builder.
+The [published framework guide](https://rafagouveia.github.io/dotReact/) is an
+interactive application with searchable
+navigation, paired C#/React examples, a beginner learning path, SOLID/CRUD
+recipes, security guidance and complete Docker/Azure deployment runbooks.
 
 ```powershell
 npm install --prefix docs
@@ -228,6 +240,30 @@ npm run docs:dev
 Open `http://127.0.0.1:5100`. Validate the production documentation bundle with
 `npm run docs:typecheck` and `npm run docs:build`.
 
+GitHub Pages is deployed only from `main`. The workflow obtains the repository
+base path from GitHub, so scripts, CSS and images work both at `/` and under
+`/dotReact/` without hard-coded origins.
+
+## Contributing
+
+Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), follow
+the architecture rules in [AGENTS.md](AGENTS.md), and send security findings
+through the private process in [SECURITY.md](SECURITY.md). Pull requests must
+keep the full quality gate green and update Portuguese and English documentation
+together when public behavior changes.
+
+Contributor credit is preserved through Git history, release notes and license
+notices. MPL 2.0 permits commercial use; it is not a non-commercial license. Its
+file-level copyleft protects distributed changes to DotReact itself without
+forcing an entire product built with the framework to adopt the same license.
+
+Routine CI intentionally validates code, contracts, documentation, dependencies
+and VSIX packaging only. Infrastructure compilation, container builds and full
+browser suites are run when relevant instead of blocking every commit. A manual
+or `vscode-v*` tag workflow creates the tested VSIX artifact; Marketplace
+publication remains an explicit future release step requiring maintainer
+credentials.
+
 ## Quality commands
 
 ```powershell
@@ -235,12 +271,15 @@ npm run typecheck
 npm test
 npm run build
 dotnet test dotnet/DotReact.slnx
-npm audit
+npm audit --audit-level=high
+npm run audit:dotnet
 ```
 
 See [ROADMAP.md](./ROADMAP.md) for milestone scope and release gates.
 See [docs/compatibility.md](./docs/compatibility.md) for the supported runtime matrix.
 See [deploy/azure/README.md](./deploy/azure/README.md) for Azure deployment and probes.
+See [SECURITY.md](./SECURITY.md) for private reporting and production requirements.
+See [the latest security audit](./docs/security/SECURITY_AUDIT_2026-07-19.md) for findings, fixes and residual risks.
 
 ## SQLite CRUD reference
 

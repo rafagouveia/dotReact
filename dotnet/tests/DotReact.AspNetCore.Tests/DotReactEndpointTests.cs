@@ -44,6 +44,20 @@ public sealed class DotReactEndpointTests
                 {
                     Kind = "script",
                     Attrs = new Dictionary<string, string> { ["src"] = "javascript:alert(1)" }
+                },
+                new DotReactHeadElement
+                {
+                    Kind = "script",
+                    Attrs = new Dictionary<string, string> { ["src"] = "https://cdn.example.test/untrusted.js" }
+                },
+                new DotReactHeadElement
+                {
+                    Kind = "script",
+                    Attrs = new Dictionary<string, string>
+                    {
+                        ["src"] = "https://cdn.example.test/trusted.js",
+                        ["integrity"] = $"sha384-{new string('a', 64)}"
+                    }
                 }
             ]
         });
@@ -60,6 +74,9 @@ public sealed class DotReactEndpointTests
         Assert.DoesNotContain("onclick", html);
         Assert.Contains("<script src=\"/scripts/consent.js\" defer=\"\"></script>", html);
         Assert.DoesNotContain("javascript:alert", html);
+        Assert.DoesNotContain("untrusted.js", html);
+        Assert.Contains("https://cdn.example.test/trusted.js", html);
+        Assert.Contains("crossorigin=\"anonymous\"", html);
         Assert.Contains("<div id=\"app\"><h1>Hello</h1></div>", html);
         Assert.Contains("<link rel=\"stylesheet\" href=\"/assets/client.css\">", html);
         Assert.True(html.IndexOf("/assets/client.css", StringComparison.Ordinal)

@@ -1,7 +1,11 @@
 using System.Reflection;
 using DotReact.AspNetCore;
+using DotReact.AspNetCore.Authentication;
 using DotReact.Redis;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -72,6 +76,10 @@ public static class DotReactApplicationHostingExtensions
         builder.Services.AddDotReactSkiaSharpImages(options =>
             options.LocalRootPath = ResolvePublicPath(builder.Environment));
         builder.Services.AddDotReactSecurityHeaders();
+        if (!builder.Services.Any(descriptor => descriptor.ServiceType == typeof(IAuthenticationService)))
+            builder.Services.AddDotReactCookieSessions();
+        else
+            builder.Services.AddAuthorization();
         AddDistributedStores(builder);
         AddObservability(builder);
 
@@ -88,6 +96,12 @@ public static class DotReactApplicationHostingExtensions
 
         if (productionRuntime)
         {
+            builder.Services.PostConfigure<AntiforgeryOptions>(options =>
+            {
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SameSite = SameSiteMode.Strict;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            });
             var appDirectory = AppContext.BaseDirectory;
             builder.Services.AddDotReactNodeRenderer(options =>
             {
@@ -107,6 +121,8 @@ public static class DotReactApplicationHostingExtensions
     public static WebApplication UseDotReactApplication(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
+        var features = app.Services.GetRequiredService<DotReactHostingFeatures>();
+        if (features.ProductionRuntime) app.UseHsts();
         app.UseDotReactSecurityHeaders();
         if (app.Services.GetRequiredService<IOptions<DotReactOptions>>().Value.Development)
         {
@@ -114,8 +130,10 @@ public static class DotReactApplicationHostingExtensions
             app.UseMiddleware<DotReactDevelopmentProxyMiddleware>();
         }
         app.UseDotReactStaticFiles(ResolvePublicPath(app.Environment));
-        if (app.Services.GetRequiredService<DotReactHostingFeatures>().ProductionRuntime)
+        if (features.ProductionRuntime)
             app.UseRateLimiter();
+        app.UseAuthentication();
+        app.UseAuthorization();
         return app;
     }
 
@@ -166,7 +184,22 @@ public static class DotReactApplicationHostingExtensions
         if (string.IsNullOrWhiteSpace(connection)) return;
         var redis = ConfigurationOptions.Parse(connection);
         redis.AbortOnConnectFail = false;
-        builder.Services.AddDotReactRedis(redis);
+        var configuredPrefix = builder.Configuration["DOTREACT_REDIS_KEY_PREFIX"];
+        var keyPrefix = string.IsNullOrWhiteSpace(configuredPrefix)
+            ? BuildRedisKeyPrefix(builder.Environment.ApplicationName)
+            : configuredPrefix;
+        builder.Services.AddDotReactRedis(redis, options => options.KeyPrefix = keyPrefix);
+    }
+
+    private static string BuildRedisKeyPrefix(string applicationName)
+    {
+        var safeName = new string(applicationName
+            .Select(character => char.IsAsciiLetterOrDigit(character) || character is '.' or '_' or '-'
+                ? char.ToLowerInvariant(character)
+                : '-')
+            .Take(48)
+            .ToArray()).Trim('-', '.', '_');
+        return $"dotreact.{(safeName.Length == 0 ? "app" : safeName)}";
     }
 
     private static void AddObservability(WebApplicationBuilder builder)

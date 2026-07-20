@@ -5,13 +5,23 @@
   "version": "0.1.0",
   "publisher": "dotreact",
   "private": true,
+  "license": "MPL-2.0",
+  "homepage": "https://github.com/rafagouveia/dotReact#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rafagouveia/dotReact.git",
+    "directory": "editors/vscode-dotreact"
+  },
+  "bugs": {
+    "url": "https://github.com/rafagouveia/dotReact/issues"
+  },
   "main": "./extension.cjs",
   "scripts": {
     "build": "node --check extension.cjs && node --check core.cjs",
     "typecheck": "node --check extension.cjs && node --check core.cjs",
     "test": "node --test core.test.cjs",
     "test:integration": "node integration/run.cjs",
-    "package:vsix": "vsce package --pre-release --no-dependencies --allow-missing-repository --skip-license --out dotreact-vscode.vsix"
+    "package:vsix": "vsce package --pre-release --no-dependencies --out dotreact-vscode.vsix"
   },
   "activationEvents": ["onLanguage:typescriptreact", "onCommand:dotreact.checkProject"],
   "engines": {

@@ -75,6 +75,7 @@
   .code-head button { @apply border-0 bg-transparent text-[9px] text-blue-300 hover:text-white; }
   .code-card pre { @apply m-0 overflow-auto p-5 font-mono text-[11px] leading-[1.75]; }
   .syntax-code { @apply m-0 overflow-auto font-mono text-[11px] leading-[1.75] text-slate-200; tab-size: 2; }
+  .syntax-code > code { @apply table min-w-full; }
   .syntax-code.compact { @apply text-[9px] leading-[1.8]; }
   .syntax-line { @apply table-row; }
   .syntax-line-number { @apply table-cell w-8 pr-4 text-right text-slate-600 select-none; }

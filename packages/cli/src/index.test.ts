@@ -25,7 +25,7 @@ test("static export validates and consumes the server-generated prerender manife
 test("help lists the complete project lifecycle", () => {
   const result = spawnSync(process.execPath, [cli, "help"], { encoding: "utf8" });
   assert.equal(result.status, 0);
-  for (const command of ["create", "templates", "generate", "sync", "dev", "build", "analyze", "benchmark", "check", "start", "doctor", "workspace"])
+  for (const command of ["create", "templates", "generate", "sync", "dev", "build", "analyze", "benchmark", "check", "start", "doctor", "upgrade", "workspace"])
     assert.match(result.stdout, new RegExp(`dotreact ${command}`));
 });
 
@@ -158,7 +158,8 @@ test("minimal template is self-contained and omits demo actions and routes", () 
       "docs/ai/02-DRX-ROUTING.md", "docs/ai/03-SSR-HYDRATION.md",
       "docs/ai/04-DATA-ACTIONS-SECURITY.md", "docs/ai/05-CACHING-PRODUCTION.md",
       "docs/ai/06-WORKFLOW-RECIPES.md", "docs/ai/07-SOLID-FEATURES.md",
-      ".github/workflows/ci.yml",
+      "docs/ai/08-AUTHENTICATION-SESSIONS.md",
+      ".github/workflows/ci.yml", ".github/dependabot.yml", "scripts/audit-dotnet-packages.mjs",
       "deploy/azure/app-service.bicep", "deploy/azure/app-service.parameters.example.json",
       "deploy/azure/container-apps.bicep", "deploy/azure/container-apps.parameters.example.json",
       "deploy/azure/README.md"
@@ -177,6 +178,7 @@ test("minimal template is self-contained and omits demo actions and routes", () 
     assert.equal(existsSync(path.join(app, "vendor/adapter/package.json")), true);
     assert.equal(existsSync(path.join(app, "vendor/cli/package.json")), true);
     assert.equal(existsSync(path.join(app, "vendor/README.md")), true);
+    assert.equal(existsSync(path.join(app, "vendor/dotreact-runtime.json")), true);
     assert.equal(existsSync(path.join(app, "vendor/cli/dist/index.js")), true,
       "the CLI executable must exist before npm links the dotreact bin");
     assert.equal(existsSync(path.join(app, "vendor/vite/dist/check-cli.js")), true,
@@ -199,29 +201,41 @@ test("minimal template is self-contained and omits demo actions and routes", () 
     assert.doesNotMatch(generatedPackage.scripts["dev:server"], /--no-hot-reload/);
     assert.match(generatedPackage.scripts["dev:renderer"], /vendor\/renderer\/dist\/server\.js/);
     assert.match(generatedPackage.scripts.generate, /vendor\/DotReact\.TypeGen\/DotReact\.TypeGen\.csproj/);
+    assert.match(generatedPackage.scripts.generate, /MinimalApp\.Server\.dll/);
     assert.match(generatedPackage.scripts["check:contracts"], /vendor\/DotReact\.TypeGen\/DotReact\.TypeGen\.csproj/);
     assert.match(generatedPackage.scripts["dotreact:runtime"], /vendor\/client/);
     assert.equal(generatedPackage.scripts["build:framework"], undefined);
+    assert.equal(generatedPackage.scripts["audit:dotnet"], "node scripts/audit-dotnet-packages.mjs");
+    assert.match(generatedPackage.scripts.verify, /audit:dotnet/);
     assert.equal(existsSync(path.join(app, "src/entry-server.tsx")), false);
     assert.doesNotMatch(readFileSync(path.join(app, "vite.config.ts"), "utf8"), /cssCodeSplit:\s*false/);
     const generatedCsproj = readFileSync(path.join(app, "Server/Server.csproj"), "utf8");
     assert.match(generatedCsproj, /\.\.\/vendor\/DotReact\.Hosting/);
+    assert.match(generatedCsproj, /<RootNamespace>MinimalApp\.Server<\/RootNamespace>/);
+    assert.match(generatedCsproj, /<AssemblyName>MinimalApp\.Server<\/AssemblyName>/);
     assert.doesNotMatch(generatedCsproj, /DotReact\.AspNetCore|DotReact\.Images\.SkiaSharp|DotReact\.Redis/,
       "application projects should reference the hosting facade instead of runtime internals");
     const dockerfile = readFileSync(path.join(app, "Dockerfile"), "utf8");
     assert.match(dockerfile, /RUN npm run generate && npm run build:client && npm run build:ssr/);
     assert.doesNotMatch(dockerfile, /RUN npm run dotreact:runtime/);
+    assert.match(dockerfile, /MinimalApp\.Server\.dll/);
     const workflow = readFileSync(path.join(app, ".github/workflows/ci.yml"), "utf8");
     assert.match(workflow, /azure-infrastructure:/);
     assert.match(workflow, /az bicep build --file deploy\/azure\/container-apps\.bicep/);
-    assert.match(workflow, /dotnet list Server\/Server\.csproj package --vulnerable/);
+    assert.match(workflow, /npm run audit:dotnet/);
+    assert.doesNotMatch(workflow, /uses: [^\n]+@v[0-9]/);
     const envExample = readFileSync(path.join(app, ".env.example"), "utf8");
     assert.match(envExample, /DOTREACT_REDIS_CONNECTION=/);
     assert.doesNotMatch(envExample, /DOTREACT_REDIS_CONNECTION=\S+/);
+    assert.match(envExample, /DOTREACT_REDIS_KEY_PREFIX=/);
+    assert.doesNotMatch(envExample, /DOTREACT_REDIS_KEY_PREFIX=\S+/);
+    assert.match(envExample, /Authentication__Google__ClientSecret=/);
+    assert.doesNotMatch(envExample, /Authentication__Google__ClientSecret=\S+/);
     const agentInstructions = readFileSync(path.join(app, "AGENTS.md"), "utf8");
     assert.match(agentInstructions, /read the following files completely and in/);
     assert.match(agentInstructions, /06-WORKFLOW-RECIPES\.md/);
     assert.match(agentInstructions, /07-SOLID-FEATURES\.md/);
+    assert.match(agentInstructions, /08-AUTHENTICATION-SESSIONS\.md/);
     assert.match(agentInstructions, /Treat `vendor\/` as an opaque, pinned runtime/);
     const vscodeSettings = readFileSync(path.join(app, ".vscode/settings.json"), "utf8");
     assert.match(vscodeSettings, /"vendor": true/);
@@ -250,6 +264,24 @@ test("minimal template is self-contained and omits demo actions and routes", () 
     const doctor = spawnSync(process.execPath, [cli, "doctor"], { cwd: app, encoding: "utf8" });
     assert.equal(doctor.status, 0, doctor.stderr);
     assert.match(doctor.stdout, /runtime=vendor\//);
+    assert.match(doctor.stdout, /Managed runtime/);
+    assert.match(readFileSync(path.join(app, "app/page.server.cs"), "utf8"), /namespace MinimalApp\.Pages\.Home/);
+    assert.match(readFileSync(path.join(app, "src/backend-manifest.json"), "utf8"), /MinimalApp\.HomePageProps/);
+    assert.match(readFileSync(path.join(app, "docs/ai/PROJECT.md"), "utf8"), /Product name: Minimal App/);
+    assert.match(readFileSync(path.join(app, "README.md"), "utf8"), /^# Minimal App/m);
+
+    writeFileSync(path.join(app, "app/application-owned.marker"), "keep\n");
+    writeFileSync(path.join(app, "vendor/obsolete.marker"), "remove\n");
+    const dryUpgrade = spawnSync(process.execPath, [cli, "upgrade", "--from", path.resolve(path.dirname(cli), "../../.."), "--dry-run"],
+      { cwd: app, encoding: "utf8" });
+    assert.equal(dryUpgrade.status, 0, dryUpgrade.stderr);
+    assert.equal(existsSync(path.join(app, "vendor/obsolete.marker")), true);
+    const upgrade = spawnSync(process.execPath, [cli, "upgrade", "--from", path.resolve(path.dirname(cli), "../../..")],
+      { cwd: app, encoding: "utf8", timeout: 30_000 });
+    assert.equal(upgrade.status, 0, upgrade.stderr);
+    assert.equal(existsSync(path.join(app, "app/application-owned.marker")), true);
+    assert.equal(existsSync(path.join(app, "vendor/obsolete.marker")), false);
+    assert.equal(existsSync(path.join(app, "vendor/dotreact-runtime.json")), true);
     mkdirSync(path.join(app, "framework"));
     const ambiguousDoctor = spawnSync(process.execPath, [cli, "doctor"], { cwd: app, encoding: "utf8" });
     assert.equal(ambiguousDoctor.status, 1);
@@ -262,6 +294,8 @@ test("minimal template is self-contained and omits demo actions and routes", () 
       /Hydration contract/);
     assert.match(readFileSync(path.join(app, "docs/ai/04-DATA-ACTIONS-SECURITY.md"), "utf8"),
       /The only supported C# to React data path/);
+    assert.match(readFileSync(path.join(app, "docs/ai/08-AUTHENTICATION-SESSIONS.md"), "utf8"),
+      /Use `SignOutAsync` to revoke only the current device/);
     for (const file of projectFilesOutsideVendor(app)) {
       const content = readFileSync(file, "utf8");
       assert.doesNotMatch(content, /(?:\.\.[\\/])+(?:packages|dotnet)(?:[\\/]|$)/,

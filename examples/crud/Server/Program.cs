@@ -26,8 +26,6 @@ builder.AddDotReactApplication(options =>
 var app = builder.Build();
 app.UseExceptionHandler();
 app.UseDotReactApplication();
-app.UseAuthentication();
-app.UseAuthorization();
 await DatabaseInitializer.InitializeAsync(app.Services);
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", database = "sqlite" }));
 app.MapWorkItemRouteHandlers();

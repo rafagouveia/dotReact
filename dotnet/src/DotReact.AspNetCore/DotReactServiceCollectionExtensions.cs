@@ -194,10 +194,7 @@ public static class DotReactServiceCollectionExtensions
             throw new InvalidOperationException($"A DotReact page is already registered for pattern '{pattern}'.");
         if (registry.Items.Any(item => string.Equals(item.ModuleId, moduleId, StringComparison.Ordinal)))
             throw new InvalidOperationException($"A DotReact page is already registered for module ID '{moduleId}'.");
-        if (type.GetCustomAttribute<DotReactCacheAttribute>(inherit: true) is not null
-            && type.GetCustomAttributes(inherit: true).OfType<IAuthorizeData>().Any())
-            throw new InvalidOperationException(
-                $"Shared DotReact caching cannot be enabled on authorized page '{type.FullName}'.");
+        ValidateSharedCachePolicy(type);
         var returnsResult = contract.GetGenericTypeDefinition() == typeof(IDotReactResultPage<>);
         var prerender = type.GetCustomAttribute<DotReactPrerenderAttribute>(inherit: false) is null
             ? null : DotReactPrerenderMetadata.Create(type);
@@ -206,6 +203,15 @@ public static class DotReactServiceCollectionExtensions
         services.TryAddTransient(type);
         if (prerender is not null)
             RegisterStaticPathProvider(services, assemblies, prerender);
+    }
+
+    internal static void ValidateSharedCachePolicy(Type type)
+    {
+        if (type.GetCustomAttribute<DotReactCacheAttribute>(inherit: true) is null) return;
+        var attributes = type.GetCustomAttributes(inherit: true);
+        if (attributes.OfType<IAuthorizeData>().Any() || !attributes.OfType<IAllowAnonymous>().Any())
+            throw new InvalidOperationException(
+                $"Shared DotReact caching requires an explicitly anonymous page and cannot be enabled on '{type.FullName}'.");
     }
 
     /// <summary>Discovers and registers only action classes carrying <see cref="DotReactActionAttribute"/>.</summary>

@@ -19,6 +19,7 @@ public static class DotReactImageServiceCollectionExtensions
         options.ValidateOnStart();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<DotReactImageOptions>, DotReactImageOptionsValidator>());
         services.TryAddSingleton<IDotReactImageSourceReader, DotReactImageSourceReader>();
+        services.TryAddSingleton<DotReactImageConcurrencyGate>();
         services.AddHttpClient(DotReactImageHttpClient.Name)
             .ConfigurePrimaryHttpMessageHandler(static () => new SocketsHttpHandler
             {
@@ -41,5 +42,24 @@ public static class DotReactImageServiceCollectionExtensions
         services.AddDotReactImages(configure);
         services.TryAddSingleton<IDotReactImageProcessor, TProcessor>();
         return services;
+    }
+}
+
+internal sealed class DotReactImageConcurrencyGate(IOptions<DotReactImageOptions> options) : IDisposable
+{
+    private readonly SemaphoreSlim semaphore = new(options.Value.MaxConcurrentTransforms);
+
+    internal async ValueTask<IDisposable?> TryAcquireAsync(CancellationToken cancellationToken)
+    {
+        if (!await semaphore.WaitAsync(TimeSpan.Zero, cancellationToken).ConfigureAwait(false)) return null;
+        return new Lease(semaphore);
+    }
+
+    public void Dispose() => semaphore.Dispose();
+
+    private sealed class Lease(SemaphoreSlim semaphore) : IDisposable
+    {
+        private SemaphoreSlim? owner = semaphore;
+        public void Dispose() => Interlocked.Exchange(ref owner, null)?.Release();
     }
 }

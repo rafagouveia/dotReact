@@ -5,12 +5,12 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, transformWithOxc, type Plugin, type PluginOption, type ResolvedConfig, type UserConfigExport, type ViteDevServer } from "vite";
 import { isContained, realpathOrResolved, scanDotReactGraph, scanDotReactPages, type DotReactBoundary, type DotReactBoundaryKind, type DotReactGraph, type DotReactLayout, type DotReactPage, type DotReactPageBoundaries } from "./discovery.js";
 import { readBackendManifest, validateBackendPages } from "./manifest.js";
-import { collectDotReactRouteStyles, createDotReactRouteStyleSheet, dotReactRouteStylePath, resolveDotReactLocalImport } from "./styles.js";
+import { collectDotReactRouteStyles, createDotReactDevelopmentStyleSheet, createDotReactRouteStyleSheet, dotReactRouteStylePath, resolveDotReactLocalImport } from "./styles.js";
 
 export { checkDotReactProject, type DotReactCheckOptions, type DotReactCheckResult, type DotReactDiagnostic } from "./check.js";
 export { scanDotReactGraph, scanDotReactPages, type DotReactBoundary, type DotReactBoundaryKind, type DotReactGraph, type DotReactLayout, type DotReactPage, type DotReactPageBoundaries } from "./discovery.js";
 export { inferDotReactRoute } from "./routes.js";
-export { collectDotReactRouteStyles, createDotReactRouteStyleSheet, dotReactRouteStylePath, resolveDotReactLocalImport } from "./styles.js";
+export { collectDotReactRouteStyles, createDotReactDevelopmentStyleSheet, createDotReactRouteStyleSheet, dotReactRouteStylePath, resolveDotReactLocalImport } from "./styles.js";
 
 const publicVirtualId = "virtual:dotreact/pages";
 const resolvedVirtualId = `\0${publicVirtualId}`;
@@ -382,7 +382,12 @@ export function dotReact(options: DotReactOptions = {}): Plugin {
       }
       return resolveDotReactLocalImport(config!.root, specifier, importer);
     });
-    return `${createFontStyleSheet(fonts)}${createDotReactRouteStyleSheet(config.root, config.base, styles)}`;
+    return createDotReactDevelopmentStyleSheet(
+      config.root,
+      config.base,
+      styles,
+      createFontStyleSheet(fonts)
+    );
   };
 
   const invalidateGraph = async (file: string): Promise<void> => {

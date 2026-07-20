@@ -1,5 +1,8 @@
 import { CliLab, CodeBlock, Flow, PairedCode, ReferenceTable, RouteLab, Step, Steps } from "./components";
 import type { DocPage } from "./types";
+import { guideDocs } from "./content.guides";
+import { securityDocs } from "./content.security";
+import { deploymentDocs, introDocs } from "./content.deploy";
 
 const pageLoader = `public sealed class ProductPage(GetProduct useCase)
     : IDotReactResultPage<ProductPageProps>
@@ -143,10 +146,11 @@ export const docs: readonly DocPage[] = [
         <a href="#first-project"><span>01</span><b>Quero criar uma aplicação</b><small>Scaffold, execução, HMR e primeiro dado C#.</small></a>
         <a href="#next-equivalents"><span>02</span><b>Eu já conheço Next.js</b><small>Veja o equivalente de cada conceito no DotReact.</small></a>
         <a href="#auth-guards"><span>03</span><b>Preciso proteger páginas</b><small>Authentication, policies e auth guard no servidor.</small></a>
-        <a href="#production"><span>04</span><b>Vou colocar em produção</b><small>Segurança, Redis, Azure e observabilidade.</small></a>
+        <a href="#hosting-overview"><span>04</span><b>Vou colocar em produção</b><small>Escolha de hosting, Docker, Azure, rollout e operação.</small></a>
       </div>
     </>
   },
+  ...introDocs,
   {
     id: "installation", group: "Começar", title: "Instalação e requisitos",
     summary: "Prepare Node, .NET e o modelo vendorizado usado durante o pré-release.",
@@ -254,7 +258,7 @@ export const docs: readonly DocPage[] = [
       <p>O plugin valida URLs locais, gera <code>@font-face</code>, inclui a folha bloqueante no SSR e preloads somente as faces críticas. Use <code>preload: false</code> nos pesos que não aparecem acima da dobra.</p>
       <div className="callout"><strong>Escopo atual</strong><span>Fontes locais são estáveis. Download e self-host automático de Google Fonts, cálculo automático de métricas de fallback e subset por caracteres continuam no roadmap.</span></div>
       <h3>Scripts de terceiros sem bloquear a página inteira</h3>
-      <CodeBlock label="metadata da página" code={'import { script } from "@dotreact/script";\n\nexport const metadata = {\n  scripts: [\n    script({ src: "/scripts/consent.js", strategy: "beforeInteractive" }),\n    script({ src: "https://cdn.example.com/analytics.js", id: "analytics", strategy: "lazyOnload" })\n  ]\n};'} />
+      <CodeBlock label="metadata da página" code={'import { script } from "@dotreact/script";\n\nexport const metadata = {\n  scripts: [\n    script({ src: "/scripts/consent.js", strategy: "beforeInteractive" }),\n    script({\n      src: "https://cdn.example.com/analytics.js",\n      id: "analytics",\n      strategy: "lazyOnload",\n      integrity: "sha384-YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"\n    })\n  ]\n};'} />
       <p><code>@dotreact/script</code> aceita apenas arquivos externos locais ou HTTPS. O framework deduplica scripts, emite os críticos no SSR e agenda os demais após a hidratação ou o evento <code>load</code>.</p>
     </>
   },
@@ -653,7 +657,8 @@ app.MapDotReactFallback();`} />
         { name: "Port", defaultValue: "5178", description: "Porta loopback do renderer." },
         { name: "StartupTimeout / ShutdownTimeout", defaultValue: "30 s / 10 s", description: "Readiness e drain supervisionado." },
         { name: "NodeMemoryMb", defaultValue: "384", description: "Heap máximo do V8." },
-        { name: "MaxRestarts", defaultValue: "3 em 5 min", description: "Limite de crash loop, com backoff inicial de 1 s." }
+        { name: "MaxRestarts", defaultValue: "3 em 5 min", description: "Limite de crash loop, com backoff inicial de 1 s." },
+        { name: "PublicEnvironmentVariables", defaultValue: "vazio", description: "Allowlist explícita de valores não secretos. O renderer nunca herda o environment privado do host ASP.NET." }
       ]} />
       <h3>Renderer Node</h3>
       <ReferenceTable rows={[
@@ -667,7 +672,8 @@ app.MapDotReactFallback();`} />
         { name: "DOTREACT_KEEP_ALIVE_TIMEOUT_MS", defaultValue: "65000", description: "Keep-alive HTTP." },
         { name: "DOTREACT_RENDER_REQUEST_TIMEOUT_MS", defaultValue: "30000", description: "Timeout do servidor Node." },
         { name: "OTEL_EXPORTER_OTLP_ENDPOINT", description: "Ativa exportação OTLP no starter quando definida." },
-        { name: "DOTREACT_REDIS_CONNECTION", description: "Ativa stores Redis compartilhados de ISR/tags/idempotência." },
+        { name: "DOTREACT_REDIS_CONNECTION", description: "Ativa stores Redis compartilhados de ISR, tags, idempotência e revogação de sessões." },
+        { name: "DOTREACT_REDIS_KEY_PREFIX", description: "Override opcional do namespace Redis. O default é derivado do nome da aplicação para isolar produtos." },
         { name: "DOTREACT_BUILD_ID", description: "Build/revision imutável; possui fallbacks específicos de Azure." },
         { name: "DOTREACT_PRODUCTION_RUNTIME", defaultValue: "true fora de Development/Testing", description: "Override avançado para desativar supervisão Node e rate limiting em testes de integração; produção deve manter true." }
       ]} />
@@ -678,7 +684,8 @@ app.MapDotReactFallback();`} />
       ]} />
       <h3>Actions e segurança</h3>
       <p>Configure <code>DotReactActionOptions</code> com <code>services.Configure&lt;DotReactActionOptions&gt;</code>. Defaults: request 256 KiB, replay 512 KiB, 1.024 entradas, chave até 128 caracteres e retenção de 10 minutos.</p>
-      <p><code>AddDotReactRateLimiting</code> usa por padrão 120 requests/minuto, sem fila, particionando usuários autenticados. <code>DotReactSecurityHeadersOptions</code> controla CSP, frame, referrer, permissions e COOP.</p>
+      <p><code>AddDotReactRateLimiting</code> usa por padrão 120 requests/minuto, sem fila, particionando usuários autenticados e protegendo também o otimizador de imagens. Cada processo aceita no máximo quatro transforms simultâneos por padrão. <code>DotReactSecurityHeadersOptions</code> controla CSP, frame, referrer, permissions e COOP; origins adicionais precisam ser HTTPS/WSS exatas.</p>
+      <div className="warning"><strong>Cache compartilhado</strong><span><code>[DotReactCache]</code> exige <code>[AllowAnonymous]</code>. Dados por usuário ou tenant precisam de cache privado com chave de identidade explícita.</span></div>
     </>
   },
   {
@@ -754,7 +761,8 @@ app.MapDotReactFallback();`} />
         <article><b>Assets</b><span>Fingerprinted: immutable; nomes estáveis: revalidate.</span></article>
       </div>
       <p>SSR personalizado e actions usam <code>private,no-store</code>. Somente páginas anotadas para prerender entram no store de HTML público; o artefato é rejeitado se contiver indicadores de antiforgery/cookie.</p>
-      <p><code>UseDotReactSecurityHeaders</code> gera CSP estrita com nonce por requisição, nosniff, frame, referrer, permissions e COOP. Ajuste origins conscientemente para CDN ou integrações externas.</p>
+      <p><code>UseDotReactSecurityHeaders</code> gera CSP estrita com nonce por requisição, nosniff, frame, referrer, permissions, COOP e HSTS no facade de produção. Scripts HTTPS externos precisam de Subresource Integrity; origins adicionais aceitam somente HTTPS/WSS exatas.</p>
+      <p>O cookie antiforgery de produção usa <code>Secure</code>, <code>HttpOnly</code> e <code>SameSite=Strict</code>. Em múltiplas réplicas, persista e proteja o key ring do ASP.NET Core Data Protection para que autenticação e antiforgery sejam consistentes entre instâncias.</p>
       <h3>Container e Azure</h3>
       <p>O Dockerfile usa Node e ASP.NET no mesmo container, executa como usuário não-root e expõe 8080. Os templates Bicep cobrem App Service e Container Apps; deployment real e registry privado dependem de credenciais externas.</p>
       <p><code>@dotreact/adapter/azure</code> emite manifest determinístico para App Service/Container Apps, valida streaming, imagem, shared cache e PPR de forma fail-closed e nunca grava valores de secrets. PPR no adapter exige Azure Managed Redis explicitamente.</p>
@@ -815,5 +823,8 @@ app.MapDotReactFallback();`} />
       <h3>Lacunas em relação ao Next.js</h3>
       <p>A matriz mantida em <a href="#next-feature-status">Paridade e roadmap</a> é a fonte de verdade para migração. Fontes locais e estratégias de Script já são estáveis. RSC e PPR permanecem experimentais; Parallel/Intercepting Routes, MDX oficial, fontes remotas com métricas automáticas e cache arbitrário de funções estão no roadmap. Edge Runtime JavaScript permanece fora de escopo porque o backend público do DotReact é ASP.NET Core.</p>
     </>
-  }
+  },
+  ...guideDocs,
+  ...securityDocs,
+  ...deploymentDocs
 ];
