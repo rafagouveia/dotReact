@@ -6,7 +6,7 @@
   "exports": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "dotreact-check": "./dist/check-cli.js"
+    "dotreact-check": "./scripts/dotreact-check.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
