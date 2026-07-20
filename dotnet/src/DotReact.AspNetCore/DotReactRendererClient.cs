@@ -1,8 +1,8 @@
-using System.Net.Http.Json;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 
 namespace DotReact.AspNetCore;
 
@@ -35,16 +35,11 @@ internal sealed class DotReactRendererClient(
         DotReactRenderRequest request,
         CancellationToken cancellationToken)
     {
-        using var message = new HttpRequestMessage(HttpMethod.Post, "__dotreact/render")
-        {
-            Content = JsonContent.Create(request, options: JsonOptions)
-        };
-
-        AddAuthorization(message);
-
-        using var response = await httpClient.SendAsync(
-            message,
+        using var response = await DotReactRendererTransport.SendAsync(
+            httpClient,
+            () => CreateRenderRequest(request),
             HttpCompletionOption.ResponseHeadersRead,
+            _options,
             cancellationToken).ConfigureAwait(false);
 
         try
@@ -76,6 +71,16 @@ internal sealed class DotReactRendererClient(
         {
             throw new DotReactRendererException("Renderer returned invalid JSON.", exception);
         }
+    }
+
+    private HttpRequestMessage CreateRenderRequest(DotReactRenderRequest request)
+    {
+        var message = new HttpRequestMessage(HttpMethod.Post, "__dotreact/render")
+        {
+            Content = JsonContent.Create(request, options: JsonOptions)
+        };
+        AddAuthorization(message);
+        return message;
     }
 
     private void AddAuthorization(HttpRequestMessage message)

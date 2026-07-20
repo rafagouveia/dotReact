@@ -3,13 +3,19 @@ import { createServer as createHttpServer, type IncomingMessage, type ServerResp
 import { resolve } from "node:path";
 import { createServer as createViteServer, type ViteDevServer } from "vite";
 import { PROTOCOL_VERSION, isRenderRequest, type RenderFailure, type RenderResponse } from "@dotreact/protocol";
+import { readIntegerEnvironment } from "./http-runtime.js";
+import { handleRenderStream, type RenderStreamEntry } from "./stream-runtime.js";
 
 const port = Number.parseInt(process.env.DOTREACT_RENDERER_PORT ?? "5173", 10);
 const host = process.env.DOTREACT_RENDERER_HOST ?? "127.0.0.1";
 const root = resolve(process.env.DOTREACT_APP_ROOT ?? process.cwd());
 const token = process.env.DOTREACT_RENDERER_TOKEN;
 const development = process.env.NODE_ENV !== "production";
+const developmentBase = "/_dotreact/dev/";
 const maxBodyBytes = 1_048_576;
+const maxResponseBytes = readIntegerEnvironment(process.env, "DOTREACT_MAX_RENDER_RESPONSE_BYTES", 4_194_304, 1_024, 33_554_432);
+const maxConcurrency = readIntegerEnvironment(process.env, "DOTREACT_MAX_RENDER_CONCURRENCY", 32, 1, 1_024);
+let activeStreamRenders = 0;
 
 function sendJson(response: ServerResponse, status: number, body: unknown): void {
   const content = Buffer.from(JSON.stringify(body));
@@ -68,7 +74,7 @@ async function handleRender(request: IncomingMessage, response: ServerResponse, 
   }
 
   try {
-    const entry = await vite.ssrLoadModule("/src/entry-server.tsx") as {
+    const entry = await vite.ssrLoadModule("virtual:dotreact/server-entry") as {
       render(input: typeof body): Promise<RenderResponse> | RenderResponse;
     };
     const result = await entry.render(body);
@@ -92,8 +98,50 @@ const server = createHttpServer((request, response) => {
     sendJson(response, 200, { ok: true, protocolVersion: PROTOCOL_VERSION });
     return;
   }
+  if (development && request.method === "GET" && url.pathname === `${developmentBase}__dotreact_route_style.css`) {
+    const plugin = vite.config.plugins.find(candidate => candidate.name === "dotreact:drx") as
+      | { api?: { routeStyleSheet?: (moduleKey: string) => Promise<string> } }
+      | undefined;
+    const routeStyleSheet = plugin?.api?.routeStyleSheet;
+    if (routeStyleSheet === undefined) {
+      response.statusCode = 404;
+      response.end("/* DotReact route stylesheet service is unavailable. */");
+      return;
+    }
+    void routeStyleSheet(url.searchParams.get("moduleKey") ?? "").then(css => {
+      response.writeHead(200, {
+        "content-type": "text/css; charset=utf-8",
+        "cache-control": "no-cache",
+        "x-content-type-options": "nosniff"
+      });
+      response.end(css);
+    }).catch(error => {
+      const message = error instanceof Error ? error.message : String(error);
+      process.stderr.write(`[dotreact] route stylesheet failed: ${message}\n`);
+      response.statusCode = 404;
+      response.end("/* DotReact route stylesheet was not found. */");
+    });
+    return;
+  }
   if (request.method === "POST" && url.pathname === "/__dotreact/render") {
     void handleRender(request, response, vite);
+    return;
+  }
+  if (request.method === "POST" && url.pathname === "/__dotreact/render-stream") {
+    void handleRenderStream(request, response, {
+      ...(token === undefined ? {} : { token }),
+      maxBodyBytes,
+      maxResponseBytes,
+      acquire() {
+        if (activeStreamRenders >= maxConcurrency) return undefined;
+        activeStreamRenders++;
+        return () => { activeStreamRenders--; };
+      },
+      async loadEntry() {
+        return await vite!.ssrLoadModule("virtual:dotreact/server-entry") as Partial<RenderStreamEntry>;
+      },
+      onError(error) { vite!.ssrFixStacktrace(error); }
+    });
     return;
   }
   vite.middlewares(request, response, () => {
@@ -104,6 +152,7 @@ const server = createHttpServer((request, response) => {
 
 vite = await createViteServer({
   root,
+  base: development ? developmentBase : "/",
   server: {
     middlewareMode: true,
     hmr: { server }

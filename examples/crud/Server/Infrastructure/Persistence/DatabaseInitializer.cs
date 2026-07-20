@@ -9,11 +9,12 @@ public static class DatabaseInitializer
     {
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<WorkItemsDbContext>();
+        var clock = scope.ServiceProvider.GetRequiredService<IClock>();
         await db.Database.EnsureCreatedAsync(cancellationToken);
         if (await db.WorkItems.AnyAsync(cancellationToken))
             return;
 
-        var now = DateTimeOffset.UtcNow;
+        var now = clock.UtcNow;
         db.WorkItems.AddRange(
             WorkItem.Create("Validar SSR com dados do SQLite",
                 "Este card nasceu no seed C# e chegou ao React pelas props do servidor.",

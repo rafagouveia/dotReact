@@ -2,6 +2,8 @@ using DotReact.AspNetCore;
 using DotReact.TypeGen;
 using Xunit;
 
+[assembly: DotReactPageRegistration(typeof(DotReact.TypeGen.Tests.AppRegisteredPage), "(operations)/app-page/page")]
+
 namespace DotReact.TypeGen.Tests;
 
 public sealed class BackendGeneratorTests
@@ -15,16 +17,20 @@ public sealed class BackendGeneratorTests
         var manifest = generator.GenerateManifest(backend);
         var client = generator.GenerateActionClient(backend, "./contracts");
 
-        Assert.Equal(2, backend.Pages.Count);
+        Assert.Equal(3, backend.Pages.Count);
         var page = Assert.Single(backend.Pages, value => value.ModuleId == "products/[id]/page");
         Assert.Equal("/products/{id:int}", page.Pattern);
         Assert.Equal("/docs/{**slug}", Assert.Single(backend.Pages, value => value.ModuleId == "docs/[...slug]/page").Pattern);
+        var appPage = Assert.Single(backend.Pages, value => value.ModuleId == "(operations)/app-page/page");
+        Assert.Equal("/app-page", appPage.Pattern);
+        Assert.Equal("app", appPage.Routing);
         var action = Assert.Single(backend.Actions);
         Assert.Equal("products/rename", action.Id);
         Assert.Equal("productsRename", action.ExportName);
         Assert.Contains("\"schemaVersion\": 2", manifest);
         Assert.Contains("\"moduleId\": \"products/[id]/page\"", manifest);
         Assert.Contains("\"routing\": \"convention\"", manifest);
+        Assert.DoesNotContain("\r", manifest);
         Assert.Contains("createServerAction<RenameRequest, RenameResponse>(\"products/rename\")", client);
         Assert.DoesNotContain(nameof(UnannotatedPage), manifest);
     }
@@ -87,4 +93,12 @@ public sealed class BackendGeneratorTests
             CancellationToken cancellationToken) =>
             ValueTask.FromResult(new ProductProps(0, "Hidden"));
     }
+}
+
+public sealed class AppRegisteredPage : IDotReactPage<BackendGeneratorTests.ProductProps>
+{
+    public ValueTask<BackendGeneratorTests.ProductProps> LoadAsync(
+        DotReactPageContext context,
+        CancellationToken cancellationToken) =>
+        ValueTask.FromResult(new BackendGeneratorTests.ProductProps(1, "App router"));
 }

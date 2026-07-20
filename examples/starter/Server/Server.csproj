@@ -3,14 +3,14 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <DotReactAppRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../app'))</DotReactAppRoot>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../../dotnet/src/DotReact.AspNetCore/DotReact.AspNetCore.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.16.0" />
-    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.16.0" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.16.0" />
+    <ProjectReference Include="../../../dotnet/src/DotReact.Hosting/DotReact.Hosting.csproj" />
+    <ProjectReference Include="../../../dotnet/src/DotReact.AppGenerator/DotReact.AppGenerator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+    <CompilerVisibleProperty Include="DotReactAppRoot" />
+    <Compile Include="../app/**/*.cs" Link="App/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

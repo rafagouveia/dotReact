@@ -1,6 +1,6 @@
-using DotReact.TypeGen;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using DotReact.TypeGen;
 using Xunit;
 
 namespace DotReact.TypeGen.Tests;

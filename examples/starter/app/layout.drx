@@ -1,0 +1,21 @@
+import { defineLayout, DotReactLink, type DotReactLayoutProps } from "@dotreact/client/router";
+
+export default defineLayout(function RootLayout({ children, pageProps }: DotReactLayoutProps) {
+  const values = typeof pageProps === "object" && pageProps !== null ? pageProps : {};
+  const backendLabel = "message" in values ? String(values.message)
+    : "name" in values ? String(values.name)
+    : "renderKey" in values ? String(values.renderKey)
+    : "Dados carregados";
+  return (
+    <div className="dotreact-layout">
+      <header className="dotreact-layout__header">
+        <strong>DotReact <small data-layout-backend-label>· {backendLabel}</small></strong>
+        <nav aria-label="Navegação principal">
+          <DotReactLink href="/">Início</DotReactLink>
+          <DotReactLink href="/products/42">Rota dinâmica</DotReactLink>
+        </nav>
+      </header>
+      {children}
+    </div>
+  );
+});

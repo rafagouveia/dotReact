@@ -19,3 +19,8 @@ export interface ProductPageProps {
   loadedBy: string;
   name: string;
 }
+
+export interface StreamingPageProps {
+  delayMs: number;
+  renderKey: string;
+}

@@ -23,20 +23,31 @@ may require explicit negotiation even when package APIs remain compatible.
 
 The following are public contracts:
 
-1. Public C# types and members under `DotReact.AspNetCore`.
+1. Public C# types and members under `DotReact.AspNetCore` and the
+   convention-based `DotReact.Hosting` application facade.
 2. Exported TypeScript APIs from `@dotreact/client`, `@dotreact/protocol`,
-   `@dotreact/renderer` and `@dotreact/vite`.
-3. CLI command names, documented options, exit-code semantics and generated
+   `@dotreact/renderer`, `@dotreact/vite`, `@dotreact/image`, `@dotreact/adapter`
+   and the explicitly experimental `@dotreact/rsc` surface.
+3. Public C# members in the optional `DotReact.Redis` and `DotReact.Images.SkiaSharp` plugins.
+4. CLI command names, documented options, exit-code semantics and generated
    project layout.
-4. `.drx` file conventions, canonical module IDs and route inference.
-5. Renderer protocol envelopes and backend-manifest schemas.
-6. Documented configuration keys, environment variables, headers and health
+5. `.drx` file conventions, canonical module IDs and route inference.
+6. Renderer protocol envelopes and backend/prerender-manifest schemas.
+7. Documented configuration keys, environment variables, headers and health
    endpoint paths.
-7. Generated TypeScript naming and serialization behavior documented as stable.
+8. Generated TypeScript naming and serialization behavior documented as stable.
 
 Implementation classes marked `internal`, files under `dist`, `bin`, `obj` or
 `.dotreact`, generated bundle names and undocumented diagnostics text are not
 compatibility contracts.
+
+### App-router transition
+
+The `app/**/page.drx` plus optional `page.server.cs` convention is the default
+for new 0.2-development projects. Legacy `src/pages` discovery and explicit
+`[DotReactPage]` loaders remain supported as a compatibility mode for at least
+the normal 0.x deprecation window. Route groups, private folders and generated
+`routing: "app"` manifests are part of the public file-convention surface.
 
 ## Breaking-change rules
 
@@ -89,4 +100,3 @@ external gate and is not implied by this policy.
 Any exception must be recorded in the changelog with affected surfaces,
 rationale, migration steps and rollback guidance. Silent breaking changes are
 not accepted.
-

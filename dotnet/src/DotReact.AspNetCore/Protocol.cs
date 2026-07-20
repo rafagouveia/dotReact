@@ -16,7 +16,7 @@ public sealed record DotReactRenderRequest(
 /// <summary>A structured, safely serialized element for the document head.</summary>
 public sealed record DotReactHeadElement
 {
-    /// <summary>Element kind: title, meta, or link.</summary>
+    /// <summary>Element kind: title, meta, link, or script.</summary>
     public string Kind { get; init; } = string.Empty;
 
     /// <summary>Text content used by title elements.</summary>

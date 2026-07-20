@@ -90,11 +90,12 @@ function assertionSource(
   pagesRoot: string,
   contractsPath: string,
   manifest: BackendManifest | undefined,
-  pages: readonly { moduleId: string; file: string }[],
+  pages: readonly { moduleId: string; file: string; layouts: readonly string[] }[],
   layouts: readonly { file: string }[],
-  boundaries: readonly { file: string }[]
+  boundaries: readonly { file: string; kind: "not-found" | "error" | "loading" }[],
+  globalError: string | undefined
 ): string {
-  const lines = ["import type { ComponentType, PropsWithChildren } from \"react\";"];
+  const lines = ["import type { ComponentType, FunctionComponent } from \"react\";", "import type { DotReactLayoutProps } from \"@dotreact/client/router\";"];
   lines.push("type DotReactBoundaryProps = { readonly statusCode: number; readonly requestId: string; readonly message?: string };");
   if (manifest !== undefined) {
     const names = [...new Set(manifest.pages.map(page => typeExportName(page.propsType)))].sort();
@@ -107,12 +108,23 @@ function assertionSource(
   });
   layouts.forEach((layout, index) => {
     lines.push(`import Layout${index} from ${JSON.stringify(relativeImport(pagesRoot, `${layout.file}.tsx`, true))};`);
-    lines.push(`const layout${index}: ComponentType<PropsWithChildren<Record<never, never>>> = Layout${index};`);
+    const applicable = pages.filter(page => page.layouts.includes(layout.file))
+      .map(page => manifest?.pages.find(candidate => candidate.moduleId === page.moduleId))
+      .filter((page): page is NonNullable<typeof page> => page !== undefined)
+      .map(page => typeExportName(page.propsType));
+    const props = applicable.length === 0 ? "Record<string, unknown>" : [...new Set(applicable)].sort().join(" | ");
+    lines.push(`const layout${index}: FunctionComponent<DotReactLayoutProps<${props}>> = Layout${index};`);
   });
   boundaries.forEach((boundary, index) => {
     lines.push(`import Boundary${index} from ${JSON.stringify(relativeImport(pagesRoot, `${boundary.file}.tsx`, true))};`);
-    lines.push(`const boundary${index}: ComponentType<DotReactBoundaryProps> = Boundary${index};`);
+    lines.push(boundary.kind === "loading"
+      ? `const boundary${index}: ComponentType<Record<never, never>> = Boundary${index};`
+      : `const boundary${index}: ComponentType<DotReactBoundaryProps> = Boundary${index};`);
   });
+  if (globalError !== undefined) {
+    lines.push(`import GlobalError from ${JSON.stringify(relativeImport(pagesRoot, `${globalError}.tsx`, true))};`);
+    lines.push("const globalError: ComponentType<{ readonly error: Error; readonly reset: () => void }> = GlobalError;");
+  }
   return lines.join("\n") + "\n";
 }
 
@@ -131,8 +143,17 @@ export async function checkDotReactProject(options: DotReactCheckOptions): Promi
     virtualFiles.set(fileKey(`${file}.tsx`), await fs.readFile(file, "utf8"));
   }
   for (const boundary of graph.boundaries) virtualFiles.set(fileKey(`${boundary.file}.tsx`), await fs.readFile(boundary.file, "utf8"));
+  if (graph.globalError !== undefined)
+    virtualFiles.set(fileKey(`${graph.globalError}.tsx`), await fs.readFile(graph.globalError, "utf8"));
   const assertionFile = fileKey(path.join(graph.pagesRoot, "__dotreact_contract_check__.tsx"));
-  virtualFiles.set(assertionFile, assertionSource(graph.pagesRoot, contractsPath, manifest, graph.pages, graph.layouts, graph.boundaries));
+  virtualFiles.set(assertionFile, assertionSource(
+    graph.pagesRoot,
+    contractsPath,
+    manifest,
+    graph.pages,
+    graph.layouts,
+    graph.boundaries,
+    graph.globalError));
 
   function virtualDirectoryExists(directoryName: string): boolean {
     const directory = fileKey(directoryName);
@@ -223,7 +244,40 @@ export async function checkDotReactProject(options: DotReactCheckOptions): Promi
         const key = `${diagnostic.code}:${diagnostic.file ?? ""}:${diagnostic.line ?? 0}:${diagnostic.column ?? 0}:${diagnostic.message}`;
         unique.set(key, diagnostic);
       }
-      return { diagnostics: [...unique.values()], pageCount: graph.pages.length, layoutCount: graph.layouts.length, boundaryCount: graph.boundaries.length };
+      for (const [file, source] of virtualFiles) {
+        if (!file.endsWith(".drx.tsx")) continue;
+        const checks: Array<{ pattern: RegExp; code: string; message: string }> = [
+          {
+            pattern: /^\s*["']use server["'];?/mu,
+            code: "DRX1001",
+            message: "DRX pages are universal React components. Implement remote mutations as typed C# Server Actions instead of a JavaScript 'use server' directive."
+          },
+          {
+            pattern: /(?:from\s*|import\s*\()\s*["'][^"']*\.server(?:\.[cm]?[jt]sx?)?["']/mu,
+            code: "DRX1002",
+            message: "A .server module cannot be imported by a hydrated DRX component. Load server data in the C# page loader or import the module only from the SSR entry."
+          }
+        ];
+        for (const check of checks) {
+          const match = check.pattern.exec(source);
+          if (match === null) continue;
+          const position = lineAndColumn(source, match.index)!;
+          const diagnostic: DotReactDiagnostic = {
+            category: "error",
+            code: check.code,
+            file: displayFile(root, file),
+            ...position,
+            message: check.message
+          };
+          unique.set(`${diagnostic.code}:${diagnostic.file}:${diagnostic.line}:${diagnostic.column}`, diagnostic);
+        }
+      }
+      return {
+        diagnostics: [...unique.values()],
+        pageCount: graph.pages.length,
+        layoutCount: graph.layouts.length,
+        boundaryCount: graph.boundaries.length + (graph.globalError === undefined ? 0 : 1)
+      };
     } finally {
       snapshot.dispose();
     }

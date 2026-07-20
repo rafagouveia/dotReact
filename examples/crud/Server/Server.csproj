@@ -4,15 +4,20 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <DotReactAppRoot>$(MSBuildProjectDirectory)\..\app</DotReactAppRoot>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../../dotnet/src/DotReact.AspNetCore/DotReact.AspNetCore.csproj" />
+    <ProjectReference Include="../../../dotnet/src/DotReact.Hosting/DotReact.Hosting.csproj" />
+    <ProjectReference Include="../../../dotnet/src/DotReact.AppGenerator/DotReact.AppGenerator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+    <CompilerVisibleProperty Include="DotReactAppRoot" />
+    <Compile Include="../app/**/*.cs" Link="app/%(RecursiveDir)%(Filename)%(Extension)" />
     <ProjectReference Include="Domain/DotReact.Crud.Domain.csproj" />
     <ProjectReference Include="Application/DotReact.Crud.Application.csproj" />
     <ProjectReference Include="Infrastructure/DotReact.Crud.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="Domain/**/*.cs;Application/**/*.cs;Infrastructure/**/*.cs" />
-    <Compile Include="Application/Contracts/*.cs" />
   </ItemGroup>
 </Project>

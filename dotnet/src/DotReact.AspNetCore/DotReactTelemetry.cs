@@ -26,6 +26,16 @@ public static class DotReactTelemetry
         "dotreact.actions.errors", description: "DotReact Server Action requests ending in server errors.");
     internal static readonly Histogram<double> ActionDuration = Meter.CreateHistogram<double>(
         "dotreact.actions.duration", unit: "s", description: "DotReact Server Action duration including response serialization.");
+    internal static readonly Histogram<long> PagePropsSize = Meter.CreateHistogram<long>(
+        "dotreact.pages.props.size", unit: "By", description: "Serialized page props transferred across the C# and React boundary.");
+    internal static readonly Histogram<double> BrowserCls = Meter.CreateHistogram<double>(
+        "dotreact.browser.cls", unit: "1", description: "Browser Cumulative Layout Shift.");
+    internal static readonly Histogram<double> BrowserInp = Meter.CreateHistogram<double>(
+        "dotreact.browser.inp", unit: "ms", description: "Browser Interaction to Next Paint.");
+    internal static readonly Histogram<double> BrowserLcp = Meter.CreateHistogram<double>(
+        "dotreact.browser.lcp", unit: "ms", description: "Browser Largest Contentful Paint.");
+    internal static readonly Histogram<double> BrowserTtfb = Meter.CreateHistogram<double>(
+        "dotreact.browser.ttfb", unit: "ms", description: "Browser Time to First Byte.");
 
     internal static void RecordAction(
         long started,

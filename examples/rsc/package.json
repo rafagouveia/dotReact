@@ -1,0 +1,24 @@
+{
+  "name": "@dotreact/example-rsc",
+  "version": "0.1.0-experimental.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5110",
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@dotreact/rsc": "0.1.0-experimental.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.3",
+    "rsc-html-stream": "0.0.7",
+    "typescript": "7.0.2",
+    "vite": "8.1.5"
+  }
+}

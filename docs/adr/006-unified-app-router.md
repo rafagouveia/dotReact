@@ -1,0 +1,61 @@
+# ADR 006: Unified app router
+
+## Status
+
+Accepted for the 0.2 development line. The legacy `src/pages` plus attributed
+loader model remains supported for compatibility during the deprecation window.
+
+## Context
+
+Keeping React routes under `src/pages` and C# page loaders under `Server/Pages`
+made one DotReact page look like two unrelated features. It also required a
+duplicated module ID attribute whose drift could only be detected after build.
+
+DotReact still needs a strict trust boundary: C# owns HTTP, authorization,
+business behavior and persistence; DRX remains ordinary TSX and must not parse
+or evaluate embedded C#.
+
+## Decision
+
+New applications use one file-routed `app/` tree:
+
+```text
+app/
+  layout.drx
+  page.drx
+  page.server.cs
+  (operations)/
+    reconciliations/
+      page.drx
+      page.server.cs
+      _components/
+```
+
+- `page.drx` is the universal React view used for SSR and hydration.
+- `page.server.cs` is the server-only C# loader and public props contract.
+- a source generator derives the module ID and route from the physical path and
+  emits assembly registration metadata at compile time;
+- `(group)` folders organize code without adding a URL segment;
+- `_private` folders are excluded from route discovery;
+- `layout.drx`, `loading.drx`, `error.drx` and `not-found.drx` compose by physical
+  ancestry, including route groups;
+- `[DotReactPage]` remains an explicit escape hatch for constrained or externally
+  defined ASP.NET patterns;
+- shared UI remains under `src/features` or `src/components`; Domain,
+  Application and Infrastructure remain in the C# backend.
+
+## Development updates
+
+DRX/TSX/CSS changes use Vite Fast Refresh. Successful .NET Hot Reload updates
+increment a generated application revision. The browser polls that revision on
+the same origin and asks the DotReact router to refresh current server props;
+process restarts still cause a full document reload. No public HTML or script
+depends on a localhost renderer or dotnet-watch WebSocket.
+
+## Consequences
+
+Route identity becomes compile-time metadata and ordinary requests do no source
+scanning or mixed-language parsing. A public props shape change still regenerates
+the C#/TypeScript contract; method-body and value changes do not rewrite
+unchanged generated artifacts. Route groups can collide at the URL layer, so
+startup rejects duplicate patterns. Private folders cannot contain pages.

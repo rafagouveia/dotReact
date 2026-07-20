@@ -3,15 +3,30 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./boundaries": "./dist/boundaries.js",
+    "./bootstrap": "./dist/bootstrap.js",
+    "./router": "./dist/router.js",
+    "./errors": "./dist/errors.js",
+    "./vitals": "./dist/vitals.js"
+  },
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test dist/index.test.js"
+    "test": "node --test dist/index.test.js dist/router.test.js dist/errors.test.js dist/vitals.test.js"
+  },
+  "peerDependencies": {
+    "react": ">=19.2.0",
+    "react-dom": ">=19.2.0"
   },
   "devDependencies": {
     "@types/node": "24.10.1",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
     "typescript": "7.0.2"
   }
 }

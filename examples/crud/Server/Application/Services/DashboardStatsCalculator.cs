@@ -1,6 +1,6 @@
 namespace DotReact.Crud;
 
-public sealed class DashboardStatsCalculator : IDashboardStatsCalculator
+public sealed class DashboardStatsCalculator
 {
     public DashboardSnapshotStats Calculate(IReadOnlyCollection<WorkItemSnapshot> items) => new(
         items.Count,

@@ -102,6 +102,30 @@ public sealed class DotReactPageContextTests
         Assert.Throws<ArgumentException>(() => context.GetQueryValue<int>(" "));
     }
 
+    [Fact]
+    public void GetQueryValues_converts_repeated_values_and_preserves_order()
+    {
+        var context = CreateContext("?status=draft&status=PUBLISHED");
+
+        Assert.Equal([QueryStatus.Draft, QueryStatus.Published], context.GetQueryValues<QueryStatus>("status"));
+    }
+
+    [Fact]
+    public void GetQueryValues_returns_empty_for_missing_key()
+    {
+        Assert.Empty(CreateContext().GetQueryValues<Guid>("id"));
+    }
+
+    [Fact]
+    public void GetQueryValues_enforces_a_bounded_cardinality()
+    {
+        var context = CreateContext("?id=1&id=2&id=3");
+
+        var exception = Assert.Throws<BadHttpRequestException>(() => context.GetQueryValues<int>("id", 2));
+
+        Assert.Contains("2 item limit", exception.Message);
+    }
+
     private static DotReactPageContext CreateContext(string queryString = "")
     {
         var httpContext = new DefaultHttpContext();

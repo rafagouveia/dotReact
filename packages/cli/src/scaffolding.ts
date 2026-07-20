@@ -1,13 +1,13 @@
 import { access, mkdir, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-const segmentPattern = /^(?:[a-zA-Z][a-zA-Z0-9_-]*|\[[a-zA-Z][a-zA-Z0-9_]*\])$/;
+const segmentPattern = /^(?:[a-zA-Z][a-zA-Z0-9_-]*|\[(?:\.\.\.)?[a-zA-Z][a-zA-Z0-9_]*\]|\([a-zA-Z_][a-zA-Z0-9_]*\))$/;
 const typePattern = /^[A-Z][a-zA-Z0-9]*$/;
 
 export type ScaffoldKind = "page" | "layout" | "action" | "boundary";
 
 export interface AddOptions {
-  boundaryKind?: "error" | "not-found";
+  boundaryKind?: "error" | "not-found" | "loading" | "global-error";
   dryRun?: boolean;
 }
 
@@ -20,10 +20,16 @@ export async function addArtifact(
   options: AddOptions = {}
 ): Promise<string[]> {
   if (kind === "action") return addAction(root, rawName, options.dryRun === true);
+  if (kind === "boundary" && options.boundaryKind === "global-error")
+    return addGlobalError(root, options.dryRun === true);
   const route = normalizeRoute(rawName);
   if (kind === "page") return addPage(root, route, options.dryRun === true);
   if (kind === "layout") return addLayout(root, route, options.dryRun === true);
-  return addBoundary(root, route, options.boundaryKind, options.dryRun === true);
+  return addBoundary(
+    root,
+    route,
+    options.boundaryKind === "global-error" ? undefined : options.boundaryKind,
+    options.dryRun === true);
 }
 
 export function normalizeRoute(value: string | undefined): string {
@@ -34,7 +40,7 @@ export function normalizeRoute(value: string | undefined): string {
   if (route === "" || route === ".") return "";
   const segments = route.split("/");
   if (segments.some(segment => !segmentPattern.test(segment)))
-    throw new Error("Routes may contain names and [parameter] segments only.");
+    throw new Error("Routes may contain names, [parameter], [...catchAll] and (routeGroup) segments only.");
   return segments.join("/");
 }
 
@@ -43,40 +49,59 @@ async function addPage(root: string, route: string, dryRun: boolean): Promise<st
   const stem = pageStem(segments);
   const props = `${stem}PageProps`;
   const loader = `${stem}Page`;
-  const moduleId = route === "" ? "page" : `${route}/page`;
-  const frontend = resolve(root, "src/pages", ...segments, "page.drx");
-  const backend = resolve(root, "Server/Pages", ...segments.map(namespaceSegment), "page.drx.cs");
-  const contractsImport = `${"../".repeat(segments.length + 1)}contracts`;
-  const dynamic = segments.filter(segment => segment.startsWith("[")).map(segment => segment.slice(1, -1));
+  const frontend = resolve(root, "app", ...segments, "page.drx");
+  const backend = resolve(root, "app", ...segments, "page.server.cs");
+  const contractsImport = `${"../".repeat(segments.length + 1)}src/contracts`;
+  const dynamic = segments.filter(segment => segment.startsWith("[") && !segment.startsWith("[..."))
+    .map(segment => segment.slice(1, -1));
   const routeValues = dynamic.map(name => `        var ${name} = context.GetRouteValue<string>("${name}");`).join("\n");
   const message = dynamic.length === 0
     ? `"Rendered by ${loader} in C#"`
     : `$"Rendered by ${loader} in C# (${dynamic.map(name => `${name}={${name}}`).join(", ")})"`;
-  const namespace = ["DotReact", "App", "Pages", ...segments.map(namespaceSegment)].join(".");
+  const namespace = ["DotReact", "App", "Routes", ...segments.map(namespaceSegment)].join(".");
 
   return applyPlans([
     { path: frontend, content: `import type { ${props} } from "${contractsImport}";\n\nexport const metadata = { title: "${stem} · DotReact" };\n\nexport default function ${stem}PageView(props: ${props}) {\n  return (\n    <main>\n      <h1>${stem}</h1>\n      <p>{props.message}</p>\n    </main>\n  );\n}\n` },
-    { path: backend, content: `using DotReact.AspNetCore;\n\nnamespace ${namespace};\n\npublic sealed record ${props}(string Message);\n\n[DotReactPage("${moduleId}")]\npublic sealed class ${loader} : IDotReactPage<${props}>\n{\n    public ValueTask<${props}> LoadAsync(\n        DotReactPageContext context,\n        CancellationToken cancellationToken)\n    {\n${routeValues === "" ? "" : `${routeValues}\n`}        return ValueTask.FromResult(new ${props}(${message}));\n    }\n}\n` }
+    { path: backend, content: `using DotReact.AspNetCore;\n\nnamespace ${namespace};\n\npublic sealed record ${props}(string Message);\n\n// The app router derives this page's route from the co-located file path.\npublic sealed class ${loader} : IDotReactPage<${props}>\n{\n    public ValueTask<${props}> LoadAsync(\n        DotReactPageContext context,\n        CancellationToken cancellationToken)\n    {\n${routeValues === "" ? "" : `${routeValues}\n`}        return ValueTask.FromResult(new ${props}(${message}));\n    }\n}\n` }
   ], dryRun);
 }
 
 async function addLayout(root: string, route: string, dryRun: boolean): Promise<string[]> {
   const segments = routeSegments(route);
-  const file = resolve(root, "src/pages", ...segments, "layout.drx");
+  const file = resolve(root, "app", ...segments, "layout.drx");
   return applyPlans([{ path: file, content: `import type { ReactNode } from "react";\n\nexport default function Layout({ children }: { children: ReactNode }) {\n  return <section data-dotreact-layout="${route || "root"}">{children}</section>;\n}\n` }], dryRun);
 }
 
 async function addBoundary(
   root: string,
   route: string,
-  kind: "error" | "not-found" | undefined,
+  kind: "error" | "not-found" | "loading" | undefined,
   dryRun: boolean
 ): Promise<string[]> {
-  if (kind === undefined) throw new Error("Use --kind error or --kind not-found.");
+  if (kind === undefined) throw new Error("Use --kind error, not-found or loading.");
   const segments = routeSegments(route);
-  const file = resolve(root, "src/pages", ...segments, `${kind}.drx`);
+  const file = resolve(root, "app", ...segments, `${kind}.drx`);
+  if (kind === "loading") {
+    return applyPlans([{ path: file, content: `export default function Loading() {\n  return (\n    <main aria-busy="true" aria-live="polite">\n      <p>Loading…</p>\n    </main>\n  );\n}\n` }], dryRun);
+  }
   const title = kind === "error" ? "Something went wrong" : "Page not found";
   return applyPlans([{ path: file, content: `interface BoundaryProps {\n  statusCode: number;\n  requestId: string;\n  message?: string;\n}\n\nexport default function Boundary(props: BoundaryProps) {\n  return (\n    <main>\n      <h1>${title}</h1>\n      <p>{props.message ?? \`Request failed with status \${props.statusCode}.\`}</p>\n      <small>Request: {props.requestId}</small>\n    </main>\n  );\n}\n` }], dryRun);
+}
+
+async function addGlobalError(root: string, dryRun: boolean): Promise<string[]> {
+  const file = resolve(root, "app", "global-error.drx");
+  return applyPlans([{ path: file, content: `import type { DotReactGlobalErrorProps } from "@dotreact/client/errors";
+
+export default function GlobalError({ reset }: DotReactGlobalErrorProps) {
+  return (
+    <main>
+      <h1>Something went wrong</h1>
+      <p>The application could not complete this render.</p>
+      <button type="button" onClick={reset}>Try again</button>
+    </main>
+  );
+}
+` }], dryRun);
 }
 
 async function addAction(root: string, rawName: string | undefined, dryRun: boolean): Promise<string[]> {
@@ -86,7 +111,7 @@ async function addAction(root: string, rawName: string | undefined, dryRun: bool
   if (name === "") throw new Error("Action name cannot be empty.");
   const id = name.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
   const file = resolve(root, "Server/Actions", `${name}Action.cs`);
-  return applyPlans([{ path: file, content: `using DotReact.AspNetCore;\nusing Microsoft.AspNetCore.Authorization;\n\nnamespace DotReact.App.Actions;\n\npublic sealed record ${name}Request(string Value);\npublic sealed record ${name}Response(string Value);\n\n[AllowAnonymous] // Replace with the application's authorization policy before production.\n[DotReactAction("${id}")]\npublic sealed class ${name}Action : IDotReactAction<${name}Request, ${name}Response>\n{\n    public ValueTask<DotReactActionResult<${name}Response>> ExecuteAsync(\n        ${name}Request request,\n        CancellationToken cancellationToken)\n    {\n        if (string.IsNullOrWhiteSpace(request.Value))\n            return ValueTask.FromResult(DotReactActionResult<${name}Response>.Validation(\n                new Dictionary<string, string[]> { ["value"] = ["Value is required."] }));\n\n        return ValueTask.FromResult(DotReactActionResult<${name}Response>.Success(\n            new ${name}Response(request.Value.Trim())));\n    }\n}\n` }], dryRun);
+  return applyPlans([{ path: file, content: `using DotReact.AspNetCore;\n\nnamespace DotReact.App.Actions;\n\npublic sealed record ${name}Request(string Value);\npublic sealed record ${name}Response(string Value);\n\n// Authorization is required by default. Register ASP.NET Core authentication and\n// authorization, then add [Microsoft.AspNetCore.Authorization.Authorize(Policy = "...")]\n// when this action needs an explicit policy.\n[DotReactAction("${id}")]\npublic sealed class ${name}Action : IDotReactAction<${name}Request, ${name}Response>\n{\n    public ValueTask<DotReactActionResult<${name}Response>> ExecuteAsync(\n        ${name}Request request,\n        CancellationToken cancellationToken)\n    {\n        if (string.IsNullOrWhiteSpace(request.Value))\n            return ValueTask.FromResult(DotReactActionResult<${name}Response>.Validation(\n                new Dictionary<string, string[]> { ["value"] = ["Value is required."] }));\n\n        return ValueTask.FromResult(DotReactActionResult<${name}Response>.Success(\n            new ${name}Response(request.Value.Trim())));\n    }\n}\n` }], dryRun);
 }
 
 async function applyPlans(plans: FilePlan[], dryRun: boolean): Promise<string[]> {
@@ -119,12 +144,16 @@ function routeSegments(route: string): string[] {
 
 function pageStem(segments: string[]): string {
   if (segments.length === 0) return "Home";
-  return segments.map(segment => segment.startsWith("[")
-    ? `By${pascal(segment.slice(1, -1))}`
-    : pascal(segment)).join("");
+  return segments.map(segment => {
+    if (segment.startsWith("(")) return pascal(segment.slice(1, -1));
+    if (segment.startsWith("[...")) return `By${pascal(segment.slice(4, -1))}`;
+    return segment.startsWith("[") ? `By${pascal(segment.slice(1, -1))}` : pascal(segment);
+  }).join("");
 }
 
 function namespaceSegment(segment: string): string {
+  if (segment.startsWith("(")) return `Group${pascal(segment.slice(1, -1))}`;
+  if (segment.startsWith("[...")) return `CatchAll${pascal(segment.slice(4, -1))}`;
   return segment.startsWith("[") ? `By${pascal(segment.slice(1, -1))}` : pascal(segment);
 }
 

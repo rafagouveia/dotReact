@@ -21,8 +21,18 @@ export interface DashboardStats {
   total: number;
 }
 
-export interface UpdateWorkItemRequest {
+export interface DeleteWorkItemRequest {
+  id: number;
+}
+
+export interface DeleteWorkItemResponse {
+  deleted: boolean;
+  id: number;
+}
+
+export interface UpdateWorkItemActionRequest {
   description: string | null;
+  id: number;
   priority: WorkItemPriority;
   status: WorkItemStatus;
   title: string | null;

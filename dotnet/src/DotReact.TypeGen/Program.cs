@@ -142,15 +142,30 @@ static string ReadValue(string[] args, ref int index, string option)
 
 static void WriteOrCheck(string path, string content, bool check, string description)
 {
+    var current = File.Exists(path) ? File.ReadAllText(path, Encoding.UTF8) : null;
     if (check)
     {
-        if (!File.Exists(path) || File.ReadAllText(path, Encoding.UTF8) != content)
+        if (current != content)
             throw new TypeScriptGenerationException($"{description} is out of date: {path}");
         return;
     }
 
-    Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-    File.WriteAllText(path, content, new UTF8Encoding(false));
+    // Preserve timestamps when contracts did not change so Vite keeps Fast
+    // Refresh local instead of treating every C# method-body edit as graph drift.
+    if (current == content) return;
+
+    var directory = Path.GetDirectoryName(path)!;
+    Directory.CreateDirectory(directory);
+    var temporary = Path.Combine(directory, $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
+    try
+    {
+        File.WriteAllText(temporary, content, new UTF8Encoding(false));
+        File.Move(temporary, path, overwrite: true);
+    }
+    finally
+    {
+        if (File.Exists(temporary)) File.Delete(temporary);
+    }
 }
 
 static string GetTypeScriptImport(string fromFile, string importedFile)

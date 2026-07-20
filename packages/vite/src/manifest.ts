@@ -10,7 +10,7 @@ export interface BackendPage {
   readonly moduleId: string;
   readonly propsType: string;
   readonly pattern?: string;
-  readonly routing?: "explicit" | "convention";
+  readonly routing?: "explicit" | "convention" | "app";
 }
 
 export interface BackendManifest {
@@ -38,10 +38,11 @@ export async function readBackendManifest(root: string, manifestPath: string): P
     if (typeof page.moduleId !== "string" || !moduleIdPattern.test(page.moduleId)) throw new Error(`Invalid backend moduleId at index ${index}.`);
     if (typeof page.propsType !== "string" || page.propsType.length === 0 || page.propsType.length > 512) throw new Error(`Invalid backend propsType at index ${index}.`);
     const pattern = typeof page.pattern === "string" ? page.pattern : undefined;
-    const routing = page.routing === "explicit" || page.routing === "convention" ? page.routing : undefined;
+    const routing = page.routing === "explicit" || page.routing === "convention" || page.routing === "app"
+      ? page.routing : undefined;
     if (record.schemaVersion === 2 && (pattern === undefined || routing === undefined))
       throw new Error(`Backend manifest page at index ${index} requires pattern and routing.`);
-    if (routing === "convention") {
+    if (routing === "convention" || routing === "app") {
       const expected = inferDotReactRoute(page.moduleId);
       if (pattern !== expected) throw new Error(`Convention route drift for ${page.moduleId}: expected ${expected}, received ${pattern ?? "missing"}.`);
     }

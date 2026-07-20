@@ -1,0 +1,37 @@
+{
+  "name": "@dotreact/rsc",
+  "version": "0.1.0-experimental.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js",
+    "./ppr": "./dist/ppr.js",
+    "./rsc": "./dist/rsc-runtime.js",
+    "./ssr": "./dist/ssr-runtime.js",
+    "./browser": "./dist/browser-runtime.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test dist/*.test.js"
+  },
+  "dependencies": {
+    "@vitejs/plugin-rsc": "0.5.28"
+  },
+  "peerDependencies": {
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "react-server-dom-webpack": "19.2.7",
+    "vite": "8.1.5"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "react-server-dom-webpack": "19.2.7",
+    "typescript": "7.0.2",
+    "vite": "8.1.5"
+  }
+}

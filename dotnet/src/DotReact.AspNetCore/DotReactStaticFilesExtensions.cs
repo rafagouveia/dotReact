@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.AspNetCore.Http;
 
 namespace Microsoft.AspNetCore.Builder;
@@ -11,10 +12,22 @@ public static partial class DotReactStaticFilesExtensions
     /// stable filenames are revalidated on every navigation.
     /// </summary>
     public static IApplicationBuilder UseDotReactStaticFiles(this IApplicationBuilder app)
+        => UseDotReactStaticFiles(app, null);
+
+    /// <summary>Serves static files from an explicit public directory.</summary>
+    public static IApplicationBuilder UseDotReactStaticFiles(
+        this IApplicationBuilder app,
+        string? publicPath)
     {
         ArgumentNullException.ThrowIfNull(app);
+        if (publicPath is not null && !Path.IsPathFullyQualified(publicPath))
+            throw new ArgumentException("The DotReact public path must be absolute.", nameof(publicPath));
+        IFileProvider? fileProvider = publicPath is null
+            ? null
+            : Directory.Exists(publicPath) ? new PhysicalFileProvider(publicPath) : new NullFileProvider();
         return app.UseStaticFiles(new StaticFileOptions
         {
+            FileProvider = fileProvider,
             OnPrepareResponse = context =>
             {
                 var immutable = FingerprintedAsset().IsMatch(context.File.Name);

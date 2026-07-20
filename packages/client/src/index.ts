@@ -107,12 +107,32 @@ export function createServerAction<TRequest, TResponse>(
   options: ServerActionOptions = {}
 ): ServerAction<TRequest, TResponse> {
   const url = `/_dotreact/actions/${actionSegments(action).map(encodeURIComponent).join("/")}`;
+  let csrfRequest: Promise<string> | undefined;
 
   return async (request, callOptions = {}) => {
     const fetchImplementation = options.fetch ?? globalThis.fetch;
     if (fetchImplementation === undefined) throw new Error("Fetch is not available in this environment.");
     const currentDocument = options.document ?? (typeof document === "undefined" ? undefined : document);
-    const csrfToken = currentDocument === undefined ? undefined : readCsrfToken(currentDocument);
+    let csrfToken = currentDocument === undefined ? undefined : readCsrfToken(currentDocument);
+    if (currentDocument !== undefined && csrfToken === undefined) {
+      csrfRequest ??= fetchImplementation("/_dotreact/csrf", {
+        method: "GET",
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" },
+        ...(callOptions.signal === undefined ? {} : { signal: callOptions.signal })
+      }).then(async response => {
+        const body = await responseBody(response);
+        const token = typeof body === "object" && body !== null
+          ? (body as { token?: unknown }).token : undefined;
+        if (!response.ok || typeof token !== "string" || token === "")
+          throw new DotReactActionError(response.status, body);
+        return token;
+      }).catch(error => {
+        csrfRequest = undefined;
+        throw error;
+      });
+      csrfToken = await csrfRequest;
+    }
     const headers = new Headers({
       "Content-Type": "application/json",
       "Accept": "application/json, application/problem+json",
@@ -137,6 +157,8 @@ export function createServerAction<TRequest, TResponse>(
     if (stalePaths.length > 0) {
       options.onRevalidate?.(stalePaths);
       if (callOptions.onRevalidate !== options.onRevalidate) callOptions.onRevalidate?.(stalePaths);
+      if (typeof window !== "undefined" && typeof CustomEvent !== "undefined")
+        window.dispatchEvent(new CustomEvent("dotreact:revalidate", { detail: stalePaths }));
     }
     return body as TResponse;
   };

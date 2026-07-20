@@ -1,6 +1,11 @@
 <Solution>
   <Project Path="src/DotReact.AspNetCore/DotReact.AspNetCore.csproj" />
+  <Project Path="src/DotReact.AppGenerator/DotReact.AppGenerator.csproj" />
+  <Project Path="src/DotReact.Hosting/DotReact.Hosting.csproj" />
+  <Project Path="src/DotReact.Images.SkiaSharp/DotReact.Images.SkiaSharp.csproj" />
+  <Project Path="src/DotReact.Redis/DotReact.Redis.csproj" />
   <Project Path="src/DotReact.TypeGen/DotReact.TypeGen.csproj" />
   <Project Path="tests/DotReact.AspNetCore.Tests/DotReact.AspNetCore.Tests.csproj" />
+  <Project Path="tests/DotReact.AppGenerator.Tests/DotReact.AppGenerator.Tests.csproj" />
   <Project Path="tests/DotReact.TypeGen.Tests/DotReact.TypeGen.Tests.csproj" />
 </Solution>

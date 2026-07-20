@@ -1,6 +1,6 @@
 namespace DotReact.Crud;
 
-public sealed class WorkItemInputValidator : IWorkItemInputValidator
+public sealed class WorkItemInputValidator
 {
     public InputValidationResult Validate(WorkItemInput input)
     {

@@ -6,7 +6,6 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="Contracts/**/*.cs" />
     <ProjectReference Include="../Domain/DotReact.Crud.Domain.csproj" />
   </ItemGroup>
 </Project>

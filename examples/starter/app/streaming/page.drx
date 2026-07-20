@@ -1,0 +1,45 @@
+import { Suspense } from "react";
+import type { StreamingPageProps } from "../../src/contracts";
+import { DotReactLink, definePage } from "@dotreact/client/router";
+
+export const metadata = {
+  title: "Streaming e Suspense · DotReact",
+  description: "Uma boundary real liberada antes do conteúdo assíncrono."
+};
+
+interface WaitRecord {
+  done: boolean;
+  promise: Promise<void>;
+}
+
+const serverWaits = new Map<string, WaitRecord>();
+
+function DelayedServerContent({ renderKey, delayMs }: StreamingPageProps) {
+  if (typeof window !== "undefined") {
+    return <strong data-stream-content>Conteúdo assíncrono concluído.</strong>;
+  }
+  let record = serverWaits.get(renderKey);
+  if (record === undefined) {
+    record = { done: false, promise: Promise.resolve() };
+    record.promise = new Promise<void>(resolve => setTimeout(resolve, delayMs)).then(() => {
+      record!.done = true;
+    });
+    serverWaits.set(renderKey, record);
+    if (serverWaits.size > 128) serverWaits.delete(serverWaits.keys().next().value!);
+  }
+  if (!record.done) throw record.promise;
+  return <strong data-stream-content>Conteúdo assíncrono concluído.</strong>;
+}
+
+export default definePage<StreamingPageProps>(function StreamingPage(Model) {
+  return (
+    <main className="shell">
+      <p className="eyebrow">Streaming SSR v2</p>
+      <h1>Suspense sem bloquear o shell</h1>
+      <Suspense fallback={<p data-stream-fallback>Carregando boundary do servidor…</p>}>
+        <DelayedServerContent {...Model} />
+      </Suspense>
+      <p><DotReactLink href="/">Voltar sem recarregar o documento</DotReactLink></p>
+    </main>
+  );
+});

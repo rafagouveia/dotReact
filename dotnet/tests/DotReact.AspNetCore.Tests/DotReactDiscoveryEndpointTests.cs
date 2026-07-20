@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using DotReact.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
@@ -32,6 +34,25 @@ public sealed partial class DotReactDiscoveryEndpointTests
         Assert.Matches("<meta name=\"dotreact-csrf-token\" content=\"[^\"]+\">", html);
         Assert.Contains("csrfToken", html);
         Assert.Contains(response.Headers.GetValues("Set-Cookie"), value => value.Contains(".AspNetCore.Antiforgery", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Client_navigation_returns_typed_props_without_invoking_the_renderer()
+    {
+        var renderer = new CountingRenderer();
+        await using var app = await StartAsync(renderer);
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/discovered/42");
+        request.Headers.Add("X-DotReact-Navigation", "1");
+        request.Headers.Accept.ParseAdd("application/vnd.dotreact.navigation+json");
+
+        var response = await app.GetTestClient().SendAsync(request);
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/vnd.dotreact.navigation+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("pages/discovered", payload.RootElement.GetProperty("moduleId").GetString());
+        Assert.Equal(42, payload.RootElement.GetProperty("props").GetProperty("id").GetInt32());
+        Assert.Equal(0, renderer.CallCount);
     }
 
     [Fact]
@@ -78,6 +99,24 @@ public sealed partial class DotReactDiscoveryEndpointTests
         Assert.Contains("<main>", html);
         Assert.Equal(1, renderer.CallCount);
         Assert.Equal("not-found", renderer.LastRequest?.BoundaryKind);
+    }
+
+    [Fact]
+    public async Task Client_navigation_not_found_returns_boundary_payload_without_renderer()
+    {
+        var renderer = new CountingRenderer();
+        await using var app = await StartAsync(renderer);
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/result/missing");
+        request.Headers.Add("X-DotReact-Navigation", "1");
+        request.Headers.Accept.ParseAdd("application/vnd.dotreact.navigation+json");
+
+        var response = await app.GetTestClient().SendAsync(request);
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("not-found", payload.RootElement.GetProperty("boundaryKind").GetString());
+        Assert.Equal(404, payload.RootElement.GetProperty("props").GetProperty("statusCode").GetInt32());
+        Assert.Equal(0, renderer.CallCount);
     }
 
     [Theory]
@@ -286,6 +325,47 @@ public sealed partial class DotReactDiscoveryEndpointTests
     }
 
     [Fact]
+    public async Task Fresh_prerender_hit_skips_loader_and_never_issues_antiforgery_state()
+    {
+        var renderer = new CountingRenderer();
+        await using var app = await StartAsync(renderer);
+        var client = app.GetTestClient();
+
+        var first = await client.GetAsync("/prerender/stable");
+        var firstHtml = await first.Content.ReadAsStringAsync();
+        var second = await client.GetAsync("/prerender/stable");
+        var secondHtml = await second.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal("Generated", first.Headers.GetValues("X-DotReact-Prerender").Single());
+        Assert.Equal("Fresh", second.Headers.GetValues("X-DotReact-Prerender").Single());
+        Assert.Equal(firstHtml, secondHtml);
+        Assert.Contains("prerender-", firstHtml);
+        Assert.DoesNotContain("csrf", firstHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.False(first.Headers.TryGetValues("Set-Cookie", out _));
+        Assert.False(second.Headers.TryGetValues("Set-Cookie", out _));
+        Assert.Equal(1, renderer.CallCount);
+        Assert.Equal(1, app.Services.GetRequiredService<PrerenderInvocationCounter>().Count);
+    }
+
+    [Fact]
+    public async Task Prerender_manifest_expands_typed_dynamic_path_providers()
+    {
+        await using var app = await StartAsync();
+
+        var response = await app.GetTestClient().GetAsync("/_dotreact/prerender-manifest");
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var routes = document.RootElement.GetProperty("routes").EnumerateArray()
+            .Select(item => item.GetProperty("path").GetString()).ToArray();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, document.RootElement.GetProperty("version").GetInt32());
+        Assert.Contains("/prerender/stable", routes);
+        Assert.Contains("/prerender/10", routes);
+        Assert.Contains("/prerender/11", routes);
+    }
+
+    [Fact]
     public async Task Idempotent_action_coalesces_and_replays_the_first_byte_response()
     {
         await using var app = await StartAsync();
@@ -367,6 +447,7 @@ public sealed partial class DotReactDiscoveryEndpointTests
         builder.Services.AddSingleton<InvocationCounter>();
         builder.Services.AddSingleton<ResourceInvocationCounter>();
         builder.Services.AddSingleton<CacheInvocationCounter>();
+        builder.Services.AddSingleton<PrerenderInvocationCounter>();
         if (enableDistributedCache)
         {
             builder.Services.AddDistributedMemoryCache();
@@ -433,6 +514,41 @@ public sealed partial class DotReactDiscoveryEndpointTests
             DotReactPageContext context,
             CancellationToken cancellationToken) =>
             ValueTask.FromResult(new PageProps(counter.Increment()));
+    }
+
+    [DotReactPrerender(60)]
+    [DotReactPage("/prerender/stable", "prerender/stable/page")]
+    public sealed class PrerenderedPage(PrerenderInvocationCounter counter) : IDotReactPage<PageProps>
+    {
+        public ValueTask<PageProps> LoadAsync(
+            DotReactPageContext context,
+            CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new PageProps(counter.Increment()));
+    }
+
+    [DotReactPrerender]
+    [DotReactPage("/prerender/{id:int}", "prerender/dynamic/page")]
+    public sealed class DynamicPrerenderedPage : IDotReactPage<PageProps>
+    {
+        public ValueTask<PageProps> LoadAsync(
+            DotReactPageContext context,
+            CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new PageProps(context.GetRouteValue<int>("id")));
+    }
+
+    public sealed class DynamicPrerenderedPaths : IDotReactStaticPathProvider<DynamicPrerenderedPage>
+    {
+        public async IAsyncEnumerable<DotReactStaticPath> GetPathsAsync(
+            [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            await Task.Yield();
+            foreach (var id in new[] { "10", "11" })
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return new DotReactStaticPath(
+                    new Dictionary<string, string> { ["id"] = id }, ["catalog"]);
+            }
+        }
     }
 
     [DotReactPage("/result/status", "result/status/page")]
@@ -570,6 +686,13 @@ public sealed partial class DotReactDiscoveryEndpointTests
         public int Increment() => Interlocked.Increment(ref _count);
     }
 
+    public sealed class PrerenderInvocationCounter
+    {
+        private int _count;
+        public int Count => _count;
+        public int Increment() => Interlocked.Increment(ref _count);
+    }
+
     private sealed class TestAuthenticationHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
@@ -592,7 +715,10 @@ public sealed partial class DotReactDiscoveryEndpointTests
         public Task<DotReactRenderResponse> RenderAsync(DotReactRenderRequest request, CancellationToken cancellationToken) =>
             Task.FromResult(new DotReactRenderResponse
             {
-                ProtocolVersion = 1, RequestId = request.RequestId, Ok = true, Html = "<main></main>"
+                ProtocolVersion = 1,
+                RequestId = request.RequestId,
+                Ok = true,
+                Html = "<main></main>"
             });
     }
 

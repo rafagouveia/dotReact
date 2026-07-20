@@ -67,6 +67,7 @@ yarn-error.log*
 pnpm-debug.log*
 .eslintcache
 .playwright-cli/
+output/playwright/
 .vscode-test/
 *.vsix
 work/

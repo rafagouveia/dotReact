@@ -15,12 +15,15 @@ closed by default.
 
 - C# page loaders may return `DotReactPageResult<TProps>` with page, not-found
   or redirect outcomes. ASP.NET Core remains authoritative for status and headers.
-- `not-found.drx` and `error.drx` are special files, excluded from the routable
+- `not-found.drx` and `error.drx` are optional override files, excluded from the routable
   page registry and resolved from the nearest route ancestor.
 - Boundary props use the fixed framework contract `statusCode`, `requestId` and
   optional `message`; the semantic checker rejects incompatible signatures.
 - The render protocol carries a nullable boundary discriminator so SSR and
   hydration select the same component tree.
+- When an override is absent, the virtual module supplies the corresponding
+  framework-owned loading, not-found or error fallback. Generated applications
+  do not carry copies of core boundary components.
 - Page modules expose structured metadata. The SSR entry converts only known
   title, meta and link fields to escaped React elements; arbitrary head HTML is
   not accepted.

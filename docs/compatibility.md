@@ -5,7 +5,7 @@
 | 0.1.x experimental | 10.x | 24.x production; 20.19+ development | 19.2.x | 8.1.x | 7.0.x |
 
 Protocol version 1 is currently required on both sides. During the current
-pre-release, generated projects vendor the runtime under `framework/` and use
+pre-release, generated projects vendor the runtime under `vendor/` and use
 local `file:`/project references. After npm and NuGet publication, those
 references will be replaced by packages pinned to the same DotReact minor
 version. Every upgrade must regenerate contracts and pass `dotreact check`

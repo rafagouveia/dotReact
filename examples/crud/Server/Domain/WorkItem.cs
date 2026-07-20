@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace DotReact.Crud;
 
 public enum WorkItemStatus { Backlog, InProgress, Done }
@@ -26,10 +24,8 @@ public sealed class WorkItem
 
     public int Id { get; private set; }
 
-    [MaxLength(120)]
     public string Title { get; private set; } = string.Empty;
 
-    [MaxLength(1000)]
     public string? Description { get; private set; }
 
     public WorkItemStatus Status { get; private set; }

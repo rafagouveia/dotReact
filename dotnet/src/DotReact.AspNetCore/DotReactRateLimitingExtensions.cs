@@ -37,24 +37,29 @@ public static class DotReactRateLimitingServiceCollectionExtensions
                         System.Globalization.CultureInfo.InvariantCulture);
                 context.HttpContext.Response.ContentType = "application/problem+json";
                 await context.HttpContext.Response.WriteAsync(
-                    "{\"type\":\"https://httpstatuses.com/429\",\"title\":\"Too many DotReact action requests.\",\"status\":429}",
+                    "{\"type\":\"https://httpstatuses.com/429\",\"title\":\"Too many DotReact requests.\",\"status\":429}",
                     cancellationToken).ConfigureAwait(false);
             };
-            options.AddPolicy(DotReactRateLimiting.PolicyName, context =>
-            {
-                var value = context.RequestServices.GetRequiredService<IOptions<DotReactRateLimitingOptions>>().Value;
-                var partition = GetPartition(context, value);
-                return RateLimitPartition.GetFixedWindowLimiter(partition, _ => new FixedWindowRateLimiterOptions
-                {
-                    PermitLimit = value.PermitLimit,
-                    Window = value.Window,
-                    QueueLimit = value.QueueLimit,
-                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                    AutoReplenishment = true
-                });
-            });
+            options.AddPolicy(DotReactRateLimiting.PolicyName,
+                context => CreatePartition(context, "actions"));
+            options.AddPolicy(DotReactRateLimiting.WebVitalsPolicyName,
+                context => CreatePartition(context, "web-vitals"));
         });
         return services;
+    }
+
+    private static RateLimitPartition<string> CreatePartition(HttpContext context, string capability)
+    {
+        var value = context.RequestServices.GetRequiredService<IOptions<DotReactRateLimitingOptions>>().Value;
+        var partition = $"{capability}:{GetPartition(context, value)}";
+        return RateLimitPartition.GetFixedWindowLimiter(partition, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = value.PermitLimit,
+            Window = value.Window,
+            QueueLimit = value.QueueLimit,
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            AutoReplenishment = true
+        });
     }
 
     private static string GetPartition(HttpContext context, DotReactRateLimitingOptions options)

@@ -1,0 +1,45 @@
+import { useState } from "react";
+import type { HomePageProps } from "../src/contracts";
+import { demoIncrement } from "../src/actions";
+import type { DotReactMetadata } from "@dotreact/vite";
+import { definePage, DotReactLink } from "@dotreact/client/router";
+
+export const metadata: DotReactMetadata = {
+  title: "DotReact · C# + React SSR",
+  description: "Starter DotReact com ASP.NET Core, React SSR, hidratação e Server Actions.",
+  links: [{ rel: "icon", href: "/favicon.svg", type: "image/svg+xml" }]
+};
+
+export default definePage<HomePageProps>(function HomePage(Model) {
+  const { message, generatedAt } = Model;
+  const [count, setCount] = useState(0);
+  const [executedBy, setExecutedBy] = useState("Ainda não executada");
+  const [error, setError] = useState<string>();
+
+  async function incrementOnServer() {
+    setError(undefined);
+    try {
+      const result = await demoIncrement({ value: count });
+      setCount(result.value);
+      setExecutedBy(result.executedBy);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Falha ao chamar a action.");
+    }
+  }
+
+  return (
+    <main className="shell">
+      <p className="eyebrow">ASP.NET Core + React SSR + DRX</p>
+      <h1>{message}</h1>
+      <p>Esta view é um arquivo <code>page.drx</code>; suas props nasceram no loader C#.</p>
+      <p className="muted">Gerado em {generatedAt}</p>
+      <button type="button" onClick={incrementOnServer}>
+        Server Action C#: {count}
+      </button>
+      <p className="muted" data-action-result>{executedBy}</p>
+      {error && <p role="alert">{error}</p>}
+      <p><DotReactLink href="/products/42">Abrir rota dinâmica /products/42</DotReactLink></p>
+      <p><DotReactLink href="/streaming">Ver streaming SSR com Suspense</DotReactLink></p>
+    </main>
+  );
+});

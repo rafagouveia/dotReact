@@ -39,6 +39,33 @@ test("reads CSRF from hydration when no meta token exists", () => {
   assert.equal(readCsrfToken(fakeDocument(undefined, { security: { csrfToken: "hydrated" } })), "hydrated");
 });
 
+test("acquires and reuses a request token for statically generated documents", async () => {
+  const calls: string[] = [];
+  const action = createServerAction<object, { ok: boolean }>("items/create", {
+    document: fakeDocument(),
+    fetch: async (url, init) => {
+      calls.push(`${init?.method}:${String(url)}`);
+      if (url === "/_dotreact/csrf") {
+        return new Response(JSON.stringify({ token: "static-csrf" }), {
+          headers: { "content-type": "application/json" }
+        });
+      }
+      assert.equal((init?.headers as Headers).get("X-DotReact-CSRF"), "static-csrf");
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { "content-type": "application/json" }
+      });
+    }
+  });
+
+  await action({});
+  await action({});
+  assert.deepEqual(calls, [
+    "GET:/_dotreact/csrf",
+    "POST:/_dotreact/actions/items/create",
+    "POST:/_dotreact/actions/items/create"
+  ]);
+});
+
 test("throws a structured action error and never retries", async () => {
   let calls = 0;
   const action = createServerAction<object, object>("items/create", {

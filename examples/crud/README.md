@@ -1,14 +1,9 @@
-# DotReact CRUD example
+# DotReact CRUD reference
 
-This example intentionally uses the manual TypeScript page registry to prove
-compatibility with conventional `.tsx` applications. New file-routed projects
-should normally prefer `page.drx`, discovered loaders and the generated manifest
-shown by the starter example.
-
-This example exercises the C# ↔ React boundary with a persistent SQLite work
-board. ASP.NET Core owns validation, persistence, timestamps and the API. React
-receives the first page as generated typed props through SSR, hydrates it, and
-then performs same-origin CRUD operations against C# endpoints.
+This is the complete reference application for the current DotReact architecture.
+It exercises the same path a generated application uses: file-routed DRX pages,
+discovered C# loaders, generated contracts, React SSR and hydration, typed Server
+Actions, automatic route revalidation, authorization, and SQLite persistence.
 
 ```powershell
 npm install
@@ -18,10 +13,34 @@ npm run dev -w @dotreact/example-crud
 
 Open `http://127.0.0.1:5090`.
 
+## Request and mutation flow
+
+```text
+GET /
+  -> page.drx route
+  -> WorkItemsPage C# loader
+  -> SQLite use case
+  -> generated DashboardProps
+  -> React SSR
+  -> browser hydration
+
+Create, update or delete
+  -> generated TypeScript action
+  -> authorized C# Server Action
+  -> application use case
+  -> SQLite
+  -> automatic revalidation of /
+```
+
+The React route is `app/page.drx`; it is intentionally thin and delegates
+the interactive UI to `src/features/work-items/WorkItemsBoard.tsx`. The matching
+C# loader is co-located at `app/page.server.cs`. Server Actions
+live under `Server/Actions` and are exposed to React through generated
+`src/actions.ts` functions.
+
 ## SOLID architecture
 
-The server is split into projects so dependency direction is enforced by the
-compiler instead of relying only on folder conventions:
+The backend is split into projects so the compiler enforces dependency direction:
 
 ```text
 Presentation / Server  ->  Application  ->  Domain
@@ -29,52 +48,57 @@ Presentation / Server  ->  Application  ->  Domain
           +------------> Infrastructure
 ```
 
-- `Server/Domain` owns the `WorkItem` entity, its state changes and
-  normalization rules. It has no ASP.NET Core or EF Core dependency.
-- `Server/Application` owns one use case per operation, input validation,
-  mapping and small persistence/time ports. It references only Domain.
-- `Server/Infrastructure` implements those ports with EF Core, SQLite and the
-  system clock.
-- `Server/Presentation` translates HTTP requests and use-case results. It does
-  not access `DbContext` or contain business rules.
-- `Server/Composition` is the single dependency-injection composition root.
+- `Server/Domain` owns the entity and its state transitions, with no ASP.NET Core
+  or EF Core dependency.
+- `Server/Application` owns focused use cases, validation and only the ports that
+  cross an actual infrastructure boundary.
+- `Server/Infrastructure` implements persistence and time using EF Core, SQLite
+  and the system clock.
+- `app`, `Server/Actions` and `Server/Presentation` adapt framework or
+  HTTP requests into application use cases. They do not access `DbContext`.
+- `Server/Composition` is the dependency-injection composition root.
+- `src/features` contains client interaction; `app` contains route,
+  layout, loading, error and not-found boundaries.
 
-To add behavior, start with a focused use case in `Application/UseCases`. Add a
-small application-owned interface only when the behavior needs an external
-capability, then implement that interface in `Infrastructure` and register it
-in `Composition`. HTTP and React code remain adapters around that application
-flow.
+The REST endpoints under `/api/work-items` remain only as a Minimal API route
+handler interoperability example. The DotReact UI does not use them; it uses the
+generated Server Actions.
 
-`Server.Tests/ArchitectureTests.cs` guards the inward dependency direction.
-`ApplicationUseCaseTests.cs` exercises business behavior with in-memory port
-implementations, while `WorkItemsApiTests.cs` verifies the complete HTTP and
-SQLite flow.
+## Generated boundary
 
-## What this proves
+Run `npm run generate -w @dotreact/example-crud` after changing a public loader,
+action or presentation contract. It regenerates:
 
-- The initial list and statistics are loaded from SQLite in C# and included in
-  React's server-rendered HTML.
-- `DashboardProps`, request records, DTOs and enum unions are generated from the
-  compiled C# assembly into `src/contracts.ts`.
-- The hydrated React form calls same-origin ASP.NET Core POST/PUT/DELETE routes.
-- C# remains responsible for validation, normalization, timestamps and database
-  writes; React updates the local board after each typed response.
-- The renderer owns an isolated HMR websocket, so this example can run beside the
-  simple starter without losing Fast Refresh state.
+- `src/contracts.ts`: C# records, DTOs and enum unions as TypeScript types;
+- `src/actions.ts`: typed action callers;
+- `src/backend-manifest.json`: discovered page and action metadata.
 
-Useful checks:
+`npm run check:contracts -w @dotreact/example-crud` is the non-mutating CI guard
+that fails when these artifacts are stale.
+
+## Security model
+
+The page, Server Actions and REST handlers all require the `work-items.access`
+policy. For this local example, a demo authentication handler is enabled only in
+`Development` and `Testing`. It deliberately fails closed in `Production`.
+
+Before deploying an application based on this example, replace demo
+authentication with the real identity provider, define resource-level policies,
+configure secrets outside source control, use EF migrations and adopt backup and
+concurrency policies. `/health` is intentionally public for platform probes.
+
+## Validation
 
 ```powershell
 npm run check:contracts -w @dotreact/example-crud
 npm run typecheck -w @dotreact/example-crud
-dotnet test examples/crud/Server.Tests/Server.Tests.csproj
+npm run build -w @dotreact/example-crud
+dotnet test examples/crud/Server.Tests/Server.Tests.csproj -c Release
 ```
 
-The development database is created under `Server/App_Data/` and is intentionally
-ignored by source control. Delete that database only when you explicitly want a
-fresh local seed.
+The test suite covers application behavior, architecture boundaries, discovered
+pages, action authorization and CSRF, REST interoperability, SQLite CRUD, and
+the production fail-closed behavior.
 
-This is a local reference application, not an authentication template. Before
-using the endpoints in a production application, add user authentication,
-resource-level authorization, antiforgery protection for cookie-authenticated
-mutations, EF migrations, concurrency tokens and an application backup policy.
+The development database is stored under `Server/App_Data/` and ignored by Git.
+Delete it only when you explicitly want a fresh local seed.

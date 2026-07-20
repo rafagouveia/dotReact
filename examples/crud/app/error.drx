@@ -1,0 +1,5 @@
+interface ErrorBoundaryProps { statusCode: number; requestId: string; message?: string }
+
+export default function WorkboardError({ requestId, message }: ErrorBoundaryProps) {
+  return <main className="route-boundary" role="alert"><h1>Não foi possível carregar o workboard.</h1><p>{message ?? "Tente novamente."}</p><small>Request: {requestId}</small></main>;
+}

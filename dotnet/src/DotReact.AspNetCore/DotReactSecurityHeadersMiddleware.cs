@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text;
 using DotReact.AspNetCore;
 using Microsoft.AspNetCore.Http;
@@ -27,6 +28,9 @@ internal sealed class DotReactSecurityHeadersMiddleware(
         var security = securityOptions.Value;
         if (!security.Enabled) return next(context);
 
+        var nonce = Convert.ToBase64String(RandomNumberGenerator.GetBytes(24));
+        DotReactSecurityNonce.Set(context, nonce);
+
         var headers = context.Response.Headers;
         headers.TryAdd("X-Content-Type-Options", "nosniff");
         headers.TryAdd("X-XSS-Protection", "0");
@@ -37,7 +41,7 @@ internal sealed class DotReactSecurityHeadersMiddleware(
         if (security.ContentSecurityPolicyEnabled)
         {
             headers.TryAdd("Content-Security-Policy",
-                security.ContentSecurityPolicy ?? BuildContentSecurityPolicy(security, dotReactOptions.Value));
+                security.ContentSecurityPolicy ?? BuildContentSecurityPolicy(security, dotReactOptions.Value, nonce));
         }
         return next(context);
     }
@@ -49,11 +53,13 @@ internal sealed class DotReactSecurityHeadersMiddleware(
 
     private static string BuildContentSecurityPolicy(
         DotReactSecurityHeadersOptions security,
-        DotReactOptions dotReact)
+        DotReactOptions dotReact,
+        string nonce)
     {
-        var scriptSources = new List<string> { "'self'" };
+        var scriptSources = new List<string> { "'self'", $"'nonce-{nonce}'" };
         var styleSources = new List<string> { "'self'" };
         var connectSources = new List<string> { "'self'" };
+        var workerSources = new List<string> { "'self'" };
         scriptSources.AddRange(security.AdditionalScriptSources);
         styleSources.AddRange(security.AdditionalStyleSources);
         connectSources.AddRange(security.AdditionalConnectSources);
@@ -61,7 +67,14 @@ internal sealed class DotReactSecurityHeadersMiddleware(
         if (dotReact.Development)
         {
             AddDevelopmentOrigin(dotReact.ClientScriptSrc, scriptSources, styleSources, connectSources);
+            AddDevelopmentOrigin(dotReact.ClientStyleSrc, scriptSources, styleSources, connectSources);
             AddDevelopmentOrigin(dotReact.ReactRefreshPreambleSrc, scriptSources, styleSources, connectSources);
+            // dotnet watch allocates an ephemeral localhost websocket port for browser refresh.
+            // Keep this development-only; production remains restricted to configured origins.
+            connectSources.Add("ws://localhost:*");
+            connectSources.Add("wss://localhost:*");
+            // Vite uses a short-lived blob worker while polling for a restarted dev server.
+            workerSources.Add("blob:");
             scriptSources.Add("'unsafe-inline'");
             styleSources.Add("'unsafe-inline'");
         }
@@ -70,7 +83,11 @@ internal sealed class DotReactSecurityHeadersMiddleware(
         policy.Append("default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; ");
         AppendDirective(policy, "script-src", scriptSources);
         AppendDirective(policy, "style-src", styleSources);
-        policy.Append("img-src 'self' data:; font-src 'self'; worker-src 'self'; ");
+        // React style props compile to style attributes. CSP nonces do not apply to
+        // attributes, so allow only that surface while keeping style elements external.
+        policy.Append("style-src-attr 'unsafe-inline'; ");
+        policy.Append("img-src 'self' data:; font-src 'self'; ");
+        AppendDirective(policy, "worker-src", workerSources);
         AppendDirective(policy, "connect-src", connectSources);
         return policy.ToString().TrimEnd();
     }

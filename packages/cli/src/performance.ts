@@ -5,23 +5,57 @@ import { extname, resolve } from "node:path";
 export interface BundleBudget {
   clientKb: number;
   ssrKb: number;
+  initialClientKb?: number;
+  asyncChunkKb?: number;
+  cssKb?: number;
+}
+
+export interface BundleMeasurement {
+  rawBytes: number;
+  gzipBytes: number;
+  files: number;
 }
 
 export interface BundleReport {
-  client: { rawBytes: number; gzipBytes: number; files: number };
-  ssr: { rawBytes: number; gzipBytes: number; files: number };
+  client: BundleMeasurement;
+  ssr: BundleMeasurement;
+  initialClient: BundleMeasurement;
+  largestAsyncChunk: BundleMeasurement;
+  css: BundleMeasurement;
+}
+
+interface ViteManifestEntry {
+  readonly file?: string;
+  readonly isEntry?: boolean;
+  readonly imports?: readonly string[];
+  readonly css?: readonly string[];
 }
 
 export async function analyzeBundles(root: string, budget: BundleBudget): Promise<BundleReport> {
+  const clientDirectory = resolve(root, "dist/client");
+  const serverDirectory = resolve(root, "dist/server");
+  const clientFiles = await walk(clientDirectory);
+  const clientCode = clientFiles.filter(item => [".js", ".css"].includes(extname(item)));
+  const cssFiles = clientFiles.filter(item => extname(item) === ".css");
+  const initialFiles = await initialClientFiles(clientDirectory, clientCode);
+  const initialSet = new Set(initialFiles.map(file => resolve(file)));
+  const asyncChunks = clientFiles.filter(file => extname(file) === ".js" && !initialSet.has(resolve(file)));
+  const asyncMeasurements = await Promise.all(asyncChunks.map(file => measureFiles([file])));
+  const largestAsyncChunk = asyncMeasurements.sort((left, right) => right.gzipBytes - left.gzipBytes)[0]
+    ?? emptyMeasurement();
   const report = {
-    client: await measure(resolve(root, "dist/client")),
-    ssr: await measure(resolve(root, "dist/server"))
+    client: await measureFiles(clientCode),
+    ssr: await measure(resolve(serverDirectory)),
+    initialClient: await measureFiles(initialFiles.filter(file => extname(file) === ".js")),
+    largestAsyncChunk,
+    css: await measureFiles(cssFiles)
   };
   const failures: string[] = [];
-  if (report.client.gzipBytes > budget.clientKb * 1024)
-    failures.push(`client gzip ${formatKb(report.client.gzipBytes)} exceeds ${budget.clientKb} KiB`);
-  if (report.ssr.gzipBytes > budget.ssrKb * 1024)
-    failures.push(`SSR gzip ${formatKb(report.ssr.gzipBytes)} exceeds ${budget.ssrKb} KiB`);
+  checkBudget(failures, "client gzip", report.client.gzipBytes, budget.clientKb);
+  checkBudget(failures, "SSR gzip", report.ssr.gzipBytes, budget.ssrKb);
+  checkBudget(failures, "initial client gzip", report.initialClient.gzipBytes, budget.initialClientKb);
+  checkBudget(failures, "largest async chunk gzip", report.largestAsyncChunk.gzipBytes, budget.asyncChunkKb);
+  checkBudget(failures, "CSS gzip", report.css.gzipBytes, budget.cssKb);
   if (failures.length > 0) throw new Error(`Bundle budget failed: ${failures.join("; ")}.`);
   return report;
 }
@@ -29,21 +63,59 @@ export async function analyzeBundles(root: string, budget: BundleBudget): Promis
 export function formatReport(report: BundleReport): string {
   return [
     "DotReact bundle analysis",
-    `  client: ${formatKb(report.client.rawBytes)} raw / ${formatKb(report.client.gzipBytes)} gzip (${report.client.files} files)`,
-    `  SSR:    ${formatKb(report.ssr.rawBytes)} raw / ${formatKb(report.ssr.gzipBytes)} gzip (${report.ssr.files} files)`
+    `  client total:  ${formatMeasurement(report.client)}`,
+    `  initial JS:    ${formatMeasurement(report.initialClient)}`,
+    `  largest async: ${formatMeasurement(report.largestAsyncChunk)}`,
+    `  CSS total:     ${formatMeasurement(report.css)}`,
+    `  SSR:           ${formatMeasurement(report.ssr)}`
   ].join("\n");
 }
 
-async function measure(directory: string): Promise<{ rawBytes: number; gzipBytes: number; files: number }> {
-  const files = await walk(directory);
+function checkBudget(failures: string[], label: string, bytes: number, budgetKb: number | undefined): void {
+  if (budgetKb !== undefined && bytes > budgetKb * 1024)
+    failures.push(`${label} ${formatKb(bytes)} exceeds ${budgetKb} KiB`);
+}
+
+async function initialClientFiles(directory: string, fallback: readonly string[]): Promise<string[]> {
+  let manifest: Record<string, ViteManifestEntry>;
+  try {
+    manifest = JSON.parse(await readFile(resolve(directory, ".vite/manifest.json"), "utf8")) as Record<string, ViteManifestEntry>;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [...fallback];
+    throw new Error("Vite client manifest is invalid.", { cause: error });
+  }
+  const entries = Object.entries(manifest).filter(([, value]) => value.isEntry === true);
+  if (entries.length === 0) return [...fallback];
+  const discovered = new Set<string>();
+  const visit = (key: string): void => {
+    const entry = manifest[key];
+    if (entry === undefined) return;
+    if (entry.file !== undefined) discovered.add(resolve(directory, entry.file));
+    for (const css of entry.css ?? []) discovered.add(resolve(directory, css));
+    for (const imported of entry.imports ?? []) visit(imported);
+  };
+  for (const [key] of entries) visit(key);
+  return [...discovered];
+}
+
+async function measure(directory: string): Promise<BundleMeasurement> {
+  const files = (await walk(directory)).filter(item => [".js", ".css"].includes(extname(item)));
+  return measureFiles(files);
+}
+
+async function measureFiles(files: readonly string[]): Promise<BundleMeasurement> {
   let rawBytes = 0;
   let gzipBytes = 0;
-  for (const file of files.filter(item => [".js", ".css"].includes(extname(item)))) {
+  for (const file of files) {
     const content = await readFile(file);
     rawBytes += content.byteLength;
     gzipBytes += gzipSync(content).byteLength;
   }
   return { rawBytes, gzipBytes, files: files.length };
+}
+
+function emptyMeasurement(): BundleMeasurement {
+  return { rawBytes: 0, gzipBytes: 0, files: 0 };
 }
 
 async function walk(directory: string): Promise<string[]> {
@@ -61,6 +133,10 @@ async function walk(directory: string): Promise<string[]> {
     else if (entry.isFile()) output.push(path);
   }
   return output;
+}
+
+function formatMeasurement(measurement: BundleMeasurement): string {
+  return `${formatKb(measurement.rawBytes)} raw / ${formatKb(measurement.gzipBytes)} gzip (${measurement.files} files)`;
 }
 
 function formatKb(bytes: number): string {

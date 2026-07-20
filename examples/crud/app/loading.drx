@@ -1,0 +1,3 @@
+export default function WorkboardLoading() {
+  return <main className="route-boundary" aria-busy="true" aria-live="polite">Carregando o workboard…</main>;
+}

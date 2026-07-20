@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { PROTOCOL_VERSION, isRenderRequest, type RenderFailure, type RenderResponse } from "@dotreact/protocol";
 import { isLoopbackHost, readIntegerEnvironment } from "./http-runtime.js";
+import { handleRenderStream, type RenderStreamEntry } from "./stream-runtime.js";
 
 const port = readIntegerEnvironment(process.env, "DOTREACT_RENDERER_PORT", 5178, 1, 65_535);
 const host = process.env.DOTREACT_RENDERER_HOST ?? "127.0.0.1";
@@ -21,7 +22,7 @@ if (!entryPath) throw new Error("DOTREACT_SERVER_ENTRY is required in production
 
 const imported = await import(pathToFileURL(resolve(entryPath)).href) as {
   render?: (input: unknown) => Promise<RenderResponse> | RenderResponse;
-};
+} & Partial<RenderStreamEntry>;
 if (typeof imported.render !== "function") throw new Error("Production server entry must export render().");
 const render = imported.render;
 let activeRenders = 0;
@@ -88,6 +89,20 @@ const server = createServer((request, response) => {
     return sendJson(response, draining ? 503 : 200, { ok: !draining, protocolVersion: PROTOCOL_VERSION });
   if (request.method === "POST" && url.pathname === "/__dotreact/render") {
     void handleRender(request, response);
+    return;
+  }
+  if (request.method === "POST" && url.pathname === "/__dotreact/render-stream") {
+    void handleRenderStream(request, response, {
+      token,
+      maxBodyBytes,
+      maxResponseBytes,
+      acquire() {
+        if (draining || activeRenders >= maxConcurrency) return undefined;
+        activeRenders++;
+        return () => { activeRenders--; };
+      },
+      async loadEntry() { return imported; }
+    });
     return;
   }
   if (request.method === "POST" && url.pathname === "/__dotreact/shutdown") {

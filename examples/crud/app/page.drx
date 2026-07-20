@@ -1,0 +1,13 @@
+import { definePage } from "@dotreact/client/router";
+import type { DotReactMetadata } from "@dotreact/vite";
+import type { DashboardProps } from "../src/contracts";
+import { WorkItemsBoard } from "../src/features/work-items/WorkItemsBoard";
+
+export const metadata: DotReactMetadata = {
+  title: "Workboard · DotReact",
+  description: "CRUD com SQLite, loaders C# tipados, React SSR e Server Actions."
+};
+
+export default definePage<DashboardProps>(function WorkItemsPage(Model) {
+  return <WorkItemsBoard initial={Model} />;
+});

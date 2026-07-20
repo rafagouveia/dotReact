@@ -43,31 +43,43 @@ public sealed class DotReactBackendGenerator
         var pages = new List<DotReactPageContract>();
         var actions = new List<DotReactActionContract>();
         foreach (var assembly in candidates)
-        foreach (var type in assembly.GetTypes().Where(type => type is { IsClass: true, IsAbstract: false }))
         {
-            var pageAttribute = FindAttribute(type, PageAttributeName);
-            if (pageAttribute is not null)
+            foreach (var registration in assembly.GetCustomAttributes<DotReactPageRegistrationAttribute>())
             {
-                var contract = FindPageInterface(type);
-                var moduleId = ReadRequiredString(pageAttribute, "ModuleId", type);
-                var convention = UsesRouteConvention(pageAttribute);
+                var contract = FindPageInterface(registration.PageType);
                 pages.Add(new DotReactPageContract(
-                    moduleId,
-                    convention ? DotReactRouteConvention.InferPattern(moduleId) : ReadRequiredString(pageAttribute, "Pattern", type),
+                    registration.ModuleId,
+                    registration.Pattern,
                     contract.GenericTypeArguments[0],
-                    convention ? "convention" : "explicit"));
+                    "app"));
             }
 
-            var actionAttribute = FindAttribute(type, ActionAttributeName);
-            if (actionAttribute is not null)
+            foreach (var type in assembly.GetTypes().Where(type => type is { IsClass: true, IsAbstract: false }))
             {
-                var contract = FindInterface(type, ActionInterfaceName, 2, "action");
-                var id = ReadRequiredString(actionAttribute, "Id", type);
-                actions.Add(new DotReactActionContract(
-                    id,
-                    ToExportName(id),
-                    contract.GenericTypeArguments[0],
-                    contract.GenericTypeArguments[1]));
+                var pageAttribute = FindAttribute(type, PageAttributeName);
+                if (pageAttribute is not null)
+                {
+                    var contract = FindPageInterface(type);
+                    var moduleId = ReadRequiredString(pageAttribute, "ModuleId", type);
+                    var convention = UsesRouteConvention(pageAttribute);
+                    pages.Add(new DotReactPageContract(
+                        moduleId,
+                        convention ? DotReactRouteConvention.InferPattern(moduleId) : ReadRequiredString(pageAttribute, "Pattern", type),
+                        contract.GenericTypeArguments[0],
+                        convention ? "convention" : "explicit"));
+                }
+
+                var actionAttribute = FindAttribute(type, ActionAttributeName);
+                if (actionAttribute is not null)
+                {
+                    var contract = FindInterface(type, ActionInterfaceName, 2, "action");
+                    var id = ReadRequiredString(actionAttribute, "Id", type);
+                    actions.Add(new DotReactActionContract(
+                        id,
+                        ToExportName(id),
+                        contract.GenericTypeArguments[0],
+                        contract.GenericTypeArguments[1]));
+                }
             }
         }
 
@@ -105,7 +117,7 @@ public sealed class DotReactBackendGenerator
         {
             WriteIndented = true,
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        }) + "\n";
+        }).ReplaceLineEndings("\n") + "\n";
     }
 
     public string GenerateActionClient(DotReactBackendContract contract, string contractsImport)

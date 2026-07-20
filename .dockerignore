@@ -13,6 +13,8 @@
 .vs
 .idea
 .playwright-cli
+.vscode-test
+*.vsix
 work
 outputs
 *.log

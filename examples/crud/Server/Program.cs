@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
-using DotReact.AspNetCore;
 using DotReact.Crud;
+using DotReact.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,21 +9,29 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddProblemDetails();
 builder.Services.AddWorkItemApplication();
 builder.Services.AddWorkItemInfrastructure();
-builder.Services.AddDotReactSecurityHeaders();
-builder.Services.AddDotReact(options =>
+builder.Services.AddWorkItemAuthorization();
+builder.AddDotReactApplication(options =>
 {
-    options.RendererUrl = new Uri("http://127.0.0.1:5174");
-    options.RendererToken = Environment.GetEnvironmentVariable("DOTREACT_RENDERER_TOKEN");
-    options.ClientScriptSrc = "http://127.0.0.1:5174/src/entry-client.tsx";
-    options.ReactRefreshPreambleSrc = "http://127.0.0.1:5174/@react-refresh";
-    options.Development = builder.Environment.IsDevelopment();
+    options.ConfigureRuntime = runtime =>
+    {
+        runtime.EnableStreaming = false;
+        if (!builder.Environment.IsDevelopment()) return;
+        runtime.RendererUrl = new Uri("http://127.0.0.1:5174");
+        runtime.ClientScriptSrc = "http://127.0.0.1:5174/@id/virtual:dotreact/client-entry";
+        runtime.ClientStyleSrc = "http://127.0.0.1:5174/src/styles.css";
+        runtime.ReactRefreshPreambleSrc = "http://127.0.0.1:5174/@react-refresh";
+    };
 });
 
 var app = builder.Build();
 app.UseExceptionHandler();
-app.UseDotReactSecurityHeaders();
+app.UseDotReactApplication();
+app.UseAuthentication();
+app.UseAuthorization();
 await DatabaseInitializer.InitializeAsync(app.Services);
-app.MapWorkItemEndpoints();
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", database = "sqlite" }));
+app.MapWorkItemRouteHandlers();
+app.MapDotReactApplication();
 app.Run();
 
 public partial class Program;

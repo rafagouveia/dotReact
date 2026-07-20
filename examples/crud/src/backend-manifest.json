@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 2,
+  "pages": [
+    {
+      "moduleId": "page",
+      "pattern": "/",
+      "routing": "app",
+      "propsType": "DotReact.Crud.DashboardProps"
+    }
+  ],
+  "actions": [
+    {
+      "id": "work-items/create",
+      "exportName": "workItemsCreate",
+      "requestType": "DotReact.Crud.CreateWorkItemRequest",
+      "responseType": "DotReact.Crud.WorkItemDto"
+    },
+    {
+      "id": "work-items/delete",
+      "exportName": "workItemsDelete",
+      "requestType": "DotReact.Crud.DeleteWorkItemRequest",
+      "responseType": "DotReact.Crud.DeleteWorkItemResponse"
+    },
+    {
+      "id": "work-items/update",
+      "exportName": "workItemsUpdate",
+      "requestType": "DotReact.Crud.UpdateWorkItemActionRequest",
+      "responseType": "DotReact.Crud.WorkItemDto"
+    }
+  ]
+}

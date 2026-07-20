@@ -4,7 +4,7 @@ DotReact is an experimental full-stack framework that keeps ASP.NET Core in
 charge of HTTP, authentication, services, and data while React renders the UI
 on the server and hydrates it in the browser.
 
-This repository contains a reusable pre-release framework, CLI scaffold and two
+This repository contains a reusable pre-release framework, CLI scaffold and three
 reference applications. The runtime boundary and production lifecycle are
 implemented; the public API remains version `0.1.0` until packages are published.
 Public surfaces follow the repository's [compatibility and deprecation policy](COMPATIBILITY.md).
@@ -12,13 +12,14 @@ Public surfaces follow the repository's [compatibility and deprecation policy](C
 ## What works now
 
 - ASP.NET Core page loaders returning typed C# props.
-- Typed invariant route and scalar query-string values in page loaders.
+- Typed invariant route, scalar and bounded collection query-string values in page loaders.
 - Versioned JSON transport to an internal Node renderer.
-- React 19 server rendering through Vite.
+- React 19 buffered and streaming SSR through Vite, including Suspense boundaries.
 - Safe hydration payload and browser hydration.
 - Deterministic C# to TypeScript contract generation with a drift check.
 - Opt-in `.drx` pages compiled as TSX with a static Vite page registry.
-- Root and nested `layout.drx` composition shared by SSR and hydration.
+- Root and nested `layout.drx` composition shared by SSR/hydration, with typed C# page props available to layouts.
+- Client navigation, link prefetch, History API, loading boundaries and preserved layout state.
 - Semantic `.drx` type checking and frontend/backend manifest validation.
 - Opt-in file route convention shared by C#, TypeGen and the Vite checker.
 - Production client/SSR bundles, supervised Node rendering and Azure health endpoints.
@@ -26,17 +27,25 @@ Public surfaces follow the repository's [compatibility and deprecation policy](C
 - Multi-assembly page/action discovery shared by runtime and TypeGen.
 - Declarative page policies and resource-based Server Action authorization.
 - Opt-in distributed loader-result caching with automatic action invalidation.
+- Build-scoped SSG/ISR with single-flight, stale-while-revalidate and static export.
+- Typed C# static-path providers and automatic prerender-manifest discovery for export.
+- Optional Redis stores for cross-replica ISR/tag invalidation and Server Action idempotency.
 - Typed page results for success, redirects and not-found responses.
-- Root/nested `not-found.drx` and `error.drx` boundaries with safe hydration.
+- Framework-owned route and root error fallbacks with optional root/nested DRX overrides.
 - Structured page metadata rendered during SSR without accepting arbitrary HTML.
 - JSON and progressive HTML-form binding for discovered server actions.
 - Authorization-by-default and antiforgery protection for server actions.
 - Opt-in idempotent actions, bounded replay, payload limits and revalidation signals.
 - Closed generic contracts and precision-safe `decimal`/`long` string contracts.
 - System.Text.Json polymorphic DTOs emitted as discriminated TypeScript unions.
-- Strict production CSP/security headers and opt-in per-instance action rate limiting.
-- OpenTelemetry traces/metrics with optional OTLP export from the starter.
-- Safe static-asset caching, renderer keep-alive tuning and measurable bundle/SSR budgets.
+- Strict production CSP with per-request streaming nonces and opt-in action rate limiting.
+- Secure image endpoint, React `Image` component and cross-platform SkiaSharp processor plugin.
+- Versioned deployment adapter contract and deterministic Azure manifests.
+- OpenTelemetry traces/metrics with correlated browser CLS/INP/LCP/TTFB and optional OTLP export.
+- Safe static-asset caching, renderer keep-alive tuning, page-props limits and separate initial/async/CSS/SSR budgets.
+- Route-aware fingerprinted CSS and initial module preloads in the SSR head,
+  generated from a private production asset manifest.
+- Framework-owned client/SSR entries, route-level JavaScript chunks, critical-face font preloads and validated Script loading strategies.
 - A reusable CLI with templates, generators, `sync`, `analyze` and `benchmark`.
 - VS Code check-on-save diagnostics, project check command and loader CodeLens.
 - Installable pre-release VSIX with a real VS Code extension-host test.
@@ -44,9 +53,11 @@ Public surfaces follow the repository's [compatibility and deprecation policy](C
 - Bounded renderer restart supervision, graceful shutdown, token redaction and metrics.
 - Azure App Service/Container Apps Bicep templates and cross-platform CI gates.
 - TypeScript protocol tests and .NET integration tests.
+- An isolated, version-pinned Vite RSC pipeline and React 19.2 PPR primitives with real tests.
 
-Streaming, static generation, enhanced navigation and a full cross-language
-language server remain post-MVP milestones.
+React Server Components/Flight and partial prerendering are implemented as an
+isolated experimental package/example, not represented as stable DRX APIs. Package publication and
+credentialed Azure deployment validation are external release gates.
 
 ## Run the included starter
 
@@ -74,9 +85,21 @@ npm install
 npm run dev
 ```
 
-Until the first npm/NuGet publication, generated projects vendor the small
-framework runtime under `framework/`. This makes scaffolds executable now and
-will be replaced by pinned package references at release time.
+Until the first npm/NuGet publication, generated projects keep the pinned
+runtime under `vendor/`. VS Code hides that managed dependency from normal
+browsing and search. It will be replaced by pinned package references at
+release time.
+
+Scaffolds start in workspace **focus mode**. Daily editing shows application
+code and supported extension points; generated boundaries, compiler bootstrap,
+deployment assets and managed runtime configuration remain versioned but hidden.
+Use `dotreact workspace reveal` for an explicit infrastructure task and
+`dotreact workspace focus` to restore the application view.
+
+Generated projects document a feature-first SOLID convention: Domain owns
+invariants, Application owns one focused use case and narrow ports per
+operation, Infrastructure implements those ports, and loaders/actions remain
+thin Presentation adapters.
 
 Scaffolds are repository-ready without creating a `.git` directory. They include
 Git/editor line-ending rules, Node and .NET version expectations, Docker context
@@ -86,15 +109,19 @@ resulting lockfile before the first push.
 Inside a generated project, the complete lifecycle is:
 
 ```powershell
-dotreact doctor
-dotreact dev
-dotreact generate page catalog/[slug]
-dotreact generate action SaveCatalog
-dotreact sync
-dotreact check
-dotreact build
+npm exec -- dotreact doctor
+npm exec -- dotreact dev
+npm exec -- dotreact generate page catalog/[slug]
+npm exec -- dotreact generate action SaveCatalog
+npm exec -- dotreact sync
+npm exec -- dotreact check
+npm exec -- dotreact build
+dotreact workspace status
+dotreact workspace reveal
+dotreact workspace focus
 dotreact analyze
 dotreact benchmark http://127.0.0.1:5080/
+dotreact export
 dotreact start
 ```
 
@@ -103,20 +130,33 @@ as the public process and supervises the private production Node renderer.
 Generators support `--dry-run`, reject paths that could escape the project and
 never overwrite an existing file.
 
-Set `OTEL_EXPORTER_OTLP_ENDPOINT` in the host to export ASP.NET Core, renderer
-and Server Action traces/metrics over OTLP. No request props, tokens, request IDs
-or URLs are used as telemetry labels.
+Set `OTEL_EXPORTER_OTLP_ENDPOINT` in the host to export ASP.NET Core, renderer,
+Server Action and browser Web Vitals traces/metrics over OTLP. No request props,
+tokens, request IDs or URLs are used as telemetry labels.
+
+Set `DOTREACT_REDIS_CONNECTION` for shared ISR and idempotency across replicas,
+and `DOTREACT_BUILD_ID` to the immutable deployment/revision identifier. The
+starter also recognizes Azure Container Apps and App Service revision IDs.
 
 ## Page contract
 
-The server owns the loader:
+New applications co-locate the server loader and React route in `app/`:
 
 ```csharp
-app.MapDotReactPage("/", "app/page", (HttpContext context, CancellationToken token) =>
-    ValueTask.FromResult(new HomePageProps("Hello from C#", DateTimeOffset.UtcNow)));
+public sealed class HomePageLoader(TimeProvider timeProvider)
+    : IDotReactPage<HomePageProps>
+{
+    public ValueTask<HomePageProps> LoadAsync(
+        DotReactPageContext context,
+        CancellationToken cancellationToken) =>
+        ValueTask.FromResult(new HomePageProps(
+            "Hello from C#",
+            timeProvider.GetUtcNow()));
+}
 ```
 
-React consumes the equivalent generated TypeScript contract:
+The matching `app/page.drx` consumes the generated TypeScript contract. The C#
+file is `app/page.server.cs`; its route registration is generated from the path:
 
 ```tsx
 export default function HomePage(props: HomePageProps) {
@@ -128,6 +168,11 @@ C# expressions are deliberately not embedded in JSX. The integration boundary
 is serialized generated props and explicitly exposed typed server actions. This
 keeps C# authoritative for backend behavior while preserving ordinary React/TSX
 tooling and Fast Refresh.
+
+The app router supports dynamic and catch-all segments, route groups such as
+`(operations)` that do not alter the URL, private `_components` folders, nested
+layouts and nearest loading/not-found/error boundaries. `[DotReactPage]` remains
+an explicit compatibility escape hatch for constrained ASP.NET patterns.
 
 Regenerate or verify contracts with:
 
@@ -150,13 +195,21 @@ component signature and the exact page-module bijection with the C# manifest.
 
 ```text
 dotnet/src/DotReact.AspNetCore   ASP.NET integration and HTML shell
+dotnet/src/DotReact.AppGenerator compile-time app/page.server.cs registration
+dotnet/src/DotReact.Hosting     convention-based application composition facade
+dotnet/src/DotReact.Images.SkiaSharp optional cross-platform image processor
+dotnet/src/DotReact.Redis       shared ISR and action-idempotency stores
 packages/protocol               shared renderer protocol for TypeScript
 packages/renderer               private Node/Vite SSR sidecar
 packages/client                 hydration and typed Server Action client
+packages/image                  optimized React Image component
+packages/adapter                deployment contracts and Azure adapter
+packages/rsc                    experimental official-Vite RSC and React PPR layer
 packages/vite                   .drx compiler, registry and semantic checker
 packages/cli                    scaffold and diagnostics CLI
 examples/starter                executable reference application
 examples/crud                   SOLID SQLite CRUD reference application
+examples/rsc                    isolated real RSC/Flight reference application
 editors/vscode-dotreact         VS Code diagnostics and loader CodeLens
 deploy/azure                    App Service and Container Apps infrastructure
 docs/adr                        architectural decisions

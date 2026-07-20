@@ -29,6 +29,21 @@ public sealed class DotReactEndpointTests
                         ["content"] = "A \"quoted\" value",
                         ["onclick"] = "alert(1)"
                     }
+                },
+                new DotReactHeadElement
+                {
+                    Kind = "script",
+                    Attrs = new Dictionary<string, string>
+                    {
+                        ["src"] = "/scripts/consent.js",
+                        ["defer"] = "",
+                        ["onclick"] = "alert(1)"
+                    }
+                },
+                new DotReactHeadElement
+                {
+                    Kind = "script",
+                    Attrs = new Dictionary<string, string> { ["src"] = "javascript:alert(1)" }
                 }
             ]
         });
@@ -43,7 +58,12 @@ public sealed class DotReactEndpointTests
         Assert.Contains("<title>Welcome &lt;unsafe&gt;</title>", html);
         Assert.Contains("<meta name=\"description\" content=\"A &quot;quoted&quot; value\">", html);
         Assert.DoesNotContain("onclick", html);
+        Assert.Contains("<script src=\"/scripts/consent.js\" defer=\"\"></script>", html);
+        Assert.DoesNotContain("javascript:alert", html);
         Assert.Contains("<div id=\"app\"><h1>Hello</h1></div>", html);
+        Assert.Contains("<link rel=\"stylesheet\" href=\"/assets/client.css\">", html);
+        Assert.True(html.IndexOf("/assets/client.css", StringComparison.Ordinal)
+            < html.IndexOf("<body>", StringComparison.Ordinal));
         Assert.Contains("src=\"/assets/client.js\"", html);
         Assert.Contains("\"productId\":\"42\"", html);
         Assert.DoesNotContain("</script><script>alert(1)</script>", html);
@@ -72,19 +92,59 @@ public sealed class DotReactEndpointTests
     }
 
     [Fact]
+    public async Task Development_static_fallback_does_not_expose_exception_or_stack()
+    {
+        var renderer = new ThrowingRenderer(new InvalidOperationException("C:\\private\\source.cs secret"));
+        await using var app = await StartAppAsync(renderer, development: true, map: endpoints =>
+            endpoints.MapDotReactPage("/", "pages/home", _ => new { Greeting = "hello" }));
+
+        var response = await app.GetTestClient().GetAsync("/");
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(System.Net.HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Contains("The page could not be rendered.", html);
+        Assert.DoesNotContain("private", html);
+        Assert.DoesNotContain("InvalidOperationException", html);
+    }
+
+    [Fact]
+    public async Task Unavailable_renderer_returns_retryable_service_unavailable_without_transport_details()
+    {
+        var renderer = new ThrowingRenderer(new DotReactRendererUnavailableException(
+            "renderer unavailable", new HttpRequestException("127.0.0.1:5173 connection refused")));
+        await using var app = await StartAppAsync(renderer, development: true, map: endpoints =>
+            endpoints.MapDotReactPage("/", "pages/home", _ => new { Greeting = "hello" }));
+
+        var response = await app.GetTestClient().GetAsync("/");
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(System.Net.HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Equal(TimeSpan.FromSeconds(1), response.Headers.RetryAfter?.Delta);
+        Assert.Contains("rendering service is restarting", html);
+        Assert.DoesNotContain("127.0.0.1", html);
+        Assert.DoesNotContain("HttpRequestException", html);
+    }
+
+    [Fact]
     public async Task Development_shell_installs_vite_react_refresh_preamble_before_client_entry()
     {
         var renderer = new CapturingRenderer(new DotReactRenderResponse { Html = "<h1>Hello</h1>" });
         await using var app = await StartAppAsync(renderer, development: true, map: endpoints =>
             endpoints.MapDotReactPage("/", "pages/home", _ => new { Greeting = "hello" }));
 
-        var html = await app.GetTestClient().GetStringAsync("/");
+        var response = await app.GetTestClient().GetAsync("/");
+        var html = await response.Content.ReadAsStringAsync();
         var preamble = html.IndexOf("/@react-refresh", StringComparison.Ordinal);
         var client = html.IndexOf("/assets/client.js", StringComparison.Ordinal);
 
         Assert.True(preamble >= 0);
         Assert.True(client > preamble);
         Assert.Contains("__vite_plugin_react_preamble_installed__=true", html);
+        Assert.Contains("<link rel=\"stylesheet\" href=\"/_dotreact/dev/__dotreact_route_style.css?moduleKey=cGFnZXMvaG9tZQ\">", html);
+        Assert.True(html.IndexOf("__dotreact_route_style.css", StringComparison.Ordinal)
+            < html.IndexOf("<body>", StringComparison.Ordinal));
+        Assert.Contains(response.Headers.GetValues("Server-Timing"), value => value.Contains("dotreact-loader", StringComparison.Ordinal));
+        Assert.Contains(response.Headers.GetValues("Server-Timing"), value => value.Contains("dotreact-render", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -98,6 +158,49 @@ public sealed class DotReactEndpointTests
 
         Assert.Contains("\"status\":\"InProgress\"", html);
         Assert.Equal("InProgress", renderer.Request!.Props.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task Production_shell_blocks_on_route_css_and_preloads_only_the_current_route_modules()
+    {
+        var renderer = new CapturingRenderer(new DotReactRenderResponse { Html = "<h1>Hello</h1>" });
+        var assets = new Dictionary<string, DotReactClientRouteAssets>(StringComparer.Ordinal)
+        {
+            ["pages/home"] = new(
+                ["/assets/layout.css", "/assets/home.css"],
+                ["/assets/layout.js", "/assets/home.js"]),
+            ["pages/other"] = new(["/assets/other.css"], ["/assets/other.js"])
+        };
+        await using var app = await StartAppAsync(renderer, development: false, map: endpoints =>
+            endpoints.MapDotReactPage("/", "pages/home", _ => new { Greeting = "hello" }),
+            clientRouteAssets: assets);
+
+        var html = await app.GetTestClient().GetStringAsync("/");
+        var body = html.IndexOf("<body>", StringComparison.Ordinal);
+
+        Assert.Contains("<link rel=\"modulepreload\" href=\"/assets/layout.js\">", html);
+        Assert.Contains("<link rel=\"modulepreload\" href=\"/assets/home.js\">", html);
+        Assert.Contains("<link rel=\"stylesheet\" href=\"/assets/layout.css\">", html);
+        Assert.Contains("<link rel=\"stylesheet\" href=\"/assets/home.css\">", html);
+        Assert.DoesNotContain("other.css", html);
+        Assert.DoesNotContain("other.js", html);
+        Assert.True(html.IndexOf("/assets/home.css", StringComparison.Ordinal) < body);
+        Assert.True(html.IndexOf("/assets/home.js", StringComparison.Ordinal) < body);
+    }
+
+    [Fact]
+    public async Task Oversized_props_are_rejected_before_the_renderer_and_reported_in_development()
+    {
+        var renderer = new CapturingRenderer(new DotReactRenderResponse { Html = "<h1>Unexpected</h1>" });
+        await using var app = await StartAppAsync(renderer, development: true, map: endpoints =>
+            endpoints.MapDotReactPage("/", "pages/home", _ => new { Value = new string('x', 2_048) }),
+            maxSerializedPropsBytes: 1_024);
+
+        var response = await app.GetTestClient().GetAsync("/");
+
+        Assert.Equal(System.Net.HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal("error", renderer.Request?.BoundaryKind);
+        Assert.False(renderer.Request!.Props.TryGetProperty("value", out _));
     }
 
     [Fact]
@@ -117,7 +220,9 @@ public sealed class DotReactEndpointTests
         IDotReactRenderer renderer,
         bool development,
         Action<WebApplication> map,
-        TimeSpan? timeout = null)
+        TimeSpan? timeout = null,
+        int? maxSerializedPropsBytes = null,
+        IReadOnlyDictionary<string, DotReactClientRouteAssets>? clientRouteAssets = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -125,8 +230,15 @@ public sealed class DotReactEndpointTests
         {
             options.Development = development;
             options.RequestTimeout = timeout ?? TimeSpan.FromSeconds(1);
+            if (maxSerializedPropsBytes is not null)
+                options.MaxSerializedPropsBytes = maxSerializedPropsBytes.Value;
             options.RootElementId = "app";
             options.ClientScriptSrc = "/assets/client.js";
+            options.ClientStyleSrc = "/assets/client.css";
+            options.ClientRouteStyleSrc = development
+                ? "/_dotreact/dev/__dotreact_route_style.css?moduleKey={moduleKey}"
+                : null;
+            if (clientRouteAssets is not null) options.ClientRouteAssets = clientRouteAssets;
             options.ReactRefreshPreambleSrc = development ? "http://127.0.0.1:5173/@react-refresh" : null;
         });
         builder.Services.AddSingleton(renderer);

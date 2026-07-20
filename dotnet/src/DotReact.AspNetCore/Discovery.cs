@@ -7,7 +7,8 @@ internal sealed record DotReactPageDescriptor(
     Type PropsType,
     string Pattern,
     string ModuleId,
-    bool ReturnsResult);
+    bool ReturnsResult,
+    DotReactPrerenderMetadata? Prerender);
 
 internal sealed record DotReactActionDescriptor(
     Type ImplementationType,

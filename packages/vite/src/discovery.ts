@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { inferDotReactRoute } from "./routes.js";
 
 const maxDrxFiles = 10_000;
 const maxDrxBytes = 4 * 1024 * 1024;
@@ -12,7 +13,7 @@ export interface DotReactPage {
   readonly boundaries: DotReactPageBoundaries;
 }
 
-export type DotReactBoundaryKind = "not-found" | "error";
+export type DotReactBoundaryKind = "not-found" | "error" | "loading";
 
 export interface DotReactBoundary {
   readonly kind: DotReactBoundaryKind;
@@ -23,6 +24,7 @@ export interface DotReactBoundary {
 export interface DotReactPageBoundaries {
   readonly notFound?: string;
   readonly error?: string;
+  readonly loading?: string;
 }
 
 export interface DotReactLayout {
@@ -36,6 +38,8 @@ export interface DotReactGraph {
   readonly pages: readonly DotReactPage[];
   readonly layouts: readonly DotReactLayout[];
   readonly boundaries: readonly DotReactBoundary[];
+  /** Optional application-owned fallback used for uncaught client errors in production. */
+  readonly globalError?: string;
 }
 
 export function isContained(parent: string, child: string): boolean {
@@ -52,7 +56,7 @@ export async function realpathOrResolved(value: string): Promise<string> {
   }
 }
 
-export async function scanDotReactGraph(root: string, pagesDir = "src/pages"): Promise<DotReactGraph> {
+export async function scanDotReactGraph(root: string, pagesDir = "app"): Promise<DotReactGraph> {
   const canonicalRoot = await fs.realpath(root);
   const requestedPagesRoot = path.resolve(canonicalRoot, pagesDir);
   if (!isContained(canonicalRoot, requestedPagesRoot)) {
@@ -60,6 +64,7 @@ export async function scanDotReactGraph(root: string, pagesDir = "src/pages"): P
   }
 
   const canonicalPagesRoot = await realpathOrResolved(requestedPagesRoot);
+  const appRouter = path.basename(canonicalPagesRoot).toLocaleLowerCase("en-US") === "app";
   if (!isContained(canonicalRoot, canonicalPagesRoot)) {
     throw new Error(`DotReact pagesDir resolves outside the Vite root: ${pagesDir}`);
   }
@@ -77,6 +82,7 @@ export async function scanDotReactGraph(root: string, pagesDir = "src/pages"): P
   const discoveredPages: Array<{ moduleId: string; file: string; directory: string }> = [];
   const layouts: DotReactLayout[] = [];
   const boundaries: DotReactBoundary[] = [];
+  let globalError: string | undefined;
   const visitedDirectories = new Set<string>();
   const canonicalFiles = new Map<string, string>();
   let fileCount = 0;
@@ -90,6 +96,7 @@ export async function scanDotReactGraph(root: string, pagesDir = "src/pages"): P
     const entries = await fs.readdir(directory, { withFileTypes: true });
     entries.sort((left, right) => left.name.localeCompare(right.name));
     for (const entry of entries) {
+      if (appRouter && entry.name.startsWith("_")) continue;
       const logicalPath = logicalPrefix === "" ? entry.name : `${logicalPrefix}/${entry.name}`;
       const candidate = path.join(directory, entry.name);
       let canonicalFile: string;
@@ -127,15 +134,25 @@ export async function scanDotReactGraph(root: string, pagesDir = "src/pages"): P
           throw new Error(`Duplicate DotReact layout for directory '${logicalDirectory || "/"}'.`);
         }
         layouts.push({ directory: logicalDirectory, file: canonicalFile });
-      } else if (specialName === "not-found.drx" || specialName === "error.drx") {
+      } else if (specialName === "global-error.drx") {
+        if (!appRouter || logicalDirectory !== "")
+          throw new Error(`DotReact global-error.drx must exist at the root of the app directory: ${logicalPath}`);
+        if (basename !== "global-error.drx")
+          throw new Error(`DotReact global boundary must use exact casing 'global-error.drx': ${logicalPath}`);
+        if (globalError !== undefined) throw new Error("Duplicate DotReact global-error.drx boundary.");
+        globalError = canonicalFile;
+      } else if (specialName === "not-found.drx" || specialName === "error.drx" || specialName === "loading.drx") {
         const expectedName = specialName;
         if (basename !== expectedName) throw new Error(`DotReact boundary must use exact casing '${expectedName}': ${logicalPath}`);
-        const kind: DotReactBoundaryKind = specialName === "not-found.drx" ? "not-found" : "error";
+        const kind: DotReactBoundaryKind = specialName === "not-found.drx" ? "not-found"
+          : specialName === "error.drx" ? "error" : "loading";
         if (boundaries.some(boundary => boundary.kind === kind && boundary.directory.toLowerCase() === logicalDirectory.toLowerCase())) {
           throw new Error(`Duplicate DotReact ${kind} boundary for directory '${logicalDirectory || "/"}'.`);
         }
         boundaries.push({ kind, directory: logicalDirectory, file: canonicalFile });
-      } else {
+      } else if (!appRouter || specialName === "page.drx") {
+        if (appRouter && basename !== "page.drx")
+          throw new Error(`DotReact app-router pages must use exact casing 'page.drx': ${logicalPath}`);
         discoveredPages.push({ moduleId: logicalPath.slice(0, -4), file: canonicalFile, directory: logicalDirectory });
       }
     }
@@ -144,6 +161,7 @@ export async function scanDotReactGraph(root: string, pagesDir = "src/pages"): P
   await visit(canonicalPagesRoot, "", 0);
   const moduleIds = new Map<string, string>();
   for (const page of discoveredPages) {
+    if (appRouter) inferDotReactRoute(page.moduleId);
     const folded = page.moduleId.toLowerCase();
     const previous = moduleIds.get(folded);
     if (previous !== undefined) throw new Error(`Duplicate DotReact moduleId "${previous}" and "${page.moduleId}".`);
@@ -162,20 +180,29 @@ export async function scanDotReactGraph(root: string, pagesDir = "src/pages"): P
       .find((file): file is string => file !== undefined);
     const notFound = nearest("not-found");
     const error = nearest("error");
+    const loading = nearest("loading");
     return {
       moduleId: page.moduleId,
       file: page.file,
       layouts: inheritedLayouts,
       boundaries: {
         ...(notFound === undefined ? {} : { notFound }),
-        ...(error === undefined ? {} : { error })
+        ...(error === undefined ? {} : { error }),
+        ...(loading === undefined ? {} : { loading })
       }
     };
   }).sort((left, right) => left.moduleId.localeCompare(right.moduleId));
 
-  return { root: canonicalRoot, pagesRoot: canonicalPagesRoot, pages, layouts, boundaries };
+  return {
+    root: canonicalRoot,
+    pagesRoot: canonicalPagesRoot,
+    pages,
+    layouts,
+    boundaries,
+    ...(globalError === undefined ? {} : { globalError })
+  };
 }
 
-export async function scanDotReactPages(root: string, pagesDir = "src/pages"): Promise<readonly DotReactPage[]> {
+export async function scanDotReactPages(root: string, pagesDir = "app"): Promise<readonly DotReactPage[]> {
   return (await scanDotReactGraph(root, pagesDir)).pages;
 }

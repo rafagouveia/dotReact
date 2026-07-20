@@ -14,6 +14,8 @@
     "test": "node --test dist/index.test.js"
   },
   "dependencies": {
+    "@dotreact/font": "0.1.0",
+    "@vitejs/plugin-react": "6.0.3",
     "typescript": "7.0.2",
     "vite": "8.1.5"
   },

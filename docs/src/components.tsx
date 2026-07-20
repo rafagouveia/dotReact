@@ -1,8 +1,11 @@
 import { useState, type ReactNode } from "react";
+import { useLocale } from "./i18n";
+import { SyntaxCode } from "./SyntaxCode";
 import type { ReferenceRow } from "./types";
 
 export function CodeBlock({ code, label }: { readonly code: string; readonly label: string }) {
   const [copied, setCopied] = useState(false);
+  const locale = useLocale();
 
   async function copy(): Promise<void> {
     await navigator.clipboard.writeText(code);
@@ -14,9 +17,9 @@ export function CodeBlock({ code, label }: { readonly code: string; readonly lab
     <div className="code-card">
       <div className="code-head">
         <span>{label}</span>
-        <button onClick={() => void copy()}>{copied ? "Copiado" : "Copiar"}</button>
+        <button onClick={() => void copy()}>{copied ? (locale === "pt" ? "Copiado" : "Copied") : (locale === "pt" ? "Copiar" : "Copy")}</button>
       </div>
-      <pre><code>{code}</code></pre>
+      <SyntaxCode code={code} label={label} />
     </div>
   );
 }
@@ -33,9 +36,10 @@ export function PairedCode({
   readonly reactLabel: string;
 }) {
   const [tab, setTab] = useState<"csharp" | "react">("csharp");
+  const locale = useLocale();
   return (
     <div>
-      <div className="tabs" role="tablist" aria-label="Linguagem do exemplo">
+      <div className="tabs" role="tablist" aria-label={locale === "pt" ? "Linguagem do exemplo" : "Example language"}>
         <button role="tab" aria-selected={tab === "csharp"} onClick={() => setTab("csharp")}>C#</button>
         <button role="tab" aria-selected={tab === "react"} onClick={() => setTab("react")}>React</button>
       </div>
@@ -49,16 +53,19 @@ export function PairedCode({
 
 export function Flow() {
   const [active, setActive] = useState(0);
-  const steps = ["ASP.NET edge", "Loader C#", "JSON tipado", "React SSR", "HTML + hydration"];
-  const descriptions = [
-    "Recebe HTTP, executa autenticação e seleciona o endpoint ASP.NET.",
-    "Resolve dependências e carrega as props no backend C#.",
-    "System.Text.Json transporta somente o contrato serializável pelo protocolo v1.",
-    "O renderer Node privado importa o módulo React e produz o markup.",
+  const locale = useLocale();
+  const steps = locale === "pt" ? ["ASP.NET edge", "Loader C#", "JSON tipado", "React SSR", "HTML + hidratação"] : ["ASP.NET edge", "C# loader", "Typed JSON", "React SSR", "HTML + hydration"];
+  const descriptions = locale === "pt" ? [
+    "Recebe HTTP, executa autenticação e seleciona o endpoint ASP.NET.", "Resolve dependências e carrega as props no backend C#.",
+    "System.Text.Json transporta somente o contrato serializável pelo protocolo v1.", "O renderer Node privado importa o módulo React e produz o markup.",
     "ASP.NET monta o documento, inclui as mesmas props e o browser executa hydrateRoot."
+  ] : [
+    "Receives HTTP, authenticates the caller and selects the ASP.NET endpoint.", "Resolves dependencies and loads props in the C# backend.",
+    "System.Text.Json transports only the serializable v1 protocol contract.", "The private Node renderer imports the React module and produces markup.",
+    "ASP.NET assembles the document, includes the same props and the browser runs hydrateRoot."
   ];
   return (
-    <div className="flow" aria-label="Fluxo de renderização">
+    <div className="flow" aria-label={locale === "pt" ? "Fluxo de renderização" : "Rendering flow"}>
       {steps.map((step, index) => (
         <button key={step} className={active === index ? "active" : ""} onClick={() => setActive(index)}>
           <small>0{index + 1}</small>{step}

@@ -7,8 +7,8 @@ public interface ICreateWorkItemUseCase
 
 public sealed class CreateWorkItemUseCase(
     IWorkItemWriteRepository repository,
-    IWorkItemInputValidator validator,
-    IWorkItemMapper mapper,
+    WorkItemInputValidator validator,
+    WorkItemMapper mapper,
     IClock clock) : ICreateWorkItemUseCase
 {
     public async Task<CreateWorkItemResult> ExecuteAsync(

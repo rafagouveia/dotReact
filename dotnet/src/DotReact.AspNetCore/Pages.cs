@@ -47,6 +47,31 @@ public sealed class DotReactPageAttribute : Attribute
     public string ModuleId { get; }
 }
 
+/// <summary>
+/// Build-time registration emitted for a co-located <c>app/**/page.server.cs</c> loader.
+/// Application code should not apply this attribute directly; use the DotReact app generator.
+/// </summary>
+[AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
+public sealed class DotReactPageRegistrationAttribute : Attribute
+{
+    /// <summary>Registers a compiled page type against its canonical DRX module ID.</summary>
+    public DotReactPageRegistrationAttribute(Type pageType, string moduleId)
+    {
+        ArgumentNullException.ThrowIfNull(pageType);
+        ArgumentException.ThrowIfNullOrWhiteSpace(moduleId);
+        PageType = pageType;
+        ModuleId = moduleId;
+        Pattern = DotReactRouteConvention.InferPattern(moduleId);
+    }
+
+    /// <summary>The compiled C# loader implementation.</summary>
+    public Type PageType { get; }
+    /// <summary>The module ID derived from the loader's location below <c>app/</c>.</summary>
+    public string ModuleId { get; }
+    /// <summary>The convention route pattern.</summary>
+    public string Pattern { get; }
+}
+
 /// <summary>Request and strongly converted route and query values available to a page loader.</summary>
 public sealed class DotReactPageContext(HttpContext httpContext)
 {
@@ -94,6 +119,29 @@ public sealed class DotReactPageContext(HttpContext httpContext)
         }
 
         return ConvertValue<T>(values[0]!, "Query string value", name);
+    }
+
+    /// <summary>
+    /// Gets repeated query-string values converted to <typeparamref name="T"/> using invariant culture.
+    /// Missing keys return an empty list. Use repeated keys such as <c>?tag=a&amp;tag=b</c>.
+    /// </summary>
+    /// <exception cref="BadHttpRequestException">
+    /// More than <paramref name="maxValues"/> values were supplied or a value could not be converted.
+    /// </exception>
+    public IReadOnlyList<T> GetQueryValues<T>(string name, int maxValues = 100)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        if (maxValues is < 1 or > 10_000)
+            throw new ArgumentOutOfRangeException(nameof(maxValues), "Query collection limits must be between 1 and 10000.");
+        if (!HttpContext.Request.Query.TryGetValue(name, out var values)) return [];
+        if (values.Count > maxValues)
+            throw new BadHttpRequestException(
+                $"Query string value '{name}' exceeds the configured {maxValues} item limit.");
+
+        var result = new T[values.Count];
+        for (var index = 0; index < values.Count; index++)
+            result[index] = ConvertValue<T>(values[index]!, "Query string value", name);
+        return result;
     }
 
     private static T ConvertValue<T>(string text, string source, string name)

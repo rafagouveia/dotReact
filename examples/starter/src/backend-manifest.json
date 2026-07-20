@@ -4,14 +4,20 @@
     {
       "moduleId": "page",
       "pattern": "/",
-      "routing": "convention",
+      "routing": "app",
       "propsType": "DotReact.Starter.HomePageProps"
     },
     {
       "moduleId": "products/[id]/page",
       "pattern": "/products/{id}",
-      "routing": "convention",
+      "routing": "app",
       "propsType": "DotReact.Starter.ProductPageProps"
+    },
+    {
+      "moduleId": "streaming/page",
+      "pattern": "/streaming",
+      "routing": "app",
+      "propsType": "DotReact.Starter.Pages.Streaming.StreamingPageProps"
     }
   ],
   "actions": [

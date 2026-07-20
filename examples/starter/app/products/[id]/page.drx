@@ -1,0 +1,20 @@
+import type { ProductPageProps } from "../../../src/contracts";
+import type { DotReactMetadataResolver } from "@dotreact/vite";
+import { DotReactLink } from "@dotreact/client/router";
+
+export const metadata: DotReactMetadataResolver<ProductPageProps> = props => ({
+  title: `${props.name} · DotReact`,
+  description: `Produto dinâmico ${props.id} carregado pelo backend C#.`
+});
+
+export default function ProductPage({ id, name, loadedBy }: ProductPageProps) {
+  return (
+    <main className="shell">
+      <p className="eyebrow">Rota dinâmica SSR</p>
+      <h1>{name}</h1>
+      <p>O segmento <code>{id}</code> foi convertido e carregado pelo C#.</p>
+      <p className="muted">{loadedBy}</p>
+      <DotReactLink href="/">Voltar</DotReactLink>
+    </main>
+  );
+}

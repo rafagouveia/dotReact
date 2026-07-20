@@ -5,7 +5,7 @@ public interface IListWorkItemsUseCase
     Task<IReadOnlyList<WorkItemSnapshot>> ExecuteAsync(CancellationToken cancellationToken);
 }
 
-public sealed class ListWorkItemsUseCase(IWorkItemReadRepository repository, IWorkItemMapper mapper)
+public sealed class ListWorkItemsUseCase(IWorkItemReadRepository repository, WorkItemMapper mapper)
     : IListWorkItemsUseCase
 {
     public async Task<IReadOnlyList<WorkItemSnapshot>> ExecuteAsync(CancellationToken cancellationToken)

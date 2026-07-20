@@ -8,8 +8,8 @@ public interface IUpdateWorkItemUseCase
 public sealed class UpdateWorkItemUseCase(
     IWorkItemReadRepository readRepository,
     IWorkItemWriteRepository writeRepository,
-    IWorkItemInputValidator validator,
-    IWorkItemMapper mapper,
+    WorkItemInputValidator validator,
+    WorkItemMapper mapper,
     IClock clock) : IUpdateWorkItemUseCase
 {
     public async Task<UpdateWorkItemResult> ExecuteAsync(

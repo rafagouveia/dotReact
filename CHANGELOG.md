@@ -4,6 +4,9 @@
 
 ### Added
 
+- Framework-owned hydration, development diagnostics and default route/root
+  error fallbacks; DRX boundary files are now intentional application overrides.
+
 - ASP.NET Core-owned SSR with React hydration.
 - Typed C# props, generated TypeScript contracts and server actions.
 - `.drx` pages, nested layouts, HMR and semantic checking.
@@ -34,6 +37,30 @@
 - Opt-in distributed loader-result caching with automatic action invalidation.
 - Vendored project-local CLI, installable VSIX packaging and real VS Code host tests.
 - Formal Semantic Versioning, compatibility and deprecation policy for public surfaces.
+- Client-side router with native links, prefetch, loading boundaries and preserved layouts.
+- Protocol-v2 streaming SSR with real Suspense, backpressure, cancellation and CSP nonces.
+- Build-scoped SSG/ISR, bounded single-flight storage, path/tag invalidation and static export CLI.
+- Safe lazy antiforgery acquisition for Server Actions issued from static documents.
+- React image component, hardened optimizer endpoint and optional SkiaSharp codec plugin.
+- Deterministic deployment adapter contract with App Service/Container Apps capability checks.
+- Browser E2E coverage for SSR, hydration/actions, navigation, Fast Refresh, streaming and ISR.
+- Typed static-path providers exposed through an automatic prerender manifest and CLI export discovery.
+- Redis-backed ISR/tag invalidation and cross-replica idempotent Server Actions with renewable leases.
+- Experimental official-Vite RSC package/example and React 19.2 partial-prerender/resume primitives.
+- Typed C# page props and current URL in preserved DRX layouts, with descendant-contract checking.
+- Cardinality-bounded repeated query conversion through `GetQueryValues<T>`.
+- Redis Cluster hash-slot-safe Lua keys and monotonic prerender tag-index retention.
+- Per-request CSP nonces on the experimental RSC HTML/Flight example.
+- Convention-based `DotReact.Hosting` facade that keeps renderer, Redis, images,
+  security, observability and production composition out of application `Program.cs`.
+- CLI workspace focus/reveal modes that hide managed infrastructure during daily
+  application work without deleting or unversioning deployment configuration.
+- Route-aware blocking CSS discovery in development so modular page/layout styles
+  are present before the first SSR paint, plus an explicit SOLID feature convention.
+- Unified `app/` router with co-located `page.drx` and `page.server.cs`,
+  compile-time C# registration, route groups and private underscore folders.
+- Same-origin .NET Hot Reload revision bridge that refreshes current SSR props
+  through partial navigation while React modules retain Vite Fast Refresh.
 
 ### Known gaps
 
@@ -42,3 +69,6 @@
   an external Azure environment.
 - Full language-server refactoring/navigation beyond the VS Code loader CodeLens
   is not yet implemented.
+- Legacy `src/pages` plus attributed `Server/Pages` applications remain
+  compatible but have not yet reached their scheduled removal release.
+- RSC/Flight and PPR are experimental and intentionally isolated from the stable DRX API.

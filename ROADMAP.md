@@ -8,16 +8,14 @@ with future promises.
 
 ### Required before a stable v1
 
-- Complete reference documentation, tutorials, troubleshooting and API/configuration coverage.
-- Browser-level clean-scaffold, hydration, Fast Refresh and Server Action regression tests.
-- A production distributed idempotency-store reference.
 - Container scanning, Bicep validation and credentialed Azure deployment smoke tests.
 
-### High-value rendering evolution
+### Implemented rendering evolution
 
-- Streaming SSR and Suspense support in a versioned protocol revision.
-- Static generation with explicit cache and invalidation controls.
-- Enhanced client navigation while preserving native links and accessibility.
+- Streaming SSR and Suspense in versioned protocol v2 with CSP nonce propagation.
+- Build-scoped SSG/ISR, exact-path action invalidation and portable static export.
+- Client router, prefetch, loading boundaries and layout-state preservation.
+- Secure image optimization with a replaceable processor and SkiaSharp plugin.
 - Loader/renderer/transfer timing separation and end-to-end performance budgets.
 
 ### External release gates
@@ -63,8 +61,10 @@ HTML, hydrates without mismatch, and shuts down cleanly.
   including string/integer discriminators and fail-closed collision checks.
 - Implemented project-wide multi-assembly discovery for runtime and TypeGen inputs.
 - Typed page results, redirects, status codes and nearest 404/error boundaries.
-- Implemented invariant typed scalar query values through `GetQueryValue<T>`.
-- Remaining post-MVP: collection query conventions and expanded collision diagnostics.
+- Implemented invariant typed scalar and repeated collection query values through
+  `GetQueryValue<T>` and cardinality-bounded `GetQueryValues<T>`.
+- Implemented typed page-prop/URL delivery to root and nested layouts, checked
+  against every descendant page contract.
 
 ## M3 — Production toolchain (implementation complete)
 
@@ -91,7 +91,8 @@ HTML, hydrates without mismatch, and shuts down cleanly.
   OpenTelemetry-compatible action/renderer metrics and traces.
 - Implemented page policy metadata, resource-based action policies, opt-in
   distributed props caching and automatic exact-path invalidation after actions.
-- Remaining post-MVP: a production distributed idempotency reference.
+- Implemented Redis-backed cross-replica idempotency with renewable leases and
+  Redis-backed ISR artifacts/tag invalidation; verified against Microsoft Garnet.
 
 The starter now validates the framework action transport; the CRUD application
 continues to validate conventional ASP.NET Core endpoints and SQLite flows.
@@ -101,12 +102,28 @@ continues to validate conventional ASP.NET Core endpoints and SQLite flows.
 - Implemented first slice: bundle budgets, reproducible SSR p50/p95/p99 benchmark,
   renderer keep-alive/request tuning, `Content-Length` responses and safe static
   asset cache policy.
-- Streaming SSR and Suspense after the v1 protocol is stable.
-- Static generation and documented cache controls.
-- Enhanced client navigation while retaining native links.
+- Implemented streaming SSR/Suspense without breaking protocol v1.
+- Implemented build-isolated static generation/ISR with bounded store and export CLI.
+- Implemented enhanced client navigation while retaining native links.
+- Implemented image optimization endpoint/component and Azure-aware deployment adapters.
 - Benchmarks separating loader, renderer, and transfer time.
+- Framework-owned SSR/client entries and lazy route chunks remove application bootstrap duplication.
+- Production emits fingerprinted global/route CSS and initial module preloads from a build-generated private manifest before SSR HTML.
+- Props have a fail-closed serialized-size budget and OpenTelemetry histogram.
+- Browser CLS, INP, LCP and TTFB use a bounded same-origin collector correlated through W3C trace context.
+- Local fonts support face-level critical preload and `@dotreact/script` provides safe loading strategies.
 
-React Server Components, partial prerendering, distributed revalidation, image
-optimization, and provider-specific edge runtimes are explicitly post-MVP.
-Shared SSR HTML caching remains intentionally disabled while personalized props
-and antiforgery tokens share the document representation.
+## M6 — Experimental React architecture
+
+- Flight frame transport and capability negotiation exist in protocol v2.
+- `@dotreact/rsc` uses the official Vite RSC plugin with pinned React/RSC versions,
+  separates rsc/ssr/client environments and rejects JavaScript Server Actions.
+- `examples/rsc` produces real SSR HTML, embedded Flight hydration data and a
+  `text/x-component` response; it remains isolated from the stable DRX runtime.
+- React 19.2 partial-prerender/resume primitives are implemented and tested with
+  a static Suspense shell plus a resumed dynamic hole.
+- Provider adapters may opt into PPR only when shared cache is explicitly available.
+
+Personalized SSR HTML remains non-cacheable. Only pages explicitly annotated
+with `DotReactPrerender` may produce public artifacts, and those artifacts reject
+antiforgery and cookie markers.

@@ -36,8 +36,12 @@ public sealed class DotReactSecurityObservabilityTests
         Assert.Contains("default-src 'self'", csp);
         Assert.Contains("object-src 'none'", csp);
         Assert.Contains("frame-ancestors 'none'", csp);
-        Assert.DoesNotContain("'unsafe-inline'", csp);
+        Assert.Matches("script-src[^;]*'nonce-[A-Za-z0-9+/]{32}'", csp);
+        Assert.Matches("style-src 'self';", csp);
+        Assert.Contains("style-src-attr 'unsafe-inline'", csp);
+        Assert.DoesNotMatch("script-src[^;]*'unsafe-inline'", csp);
         Assert.DoesNotContain("127.0.0.1:5173", csp);
+        Assert.DoesNotContain("blob:", csp);
     }
 
     [Fact]
@@ -50,6 +54,9 @@ public sealed class DotReactSecurityObservabilityTests
 
         Assert.Contains("http://127.0.0.1:5173", csp);
         Assert.Contains("ws://127.0.0.1:5173", csp);
+        Assert.Contains("ws://localhost:*", csp);
+        Assert.Contains("wss://localhost:*", csp);
+        Assert.Contains("worker-src 'self' blob:", csp);
         Assert.Contains("'unsafe-inline'", csp);
         Assert.DoesNotContain("src/entry-client.tsx", csp);
     }
@@ -246,8 +253,11 @@ public sealed class DotReactSecurityObservabilityTests
         builder.Services.AddDotReact(options =>
         {
             options.ClientScriptSrc = development
-                ? "http://127.0.0.1:5173/src/entry-client.tsx"
+                ? "http://127.0.0.1:5173/@id/virtual:dotreact/client-entry"
                 : "/_dotreact/client.js";
+            options.ClientStyleSrc = development
+                ? "http://127.0.0.1:5173/src/styles.css"
+                : "/_dotreact/client.css";
             options.ReactRefreshPreambleSrc = development ? "http://127.0.0.1:5173/@react-refresh" : null;
             options.Development = development;
         });
@@ -267,13 +277,13 @@ public sealed class DotReactSecurityObservabilityTests
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
-        {
-            Content = new StringContent(
+            {
+                Content = new StringContent(
                 "{\"protocolVersion\":1,\"requestId\":\"sensitive-request-id\",\"ok\":false," +
                 "\"error\":{\"code\":\"RENDER_FAILED\",\"message\":\"generic\"}}",
                 Encoding.UTF8,
                 "application/json")
-        });
+            });
     }
 
     private sealed class HandlerFilter(HttpMessageHandler handler) : IHttpMessageHandlerBuilderFilter

@@ -2,17 +2,22 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
+using DotReact.AspNetCore;
 using DotReact.Crud;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Xunit;
 
 namespace DotReact.Crud.Tests;
 
-public sealed class WorkItemsApiTests : IClassFixture<CrudApplicationFactory>
+public sealed partial class WorkItemsApiTests : IClassFixture<CrudApplicationFactory>
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -122,6 +127,81 @@ public sealed class WorkItemsApiTests : IClassFixture<CrudApplicationFactory>
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("Work item não encontrado.", problem?.Title);
     }
+
+    [Fact]
+    public async Task Discovered_root_page_loads_database_props_for_the_react_module()
+    {
+        using var response = await _client.GetAsync("/");
+
+        response.EnsureSuccessStatusCode();
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("rendered-work-items", html);
+        Assert.Contains("data-module=\"page\"", html);
+    }
+
+    [Fact]
+    public async Task Typed_server_actions_create_update_and_delete_with_antiforgery()
+    {
+        var security = await GetActionSecurityAsync();
+        var create = new CreateWorkItemRequest(
+            "Ação tipada",
+            "Criada pelo protocolo DotReact.",
+            WorkItemStatus.Backlog,
+            WorkItemPriority.High);
+
+        using var createResponse = await SendActionAsync("work-items/create", create, security);
+        var created = await createResponse.Content.ReadFromJsonAsync<WorkItemDto>(JsonOptions);
+        createResponse.EnsureSuccessStatusCode();
+        Assert.NotNull(created);
+
+        var update = new UpdateWorkItemActionRequest(
+            created.Id,
+            "Ação atualizada",
+            null,
+            WorkItemStatus.Done,
+            WorkItemPriority.Medium);
+        using var updateResponse = await SendActionAsync("work-items/update", update, security);
+        var updated = await updateResponse.Content.ReadFromJsonAsync<WorkItemDto>(JsonOptions);
+        updateResponse.EnsureSuccessStatusCode();
+        Assert.Equal(WorkItemStatus.Done, updated?.Status);
+
+        using var deleteResponse = await SendActionAsync(
+            "work-items/delete",
+            new DeleteWorkItemRequest(created.Id),
+            security);
+        var deleted = await deleteResponse.Content.ReadFromJsonAsync<DeleteWorkItemResponse>(JsonOptions);
+        deleteResponse.EnsureSuccessStatusCode();
+        Assert.Equal(new DeleteWorkItemResponse(created.Id, true), deleted);
+
+        using var missingResponse = await SendActionAsync(
+            "work-items/delete",
+            new DeleteWorkItemRequest(created.Id),
+            security);
+        Assert.Equal(HttpStatusCode.NotFound, missingResponse.StatusCode);
+    }
+
+    private async Task<string> GetActionSecurityAsync()
+    {
+        using var page = await _client.GetAsync("/");
+        page.EnsureSuccessStatusCode();
+        var html = await page.Content.ReadAsStringAsync();
+        var token = CsrfMetaRegex().Match(html).Groups[1].Value;
+        Assert.NotEmpty(token);
+        return token;
+    }
+
+    private Task<HttpResponseMessage> SendActionAsync<T>(string id, T body, string csrfToken)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/_dotreact/actions/{id}")
+        {
+            Content = JsonContent.Create(body, options: JsonOptions)
+        };
+        request.Headers.Add("X-DotReact-CSRF", csrfToken);
+        return _client.SendAsync(request);
+    }
+
+    [GeneratedRegex("<meta name=\"dotreact-csrf-token\" content=\"([^\"]+)\">")]
+    private static partial Regex CsrfMetaRegex();
 }
 
 public sealed class CrudApplicationFactory : WebApplicationFactory<Program>
@@ -137,8 +217,14 @@ public sealed class CrudApplicationFactory : WebApplicationFactory<Program>
         {
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:WorkItems"] = $"Data Source={_databasePath}"
+                ["ConnectionStrings:WorkItems"] = $"Data Source={_databasePath}",
+                ["DOTREACT_PRODUCTION_RUNTIME"] = "false"
             });
+        });
+        builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IDotReactRenderer>();
+            services.AddSingleton<IDotReactRenderer, CrudTestRenderer>();
         });
     }
 
@@ -155,6 +241,81 @@ public sealed class CrudApplicationFactory : WebApplicationFactory<Program>
                     File.Delete(path);
                 }
             }
+        }
+    }
+}
+
+public sealed class CrudTestRenderer : IDotReactRenderer
+{
+    public Task<DotReactRenderResponse> RenderAsync(
+        DotReactRenderRequest request,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(new DotReactRenderResponse
+        {
+            ProtocolVersion = 1,
+            RequestId = request.RequestId,
+            Ok = true,
+            Html = $"<main data-testid=\"rendered-work-items\" data-module=\"{request.ModuleId}\"></main>"
+        });
+}
+
+public sealed class ProductionAuthenticationTests
+{
+    [Fact]
+    public async Task Demo_authentication_fails_closed_in_production()
+    {
+        await using var factory = new ProductionCrudApplicationFactory();
+        using var client = factory.CreateClient();
+
+        using var api = await client.GetAsync("/api/work-items");
+        using var page = await client.GetAsync("/");
+        using var action = await client.PostAsJsonAsync(
+            "/_dotreact/actions/work-items/create",
+            new CreateWorkItemRequest(null, null, WorkItemStatus.Backlog, WorkItemPriority.Low));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, api.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, page.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, action.StatusCode);
+    }
+}
+
+public sealed class ProductionCrudApplicationFactory : WebApplicationFactory<Program>
+{
+    private readonly string _databasePath = Path.Combine(
+        Path.GetTempPath(),
+        $"dotreact-crud-production-tests-{Guid.NewGuid():N}.db");
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseEnvironment("Production");
+        builder.UseSetting("DOTREACT_PRODUCTION_RUNTIME", "false");
+        builder.ConfigureAppConfiguration((_, configuration) =>
+            configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:WorkItems"] = $"Data Source={_databasePath}",
+                ["DOTREACT_PRODUCTION_RUNTIME"] = "false"
+            }));
+        builder.ConfigureServices(services =>
+        {
+            var managedRenderer = services.SingleOrDefault(descriptor =>
+                descriptor.ServiceType == typeof(IHostedService)
+                && descriptor.ImplementationType?.FullName
+                    == "DotReact.AspNetCore.DotReactNodeRendererHostedService");
+            if (managedRenderer is not null) services.Remove(managedRenderer);
+        });
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+        if (!disposing)
+            return;
+
+        SqliteConnection.ClearAllPools();
+        foreach (var path in new[] { _databasePath, $"{_databasePath}-shm", $"{_databasePath}-wal" })
+        {
+            if (File.Exists(path))
+                File.Delete(path);
         }
     }
 }

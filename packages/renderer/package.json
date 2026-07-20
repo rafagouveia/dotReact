@@ -4,20 +4,28 @@
   "private": true,
   "type": "module",
   "bin": { "dotreact-renderer": "./dist/server.js" },
-  "exports": "./dist/server.js",
+  "exports": {
+    ".": "./dist/server.js",
+    "./react": "./dist/react-runtime.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test dist/http-runtime.test.js",
+    "test": "node --test dist/*.test.js",
     "start": "node dist/server.js",
     "start:production": "node dist/production-server.js"
   },
   "dependencies": {
+    "@dotreact/client": "0.1.0",
     "@dotreact/protocol": "0.1.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
     "vite": "8.1.5"
   },
   "devDependencies": {
     "@types/node": "24.10.1",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
     "typescript": "7.0.2"
   }
 }

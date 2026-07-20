@@ -7,7 +7,7 @@ public interface IGetDashboardUseCase
 
 public sealed class GetDashboardUseCase(
     IListWorkItemsUseCase listWorkItems,
-    IDashboardStatsCalculator statsCalculator,
+    DashboardStatsCalculator statsCalculator,
     IClock clock) : IGetDashboardUseCase
 {
     public async Task<DashboardSnapshot> ExecuteAsync(CancellationToken cancellationToken)
