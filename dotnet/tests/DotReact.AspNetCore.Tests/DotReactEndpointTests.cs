@@ -68,6 +68,7 @@ public sealed class DotReactEndpointTests
         var response = await app.GetTestClient().GetAsync("/products/42?currency=BRL");
         var html = await response.Content.ReadAsStringAsync();
 
+        Assert.Contains("<html lang=\"en\">", html);
         Assert.True(response.IsSuccessStatusCode);
         Assert.Contains("<title>Welcome &lt;unsafe&gt;</title>", html);
         Assert.Contains("<meta name=\"description\" content=\"A &quot;quoted&quot; value\">", html);
@@ -143,6 +144,24 @@ public sealed class DotReactEndpointTests
     }
 
     [Fact]
+    public async Task Saturated_renderer_returns_retryable_service_unavailable_without_capacity_details()
+    {
+        var renderer = new ThrowingRenderer(new DotReactRendererCapacityException(
+            "bounded queue contains internal capacity details"));
+        await using var app = await StartAppAsync(renderer, development: false, map: endpoints =>
+            endpoints.MapDotReactPage("/", "pages/home", _ => new { Greeting = "hello" }));
+
+        var response = await app.GetTestClient().GetAsync("/");
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(System.Net.HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Equal(TimeSpan.FromSeconds(1), response.Headers.RetryAfter?.Delta);
+        Assert.Contains("temporarily busy", html);
+        Assert.DoesNotContain("internal capacity", html);
+        Assert.DoesNotContain("DotReactRendererCapacityException", html);
+    }
+
+    [Fact]
     public async Task Development_shell_installs_vite_react_refresh_preamble_before_client_entry()
     {
         var renderer = new CapturingRenderer(new DotReactRenderResponse { Html = "<h1>Hello</h1>" });
@@ -157,6 +176,11 @@ public sealed class DotReactEndpointTests
         Assert.True(preamble >= 0);
         Assert.True(client > preamble);
         Assert.Contains("__vite_plugin_react_preamble_installed__=true", html);
+        Assert.Contains("new WebSocket(url)", html);
+        Assert.Contains("document.visibilityState==='hidden'", html);
+        Assert.Contains("window.addEventListener('pagehide'", html);
+        Assert.DoesNotContain("fetch(\"/_dotreact/dev/runtime\"", html);
+        Assert.DoesNotContain("setTimeout(__dotReactPollRuntime,250)", html);
         Assert.Contains("<link rel=\"stylesheet\" href=\"/_dotreact/dev/__dotreact_route_style.css?moduleKey=cGFnZXMvaG9tZQ\">", html);
         Assert.True(html.IndexOf("__dotreact_route_style.css", StringComparison.Ordinal)
             < html.IndexOf("<body>", StringComparison.Ordinal));
@@ -203,6 +227,27 @@ public sealed class DotReactEndpointTests
         Assert.DoesNotContain("other.js", html);
         Assert.True(html.IndexOf("/assets/home.css", StringComparison.Ordinal) < body);
         Assert.True(html.IndexOf("/assets/home.js", StringComparison.Ordinal) < body);
+    }
+
+    [Fact]
+    public async Task Proven_server_only_route_omits_hydration_payload_and_client_runtime()
+    {
+        var renderer = new CapturingRenderer(new DotReactRenderResponse { Html = "<h1>Server HTML</h1>" });
+        var assets = new Dictionary<string, DotReactClientRouteAssets>(StringComparer.Ordinal)
+        {
+            ["pages/home"] = new(["/assets/home.css"], ["/assets/home.js"], Hydrate: false)
+        };
+        await using var app = await StartAppAsync(renderer, development: false, map: endpoints =>
+            endpoints.MapDotReactPage("/", "pages/home", _ => new { Greeting = "hello" }),
+            clientRouteAssets: assets);
+
+        var html = await app.GetTestClient().GetStringAsync("/");
+
+        Assert.Contains("<h1>Server HTML</h1>", html);
+        Assert.Contains("href=\"/assets/home.css\"", html);
+        Assert.DoesNotContain("__DOTREACT_DATA__", html);
+        Assert.DoesNotContain("/assets/client.js", html);
+        Assert.DoesNotContain("modulepreload", html);
     }
 
     [Fact]
@@ -257,6 +302,7 @@ public sealed class DotReactEndpointTests
                 : null;
             if (clientRouteAssets is not null) options.ClientRouteAssets = clientRouteAssets;
             options.ReactRefreshPreambleSrc = development ? "http://127.0.0.1:5173/@react-refresh" : null;
+            options.DevelopmentRuntimeProbePath = development ? "/_dotreact/dev/runtime" : null;
         });
         builder.Services.AddSingleton(renderer);
 

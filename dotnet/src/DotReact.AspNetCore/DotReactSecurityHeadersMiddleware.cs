@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using System.Text;
 using DotReact.AspNetCore;
 using Microsoft.AspNetCore.Http;
@@ -18,18 +17,34 @@ public static class DotReactSecurityHeadersApplicationBuilderExtensions
     }
 }
 
-internal sealed class DotReactSecurityHeadersMiddleware(
-    RequestDelegate next,
-    IOptions<DotReactSecurityHeadersOptions> securityOptions,
-    IOptions<DotReactOptions> dotReactOptions)
+internal sealed class DotReactSecurityHeadersMiddleware
 {
+    private readonly RequestDelegate _next;
+    private readonly DotReactSecurityHeadersOptions _security;
+    private readonly DotReactOptions _dotReact;
+    private readonly string? _baseContentSecurityPolicy;
+
+    public DotReactSecurityHeadersMiddleware(
+        RequestDelegate next,
+        IOptions<DotReactSecurityHeadersOptions> securityOptions,
+        IOptions<DotReactOptions> dotReactOptions)
+    {
+        _next = next;
+        _security = securityOptions.Value;
+        _dotReact = dotReactOptions.Value;
+        if (_security.Enabled && _security.ContentSecurityPolicyEnabled)
+        {
+            _baseContentSecurityPolicy = _security.ContentSecurityPolicy
+                ?? BuildContentSecurityPolicy(_security, _dotReact, nonce: null);
+        }
+    }
+
     public Task InvokeAsync(HttpContext context)
     {
-        var security = securityOptions.Value;
-        if (!security.Enabled) return next(context);
+        var security = _security;
+        if (!security.Enabled) return _next(context);
 
-        var nonce = Convert.ToBase64String(RandomNumberGenerator.GetBytes(24));
-        DotReactSecurityNonce.Set(context, nonce);
+        DotReactSecurityNonce.Enable(context);
 
         var headers = context.Response.Headers;
         headers.TryAdd("X-Content-Type-Options", "nosniff");
@@ -38,12 +53,22 @@ internal sealed class DotReactSecurityHeadersMiddleware(
         Add(headers, "Referrer-Policy", security.ReferrerPolicy);
         Add(headers, "Permissions-Policy", security.PermissionsPolicy);
         Add(headers, "Cross-Origin-Opener-Policy", security.CrossOriginOpenerPolicy);
-        if (security.ContentSecurityPolicyEnabled)
+        if (security.ContentSecurityPolicyEnabled && security.ContentSecurityPolicy is not null)
         {
-            headers.TryAdd("Content-Security-Policy",
-                security.ContentSecurityPolicy ?? BuildContentSecurityPolicy(security, dotReactOptions.Value, nonce));
+            headers.TryAdd("Content-Security-Policy", _baseContentSecurityPolicy);
         }
-        return next(context);
+        else if (security.ContentSecurityPolicyEnabled)
+        {
+            context.Response.OnStarting(() =>
+            {
+                var nonce = DotReactSecurityNonce.Peek(context);
+                headers.TryAdd("Content-Security-Policy", nonce is null
+                    ? _baseContentSecurityPolicy
+                    : BuildContentSecurityPolicy(security, _dotReact, nonce));
+                return Task.CompletedTask;
+            });
+        }
+        return _next(context);
     }
 
     private static void Add(IHeaderDictionary headers, string name, string? value)
@@ -54,9 +79,10 @@ internal sealed class DotReactSecurityHeadersMiddleware(
     private static string BuildContentSecurityPolicy(
         DotReactSecurityHeadersOptions security,
         DotReactOptions dotReact,
-        string nonce)
+        string? nonce)
     {
-        var scriptSources = new List<string> { "'self'", $"'nonce-{nonce}'" };
+        var scriptSources = new List<string> { "'self'" };
+        if (nonce is not null) scriptSources.Add($"'nonce-{nonce}'");
         var styleSources = new List<string> { "'self'" };
         var connectSources = new List<string> { "'self'" };
         var workerSources = new List<string> { "'self'" };

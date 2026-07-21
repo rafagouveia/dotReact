@@ -15,7 +15,10 @@ internal sealed class DotReactNodeRendererHostedService(
 {
     private const int MaximumLogLineLength = 16_384;
     private static readonly TimeSpan MaximumBackoff = TimeSpan.FromSeconds(30);
-    private readonly HttpClient _lifecycleClient = new() { Timeout = TimeSpan.FromSeconds(2) };
+    private readonly HttpClient _lifecycleClient = new(
+        Microsoft.Extensions.DependencyInjection.DotReactRendererConnection.CreateHandler(
+            CreateConnectionOptions(options.Value)))
+        { Timeout = TimeSpan.FromSeconds(2) };
     private readonly CancellationTokenSource _supervisionCancellation = new();
     private readonly Queue<DateTimeOffset> _restartHistory = new();
     private readonly List<Process> _retiredProcesses = [];
@@ -251,6 +254,12 @@ internal sealed class DotReactNodeRendererHostedService(
             throw new DirectoryNotFoundException("DotReact renderer working directory was not found.");
     }
 
+    private static DotReactOptions CreateConnectionOptions(DotReactNodeRendererOptions value) => new()
+    {
+        RendererConnectTimeout = TimeSpan.FromMilliseconds(750),
+        RendererSocketPath = value.UseInterprocessSocket ? value.SocketPath : null
+    };
+
     private static void Terminate(Process process)
     {
         try
@@ -303,8 +312,15 @@ internal static class DotReactNodeRendererEnvironment
         startInfo.Environment["NODE_ENV"] = "production";
         startInfo.Environment["DOTREACT_RENDERER_HOST"] = "127.0.0.1";
         startInfo.Environment["DOTREACT_RENDERER_PORT"] = value.Port.ToString(CultureInfo.InvariantCulture);
+        if (value.UseInterprocessSocket)
+            startInfo.Environment["DOTREACT_RENDERER_SOCKET"] = value.SocketPath;
+        if (value.UseFramedTransport)
+            startInfo.Environment["DOTREACT_RENDERER_FRAME_SOCKET"] = value.FrameSocketPath;
         startInfo.Environment["DOTREACT_RENDERER_TOKEN"] = token;
         startInfo.Environment["DOTREACT_SERVER_ENTRY"] = value.ServerEntryPath;
+        startInfo.Environment["DOTREACT_RENDERER_WORKERS"] = value.WorkerCount.ToString(CultureInfo.InvariantCulture);
+        startInfo.Environment["DOTREACT_MAX_RENDER_CONCURRENCY"] =
+            value.MaxConcurrencyPerWorker.ToString(CultureInfo.InvariantCulture);
         return startInfo;
     }
 

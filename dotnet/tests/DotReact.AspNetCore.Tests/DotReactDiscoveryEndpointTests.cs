@@ -4,7 +4,6 @@ using System.Runtime.CompilerServices;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using DotReact.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -20,10 +19,25 @@ using Xunit;
 
 namespace DotReact.AspNetCore.Tests;
 
-public sealed partial class DotReactDiscoveryEndpointTests
+public sealed class DotReactDiscoveryEndpointTests
 {
     [Fact]
-    public async Task Discovered_dynamic_page_converts_route_and_emits_csrf_token_and_cookie()
+    public void Streaming_is_explicit_page_metadata()
+    {
+        var services = new ServiceCollection();
+        services.AddDotReactPages(typeof(DotReactDiscoveryEndpointTests).Assembly);
+        using var provider = services.BuildServiceProvider();
+
+        var descriptor = provider.GetRequiredService<DotReactPageRegistry>().Items.Single(page =>
+            page.ImplementationType == typeof(StreamingOptInPage));
+
+        Assert.True(descriptor.Streaming);
+        Assert.False(provider.GetRequiredService<DotReactPageRegistry>().Items.Single(page =>
+            page.ImplementationType == typeof(DynamicPage)).Streaming);
+    }
+
+    [Fact]
+    public async Task Discovered_dynamic_page_converts_route_without_eager_antiforgery_state()
     {
         await using var app = await StartAsync();
         var response = await app.GetTestClient().GetAsync("/discovered/42");
@@ -31,16 +45,16 @@ public sealed partial class DotReactDiscoveryEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("\"id\":42", html);
-        Assert.Matches("<meta name=\"dotreact-csrf-token\" content=\"[^\"]+\">", html);
-        Assert.Contains("csrfToken", html);
-        Assert.Contains(response.Headers.GetValues("Set-Cookie"), value => value.Contains(".AspNetCore.Antiforgery", StringComparison.Ordinal));
+        Assert.DoesNotContain("dotreact-csrf-token", html);
+        Assert.DoesNotContain(".AspNetCore.Antiforgery", response.Headers.TryGetValues("Set-Cookie", out var cookies)
+            ? string.Join(';', cookies) : string.Empty);
     }
 
     [Fact]
     public async Task Client_navigation_returns_typed_props_without_invoking_the_renderer()
     {
         var renderer = new CountingRenderer();
-        await using var app = await StartAsync(renderer);
+        await using var app = await StartAsync(renderer, development: true);
         using var request = new HttpRequestMessage(HttpMethod.Get, "/discovered/42");
         request.Headers.Add("X-DotReact-Navigation", "1");
         request.Headers.Accept.ParseAdd("application/vnd.dotreact.navigation+json");
@@ -52,7 +66,19 @@ public sealed partial class DotReactDiscoveryEndpointTests
         Assert.Equal("application/vnd.dotreact.navigation+json", response.Content.Headers.ContentType?.MediaType);
         Assert.Equal("pages/discovered", payload.RootElement.GetProperty("moduleId").GetString());
         Assert.Equal(42, payload.RootElement.GetProperty("props").GetProperty("id").GetInt32());
+        Assert.Equal(30_000, payload.RootElement.GetProperty("staleTimeMs").GetInt32());
+        Assert.Equal("client-navigation", response.Headers.GetValues("X-DotReact-Render-Mode").Single());
         Assert.Equal(0, renderer.CallCount);
+    }
+
+    [Fact]
+    public async Task Production_responses_do_not_expose_render_diagnostics()
+    {
+        await using var app = await StartAsync();
+
+        var response = await app.GetTestClient().GetAsync("/discovered/42");
+
+        Assert.False(response.Headers.Contains("X-DotReact-Render-Mode"));
     }
 
     [Fact]
@@ -230,15 +256,11 @@ public sealed partial class DotReactDiscoveryEndpointTests
     [InlineData("validation", HttpStatusCode.BadRequest)]
     [InlineData("missing", HttpStatusCode.NotFound)]
     [InlineData("conflict", HttpStatusCode.Conflict)]
-    public async Task Action_accepts_page_csrf_and_maps_structured_results(string mode, HttpStatusCode expected)
+    public async Task Action_accepts_lazy_csrf_and_maps_structured_results(string mode, HttpStatusCode expected)
     {
         await using var app = await StartAsync();
         var client = app.GetTestClient();
-        var page = await client.GetAsync("/discovered/1");
-        var html = await page.Content.ReadAsStringAsync();
-        var token = CsrfMetaRegex().Match(html).Groups[1].Value;
-        var cookie = page.Headers.GetValues("Set-Cookie").Single(value =>
-            value.Contains(".AspNetCore.Antiforgery", StringComparison.Ordinal)).Split(';')[0];
+        var (token, cookie) = await GetActionSecurityAsync(client);
         using var request = new HttpRequestMessage(HttpMethod.Post, "/_dotreact/actions/test/outcome")
         {
             Content = JsonContent.Create(new ActionRequest(mode))
@@ -258,11 +280,7 @@ public sealed partial class DotReactDiscoveryEndpointTests
     {
         await using var app = await StartAsync();
         var client = app.GetTestClient();
-        var page = await client.GetAsync("/discovered/1");
-        var html = await page.Content.ReadAsStringAsync();
-        var token = CsrfMetaRegex().Match(html).Groups[1].Value;
-        var cookie = page.Headers.GetValues("Set-Cookie").Single(value =>
-            value.Contains(".AspNetCore.Antiforgery", StringComparison.Ordinal)).Split(';')[0];
+        var (token, cookie) = await GetActionSecurityAsync(client);
         using var request = new HttpRequestMessage(HttpMethod.Post, "/_dotreact/actions/test/outcome")
         {
             Content = new FormUrlEncodedContent(new Dictionary<string, string>
@@ -330,6 +348,28 @@ public sealed partial class DotReactDiscoveryEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/cache/items")).StatusCode);
         Assert.Equal(2, app.Services.GetRequiredService<CacheInvocationCounter>().Count);
+    }
+
+    [Fact]
+    public async Task Distributed_page_cache_tags_invalidate_multiple_paths_without_key_enumeration()
+    {
+        await using var app = await StartAsync(enableDistributedCache: true);
+        var client = app.GetTestClient();
+
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/cache/tagged-a")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/cache/tagged-b")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/cache/tagged-a")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/cache/tagged-b")).StatusCode);
+        Assert.Equal(2, app.Services.GetRequiredService<CacheInvocationCounter>().Count);
+
+        var security = await GetActionSecurityAsync(client);
+        using var invalidate = CreateJsonActionRequest("/_dotreact/actions/test/invalidate-cache-tag",
+            new ActionRequest("invalidate"), security);
+        Assert.Equal(HttpStatusCode.OK, (await client.SendAsync(invalidate)).StatusCode);
+
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/cache/tagged-a")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/cache/tagged-b")).StatusCode);
+        Assert.Equal(4, app.Services.GetRequiredService<CacheInvocationCounter>().Count);
     }
 
     [Fact]
@@ -435,7 +475,8 @@ public sealed partial class DotReactDiscoveryEndpointTests
     private static async Task<WebApplication> StartAsync(
         IDotReactRenderer? renderer = null,
         Action<DotReactActionOptions>? configureActions = null,
-        bool enableDistributedCache = false)
+        bool enableDistributedCache = false,
+        bool development = false)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -448,7 +489,11 @@ public sealed partial class DotReactDiscoveryEndpointTests
             options.AddPolicy("resource.allowed", policy => policy.RequireAssertion(context =>
                 context.Resource is ResourceRecord { Id: 7 }));
         });
-        builder.Services.AddDotReact(options => options.ClientScriptSrc = "/client.js");
+        builder.Services.AddDotReact(options =>
+        {
+            options.ClientScriptSrc = "/client.js";
+            options.Development = development;
+        });
         builder.Services.AddDotReactPages(typeof(DotReactDiscoveryEndpointTests).Assembly);
         builder.Services.AddDotReactActions(typeof(DotReactDiscoveryEndpointTests).Assembly);
         if (configureActions is not null) builder.Services.Configure(configureActions);
@@ -474,10 +519,11 @@ public sealed partial class DotReactDiscoveryEndpointTests
 
     private static async Task<(string Token, string Cookie)> GetActionSecurityAsync(HttpClient client)
     {
-        var page = await client.GetAsync("/discovered/1");
-        var html = await page.Content.ReadAsStringAsync();
-        var token = CsrfMetaRegex().Match(html).Groups[1].Value;
-        var cookie = page.Headers.GetValues("Set-Cookie").Single(value =>
+        var response = await client.GetAsync("/_dotreact/csrf");
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var token = payload.RootElement.GetProperty("token").GetString()
+            ?? throw new InvalidOperationException("The antiforgery endpoint returned no token.");
+        var cookie = response.Headers.GetValues("Set-Cookie").Single(value =>
             value.Contains(".AspNetCore.Antiforgery", StringComparison.Ordinal)).Split(';')[0];
         return (token, cookie);
     }
@@ -495,14 +541,20 @@ public sealed partial class DotReactDiscoveryEndpointTests
         return request;
     }
 
-    [GeneratedRegex("<meta name=\"dotreact-csrf-token\" content=\"([^\"]+)\">")]
-    private static partial Regex CsrfMetaRegex();
-
     [DotReactPage("/discovered/{id:int}", "pages/discovered")]
     public sealed class DynamicPage : IDotReactPage<PageProps>
     {
         public ValueTask<PageProps> LoadAsync(DotReactPageContext context, CancellationToken cancellationToken) =>
             ValueTask.FromResult(new PageProps(context.GetRouteValue<int>("id")));
+    }
+
+    [DotReactStreaming]
+    [DotReactPage("/streaming-opt-in", "streaming-opt-in/page")]
+    public sealed class StreamingOptInPage : IDotReactPage<PageProps>
+    {
+        public ValueTask<PageProps> LoadAsync(
+            DotReactPageContext context,
+            CancellationToken cancellationToken) => ValueTask.FromResult(new PageProps(1));
     }
 
     [Authorize(Policy = "pages.read")]
@@ -518,6 +570,28 @@ public sealed partial class DotReactDiscoveryEndpointTests
     [DotReactCache(60)]
     [DotReactPage("/cache/items", "cache/items/page")]
     public sealed class CachedPage(CacheInvocationCounter counter) : IDotReactPage<PageProps>
+    {
+        public ValueTask<PageProps> LoadAsync(
+            DotReactPageContext context,
+            CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new PageProps(counter.Increment()));
+    }
+
+    [AllowAnonymous]
+    [DotReactCache(60, Tags = ["catalog"])]
+    [DotReactPage("/cache/tagged-a", "cache/tagged-a/page")]
+    public sealed class TaggedCachedPageA(CacheInvocationCounter counter) : IDotReactPage<PageProps>
+    {
+        public ValueTask<PageProps> LoadAsync(
+            DotReactPageContext context,
+            CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new PageProps(counter.Increment()));
+    }
+
+    [AllowAnonymous]
+    [DotReactCache(60, Tags = ["catalog"])]
+    [DotReactPage("/cache/tagged-b", "cache/tagged-b/page")]
+    public sealed class TaggedCachedPageB(CacheInvocationCounter counter) : IDotReactPage<PageProps>
     {
         public ValueTask<PageProps> LoadAsync(
             DotReactPageContext context,
@@ -657,6 +731,17 @@ public sealed partial class DotReactDiscoveryEndpointTests
             CancellationToken cancellationToken) =>
             ValueTask.FromResult(DotReactActionResult<ActionResponse>.Success(
                 new(true), ["/cache/items"]));
+    }
+
+    [AllowAnonymous]
+    [DotReactAction("test/invalidate-cache-tag")]
+    public sealed class InvalidateCacheTagAction : IDotReactAction<ActionRequest, ActionResponse>
+    {
+        public ValueTask<DotReactActionResult<ActionResponse>> ExecuteAsync(
+            ActionRequest request,
+            CancellationToken cancellationToken) =>
+            ValueTask.FromResult(DotReactActionResult<ActionResponse>.Success(
+                new(true), revalidateTags: ["catalog"]));
     }
 
     [AllowAnonymous]

@@ -7,8 +7,18 @@ import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { addArtifact, type ScaffoldKind } from "./scaffolding.js";
 import { analyzeBundles, formatReport } from "./performance.js";
-import { benchmarkUrl, formatBenchmark } from "./benchmark.js";
+import {
+  benchmarkUrl,
+  compareBenchmarkResults,
+  evaluateBenchmarkThresholds,
+  formatBenchmark,
+  formatBenchmarkComparison,
+  type BenchmarkThresholds
+} from "./benchmark.js";
 import { parsePrerenderManifest, validateStaticRoutes } from "./static-export.js";
+import { formatArchitectureReport, validateProjectArchitecture } from "./architecture.js";
+import { formatSecurityReport, scanProjectSecurity } from "./security.js";
+import { formatRouteDiagnostics, inspectRoutes } from "./routes.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "../../..");
@@ -35,6 +45,8 @@ const workspaceInfrastructure = [
   "tsconfig.base.json",
   "tsconfig.json",
   "vite.config.ts",
+  "lighthouserc.cjs",
+  "scripts/lighthouse-audit.mjs",
   "src/dotreact.d.ts"
 ] as const;
 
@@ -225,7 +237,6 @@ async function create(name: string | undefined, template: string | undefined): P
     "vendor/DotReact.TypeGen/DotReact.TypeGen.csproj", "contract generator path");
   scripts["check:contracts"] = replaceRequired(scripts["check:contracts"] ?? "", "../../dotnet/src/DotReact.TypeGen/DotReact.TypeGen.csproj",
     "vendor/DotReact.TypeGen/DotReact.TypeGen.csproj", "contract checker path");
-  scripts.build = `npm run dotreact:runtime && ${scripts.build ?? ""}`;
   await writeFile(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`);
   const appTsconfigPath = resolve(target, "tsconfig.json");
   const appTsconfig = await readFile(appTsconfigPath, "utf8");
@@ -242,7 +253,7 @@ async function create(name: string | undefined, template: string | undefined): P
 
 async function applyMinimalTemplate(target: string): Promise<void> {
   for (const path of [
-    "Server/Actions",
+    "app/_actions",
     "app/products",
     "app/streaming"
   ]) await rm(resolve(target, path), { recursive: true, force: true });
@@ -259,7 +270,7 @@ async function applyMinimalTemplate(target: string): Promise<void> {
     }],
     actions: []
   }, null, 2)}\n`);
-  await writeFile(resolve(target, "README.md"), `# DotReact minimal project\n\nASP.NET Core owns HTTP, security and data; React renders on the server and hydrates in the browser. Keep routes in \`app/\`, backend capabilities in \`Server/\`, shared presentation in \`src/\` and public assets in \`public/\`. Treat \`vendor/\` as managed framework runtime.\n\nThe scaffold is repository-ready but deliberately does not run \`git init\`. Run \`npm install\` and commit the resulting \`package-lock.json\` before relying on the included CI workflow. Repository defaults cover Git, editors, Node/npm, .NET, Docker and dependency updates.\n\n\`\`\`powershell\nnpm install\nnpm exec -- dotreact doctor\nnpm exec -- dotreact dev\n\`\`\`\n\nGenerate application artifacts without overwriting existing files:\n\n\`\`\`powershell\nnpm exec -- dotreact generate page catalog/[slug]\nnpm exec -- dotreact generate layout catalog\nnpm exec -- dotreact generate action SaveCatalog\nnpm exec -- dotreact sync\nnpm exec -- dotreact check\n\`\`\`\n\nUse \`npm exec -- dotreact build\`, \`npm exec -- dotreact analyze\` and \`npm exec -- dotreact start\` for the production lifecycle. Run \`npm run verify\` before integration. Set \`OTEL_EXPORTER_OTLP_ENDPOINT\` to export DotReact traces and metrics through OTLP. During the vendored preview, update only through \`dotreact upgrade --from <framework-root>\`.\n`);
+  await writeFile(resolve(target, "README.md"), `# DotReact minimal project\n\nASP.NET Core owns HTTP, security and data; React renders on the server and hydrates in the browser. Keep routes, route-private components and Server Actions in \`app/\`; keep Domain, Application, Infrastructure and jobs in \`Server/\`; keep public assets in \`public/\`. Treat \`vendor/\` as managed framework runtime.\n\nThe scaffold is repository-ready but deliberately does not run \`git init\`. Run \`npm install\` and commit the resulting \`package-lock.json\` before relying on the included CI workflow. Repository defaults cover Git, editors, Node/npm, .NET, Docker and dependency updates.\n\n\`\`\`powershell\nnpm install\nnpm exec -- dotreact doctor\nnpm exec -- dotreact dev\n\`\`\`\n\nGenerate application artifacts without overwriting existing files:\n\n\`\`\`powershell\nnpm exec -- dotreact generate page catalog/[slug]\nnpm exec -- dotreact generate layout catalog\nnpm exec -- dotreact generate component CatalogCard --route catalog\nnpm exec -- dotreact generate action SaveCatalog --route catalog\nnpm exec -- dotreact sync\nnpm exec -- dotreact check\n\`\`\`\n\nUse \`npm exec -- dotreact build\`, \`npm exec -- dotreact analyze\` and \`npm exec -- dotreact start\` for the production lifecycle. Run \`npm run verify\` before integration. Set \`OTEL_EXPORTER_OTLP_ENDPOINT\` to export DotReact traces and metrics through OTLP. During the vendored preview, update only through \`dotreact upgrade --from <framework-root>\`.\n`);
 }
 
 function run(executable: string, commandArgs: string[], cwd = process.cwd(), env?: NodeJS.ProcessEnv): Promise<void> {
@@ -291,6 +302,36 @@ async function exists(path: string): Promise<boolean> {
 
 async function runProjectScript(script: string): Promise<void> {
   await run(npmExecutable, ["run", script], await requireProject());
+}
+
+async function projectScripts(root: string): Promise<Record<string, string>> {
+  const packageJson = JSON.parse(await readFile(resolve(root, "package.json"), "utf8")) as {
+    scripts?: Record<string, string>;
+  };
+  return packageJson.scripts ?? {};
+}
+
+async function buildProject(): Promise<void> {
+  const root = await requireProject();
+  await assertArchitecture(root);
+  const scripts = await projectScripts(root);
+  const managedRuntimeOutputs = [
+    "vendor/protocol/dist/index.js",
+    "vendor/client/dist/index.js",
+    "vendor/renderer/dist/server.js",
+    "vendor/vite/dist/index.js",
+    "vendor/cli/dist/index.js"
+  ];
+  if (scripts["dotreact:runtime"] !== undefined
+    && !(await Promise.all(managedRuntimeOutputs.map(path => exists(resolve(root, path))))).every(Boolean))
+    await run(npmExecutable, ["run", "dotreact:runtime"], root);
+  for (const script of ["generate", "build:client", "build:ssr"]) {
+    if (scripts[script] === undefined)
+      throw new Error(`Framework build prerequisite is missing: npm script '${script}'.`);
+    await run(npmExecutable, ["run", script], root);
+  }
+  await run(dotnetExecutable, ["build", "Server/Server.csproj", "-c", "Release"], root);
+  process.stdout.write("DotReact build: contracts, client, SSR and ASP.NET Core completed.\n");
 }
 
 function isContractSource(path: string): boolean {
@@ -357,14 +398,53 @@ async function sync(values: string[]): Promise<void> {
 }
 
 async function check(): Promise<void> {
-  await requireProject();
+  const root = await requireProject();
+  await assertArchitecture(root);
   await runProjectScript("check:contracts");
   await runProjectScript("typecheck");
 }
 
+async function security(values: string[]): Promise<void> {
+  if (values.some(value => value !== "--static-only"))
+    throw new Error("Use: dotreact security [--static-only].");
+  const root = await requireProject();
+  const report = await scanProjectSecurity(root);
+  process.stdout.write(`${formatSecurityReport(report)}\n`);
+  if (report.findings.some(finding => finding.severity === "high"))
+    throw new Error("High-severity application source findings must be fixed before release.");
+  if (values.includes("--static-only")) return;
+  await run(npmExecutable, ["audit", "--audit-level=high"], root);
+  const scripts = await projectScripts(root);
+  if (scripts["audit:dotnet"] === undefined)
+    throw new Error("Required server dependency audit script is missing: audit:dotnet.");
+  await run(npmExecutable, ["run", "audit:dotnet"], root);
+}
+
+async function health(): Promise<void> {
+  await doctor();
+  const root = await requireProject();
+  const scripts = await projectScripts(root);
+  if (scripts.verify === undefined)
+    throw new Error("Required project health script is missing: verify.");
+  await run(npmExecutable, ["run", "verify"], root);
+  process.stdout.write("DotReact health: architecture, contracts, security, tests, bundles and dependencies are healthy.\n");
+}
+
+async function architecture(): Promise<void> {
+  const root = await requireProject();
+  await assertArchitecture(root);
+}
+
+async function assertArchitecture(root: string): Promise<void> {
+  const report = await validateProjectArchitecture(root);
+  process.stdout.write(`${formatArchitectureReport(report)}\n`);
+  if (report.issues.some(issue => issue.severity === "error"))
+    throw new Error("Project architecture does not satisfy the strict App Router contract.");
+}
+
 async function start(): Promise<void> {
   const root = await requireProject();
-  await runProjectScript("build");
+  await buildProject();
   const outputRoot = resolve(root, ".dotreact");
   const publishRoot = resolve(outputRoot, "publish");
   if (!publishRoot.startsWith(`${outputRoot}${process.platform === "win32" ? "\\" : "/"}`))
@@ -403,10 +483,24 @@ async function doctor(): Promise<void> {
   await run(dotnetExecutable, ["--version"]);
   const root = await requireProject();
   const packageJson = JSON.parse(await readFile(resolve(root, "package.json"), "utf8")) as { scripts?: Record<string, string> };
-  for (const script of ["dev", "build", "typecheck", "check:contracts"]) {
+  for (const script of [
+    "dev", "build", "build:client", "build:ssr", "generate", "typecheck",
+    "check:contracts", "verify", "analyze", "audit:dotnet"
+  ]) {
     if (!packageJson.scripts?.[script]) throw new Error(`Required npm script is missing: ${script}`);
   }
   const vendorRuntime = await exists(resolve(root, "vendor"));
+  for (const path of [
+    "public",
+    "lighthouserc.cjs",
+    "scripts/lighthouse-audit.mjs",
+    "scripts/audit-dotnet-packages.mjs",
+    "deploy/azure/app-service.bicep",
+    "deploy/azure/container-apps.bicep"
+  ]) if (!await exists(resolve(root, path)) && (vendorRuntime || !await exists(resolve(repoRoot, path))))
+    throw new Error(`Required framework-owned project asset is missing: ${path}`);
+  if (!await exists(resolve(root, "Dockerfile")) && !await exists(resolve(root, "Dockerfile.scaffold")))
+    throw new Error("Required production container definition is missing: Dockerfile.");
   const legacyRuntime = await exists(resolve(root, "framework"));
   if (vendorRuntime && legacyRuntime)
     throw new Error("Both vendor/ and legacy framework/ runtimes exist. Keep only the pinned vendor/ runtime.");
@@ -435,7 +529,8 @@ async function doctor(): Promise<void> {
   for (const file of ["src/contracts.ts", "src/actions.ts", "src/backend-manifest.json"]) {
     if (!await exists(resolve(root, file))) throw new Error(`Generated boundary artifact is missing: ${file}`);
   }
-  process.stdout.write(`[dotreact] Project zones: routes=app/; backend=Server/; React support=src/; generated=src/contracts.ts,src/actions.ts,src/backend-manifest.json; runtime=${vendorRuntime ? "vendor/" : "packages"}.\n`);
+  await assertArchitecture(root);
+  process.stdout.write(`[dotreact] Project zones: routes and presentation=app/; backend=Server/; public assets=public/; generated=src/contracts.ts,src/actions.ts,src/backend-manifest.json; runtime=${vendorRuntime ? "vendor/" : "packages"}.\n`);
   process.stdout.write("DotReact doctor: runtimes, project structure and scripts are ready.\n");
 }
 
@@ -546,8 +641,8 @@ function optionValue(values: string[], name: string): string | undefined {
 async function generate(values: string[]): Promise<void> {
   const root = await requireProject();
   const kind = values[0] as ScaffoldKind | undefined;
-  if (!kind || !["page", "layout", "action", "boundary"].includes(kind))
-    throw new Error("Use: dotreact generate <page|layout|action|boundary> <name>.");
+  if (!kind || !["page", "layout", "action", "boundary", "component"].includes(kind))
+    throw new Error("Use: dotreact generate <page|layout|action|boundary|component> <name>.");
   const name = values[1];
   const boundaryValue = optionValue(values, "--kind");
   if (boundaryValue !== undefined && boundaryValue !== "error" && boundaryValue !== "not-found"
@@ -555,8 +650,10 @@ async function generate(values: string[]): Promise<void> {
     throw new Error("--kind must be error, not-found, loading or global-error.");
   const boundary: "error" | "not-found" | "loading" | "global-error" | undefined = boundaryValue;
   const dryRun = values.includes("--dry-run");
+  const route = optionValue(values, "--route");
   const options = {
     ...(boundary === undefined ? {} : { boundaryKind: boundary }),
+    ...(route === undefined ? {} : { route }),
     ...(dryRun ? { dryRun: true } : {})
   };
   const paths = await addArtifact(root, kind, name, options);
@@ -576,6 +673,23 @@ function integerOption(values: string[], name: string, fallback: number): number
   return value;
 }
 
+function optionalPositiveNumberOption(values: string[], name: string): number | undefined {
+  const raw = optionValue(values, name);
+  if (raw === undefined) return undefined;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) throw new Error(`${name} must be a positive number.`);
+  return value;
+}
+
+function optionalRateOption(values: string[], name: string): number | undefined {
+  const raw = optionValue(values, name);
+  if (raw === undefined) return undefined;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0 || value > 1)
+    throw new Error(`${name} must be a number between 0 and 1.`);
+  return value;
+}
+
 async function analyze(values: string[]): Promise<void> {
   const root = await requireProject();
   const report = await analyzeBundles(root, {
@@ -588,18 +702,52 @@ async function analyze(values: string[]): Promise<void> {
   process.stdout.write(`${formatReport(report)}\nBundle budgets passed.\n`);
 }
 
+async function routes(values: string[]): Promise<void> {
+  if (values.some((value, index) => value !== "--url" && values[index - 1] !== "--url"))
+    throw new Error("Use: dotreact routes [--url http://127.0.0.1:5080].");
+  const root = await requireProject();
+  const report = await inspectRoutes(root, optionValue(values, "--url"));
+  process.stdout.write(`${formatRouteDiagnostics(report)}\n`);
+}
+
 async function benchmark(values: string[]): Promise<void> {
   await requireProject();
-  const url = values.find(value => !value.startsWith("--") && !/^\d+$/.test(value)) ?? "http://127.0.0.1:5080/";
-  const result = await benchmarkUrl({
+  const url = values[0] && !values[0].startsWith("--") ? values[0] : "http://127.0.0.1:5080/";
+  const options = {
     url,
     requests: integerOption(values, "--requests", 100),
     concurrency: integerOption(values, "--concurrency", 8),
     warmup: Number(optionValue(values, "--warmup") ?? "5"),
-    timeoutMs: integerOption(values, "--timeout-ms", 10_000)
-  });
-  process.stdout.write(`${formatBenchmark(result)}\n`);
-  if (result.failures > 0) throw new Error(`Benchmark completed with ${result.failures} failed request(s).`);
+    timeoutMs: integerOption(values, "--timeout-ms", 10_000),
+    maxResponseBytes: integerOption(values, "--max-response-kb", 5 * 1024) * 1024
+  };
+  const candidate = await benchmarkUrl(options);
+  const baselineUrl = optionValue(values, "--compare");
+  if (baselineUrl === undefined) {
+    process.stdout.write(values.includes("--json")
+      ? `${JSON.stringify({ schemaVersion: 1, url, options, result: candidate }, null, 2)}\n`
+      : `${formatBenchmark(candidate)}\n`);
+    if (candidate.failures > 0) throw new Error(`Benchmark completed with ${candidate.failures} failed request(s).`);
+    return;
+  }
+
+  const baseline = await benchmarkUrl({ ...options, url: baselineUrl });
+  const comparison = compareBenchmarkResults(url, candidate, baselineUrl, baseline);
+  const maxP95Ratio = optionalPositiveNumberOption(values, "--max-p95-ratio");
+  const minThroughputRatio = optionalPositiveNumberOption(values, "--min-throughput-ratio");
+  const thresholds: BenchmarkThresholds = {
+    ...(maxP95Ratio === undefined ? {} : { maxP95Ratio }),
+    ...(minThroughputRatio === undefined ? {} : { minThroughputRatio }),
+    maxFailureRate: optionalRateOption(values, "--max-failure-rate") ?? 0
+  };
+  const thresholdFailures = evaluateBenchmarkThresholds(comparison, thresholds);
+  process.stdout.write(values.includes("--json")
+    ? `${JSON.stringify({ schemaVersion: 1, options, comparison, thresholds, passed: thresholdFailures.length === 0, failures: thresholdFailures }, null, 2)}\n`
+    : `${formatBenchmarkComparison(comparison)}\n`);
+  if (baseline.failures > 0)
+    throw new Error(`Baseline benchmark completed with ${baseline.failures} failed request(s); comparison is not valid.`);
+  if (thresholdFailures.length > 0)
+    throw new Error(`Performance gate failed: ${thresholdFailures.join("; ")}.`);
 }
 
 async function exportStatic(values: string[]): Promise<void> {
@@ -659,15 +807,21 @@ function help(): void {
     "  dotreact generate page <route> [--dry-run]",
     "  dotreact generate layout <route>",
     "  dotreact generate boundary <route> --kind <error|not-found|loading|global-error>",
-    "  dotreact generate action <PascalCaseName>",
+    "  dotreact generate action <PascalCaseName> [--route <route>]",
+    "  dotreact generate component <PascalCaseName> [--route <route>]",
     "  dotreact add ...                         Alias for generate",
     "  dotreact sync [--watch]                  Regenerate C# to TypeScript artifacts",
     "  dotreact dev",
     "  dotreact build",
     "  dotreact analyze [--max-client-kb 100] [--max-initial-client-kb 75] [--max-async-chunk-kb 30] [--max-css-kb 40] [--max-ssr-kb 50]",
-    "  dotreact benchmark [url] [--requests 100] [--concurrency 8]",
+    "  dotreact routes [--url http://127.0.0.1:5080]  Explain SSR, prerender/ISR and hydration per route",
+    "  dotreact benchmark [url] [--compare baseline-url] [--requests 100] [--concurrency 8] [--max-response-kb 5120] [--json]",
+    "                     [--max-p95-ratio 1.10] [--min-throughput-ratio 0.90] [--max-failure-rate 0]",
     "  dotreact export [--routes /,/products/1] [--url http://127.0.0.1:5080] [--out dist/static]",
     "  dotreact check",
+    "  dotreact architecture                   Validate the strict App Router folder contract",
+    "  dotreact security [--static-only]        Audit application source and client/server dependencies",
+    "  dotreact health                          Run the complete project release gate",
     "  dotreact start",
     "  dotreact doctor",
     "  dotreact upgrade --from <framework-root> [--dry-run]  Replace only the managed vendor runtime",
@@ -681,11 +835,15 @@ try {
   else if (command === "generate" || command === "add") await generate(args);
   else if (command === "sync") await sync(args);
   else if (command === "dev") await runProjectScript("dev");
-  else if (command === "build") await runProjectScript("build");
+  else if (command === "build") await buildProject();
   else if (command === "analyze") await analyze(args);
+  else if (command === "routes") await routes(args);
   else if (command === "benchmark") await benchmark(args);
   else if (command === "export") await exportStatic(args);
   else if (command === "check") await check();
+  else if (command === "architecture") await architecture();
+  else if (command === "security") await security(args);
+  else if (command === "health") await health();
   else if (command === "start") await start();
   else if (command === "doctor") await doctor();
   else if (command === "upgrade") await upgrade(args);

@@ -61,6 +61,18 @@
   compile-time C# registration, route groups and private underscore folders.
 - Same-origin .NET Hot Reload revision bridge that refreshes current SSR props
   through partial navigation while React modules retain Vite Fast Refresh.
+- Background C# prop revalidation that preserves the mounted React page and its
+  local state, with automatic restart only for unsupported CLR rude edits.
+- Production-only Lighthouse runner and default Web Vitals/bundle budgets in
+  generated projects, backed by Brotli/Gzip response compression.
+- Strict App Router application contract with co-located `_components` and
+  `_actions`, framework-owned build/health/security commands and actionable
+  architecture diagnostics.
+- Automatic single-instance page caching with zero external dependencies and
+  Redis scale-out that shares one multiplexer across cache, sessions and action
+  coordination.
+- Formal background-work boundary for inexpensive web hosts and durable jobs,
+  including Azure Container Apps Jobs/Functions guidance.
 
 ### Known gaps
 

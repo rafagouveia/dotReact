@@ -240,8 +240,8 @@ edits. A loader or public contract change may also require `npm run generate`.
 
 1. Read `AGENTS.md` and this entire document.
 2. Inspect the nearest existing route, loader, action and tests before designing.
-3. Put business behavior in Domain/Application and adapters in Presentation or
-   Infrastructure.
+3. Keep business behavior cohesive and transport adapters thin; the concrete
+   folders and backend architectural style are defined by the application.
 4. Add or change the C# contract/loader/action.
 5. Add the matching DRX route or feature component.
 6. Run `npm run generate`.

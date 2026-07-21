@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace DotReact.AspNetCore;
 
 /// <summary>Bounds for the in-process least-recently-used prerender store.</summary>
@@ -16,9 +18,9 @@ public sealed class DotReactMemoryPrerenderStore : IDotReactPrerenderStore
     private readonly object _gate = new();
     private readonly int _maxEntries;
     private readonly long _maxBytes;
-    private readonly Dictionary<DotReactPrerenderKey, Entry> _entries = [];
-    private readonly LinkedList<DotReactPrerenderKey> _leastRecentlyUsed = [];
+    private readonly ConcurrentDictionary<DotReactPrerenderKey, Entry> _entries = [];
     private long _sizeBytes;
+    private long _accessSequence;
 
     /// <summary>Creates a bounded store.</summary>
     public DotReactMemoryPrerenderStore(DotReactMemoryPrerenderStoreOptions? options = null)
@@ -36,13 +38,14 @@ public sealed class DotReactMemoryPrerenderStore : IDotReactPrerenderStore
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        lock (_gate)
+        if (!_entries.TryGetValue(key, out var entry))
         {
-            if (!_entries.TryGetValue(key, out var entry))
-                return ValueTask.FromResult<DotReactPrerenderArtifact?>(null);
-            Touch(entry);
-            return ValueTask.FromResult<DotReactPrerenderArtifact?>(entry.Artifact);
+            DotReactTelemetry.RecordCacheOperation("prerender-memory", "miss");
+            return ValueTask.FromResult<DotReactPrerenderArtifact?>(null);
         }
+        entry.Touch(Interlocked.Increment(ref _accessSequence));
+        DotReactTelemetry.RecordCacheOperation("prerender-memory", "hit");
+        return ValueTask.FromResult<DotReactPrerenderArtifact?>(entry.Artifact);
     }
 
     /// <inheritdoc />
@@ -53,18 +56,23 @@ public sealed class DotReactMemoryPrerenderStore : IDotReactPrerenderStore
         lock (_gate)
         {
             Remove(artifact.Key);
-            if (artifact.SizeBytes > _maxBytes) return ValueTask.CompletedTask;
+            if (artifact.SizeBytes > _maxBytes)
+            {
+                DotReactTelemetry.RecordCacheOperation("prerender-memory", "skip-oversize");
+                return ValueTask.CompletedTask;
+            }
 
             while (_entries.Count >= _maxEntries || _sizeBytes + artifact.SizeBytes > _maxBytes)
             {
-                var oldest = _leastRecentlyUsed.Last;
-                if (oldest is null) break;
-                Remove(oldest.Value);
+                var oldest = _entries.MinBy(pair => pair.Value.LastAccess);
+                if (oldest.Equals(default(KeyValuePair<DotReactPrerenderKey, Entry>))) break;
+                Remove(oldest.Key);
+                DotReactTelemetry.RecordCacheOperation("prerender-memory", "evict-lru");
             }
 
-            var node = _leastRecentlyUsed.AddFirst(artifact.Key);
-            _entries.Add(artifact.Key, new Entry(artifact, node));
+            _entries[artifact.Key] = new Entry(artifact, Interlocked.Increment(ref _accessSequence));
             _sizeBytes += artifact.SizeBytes;
+            DotReactTelemetry.RecordCacheOperation("prerender-memory", "write");
         }
 
         return ValueTask.CompletedTask;
@@ -76,7 +84,12 @@ public sealed class DotReactMemoryPrerenderStore : IDotReactPrerenderStore
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        lock (_gate) return ValueTask.FromResult(Remove(key));
+        lock (_gate)
+        {
+            var removed = Remove(key);
+            if (removed) DotReactTelemetry.RecordCacheOperation("prerender-memory", "invalidate-path");
+            return ValueTask.FromResult(removed);
+        }
     }
 
     /// <inheritdoc />
@@ -94,23 +107,27 @@ public sealed class DotReactMemoryPrerenderStore : IDotReactPrerenderStore
                     pair.Value.Artifact.Tags.Contains(normalizedTag, StringComparer.Ordinal))
                 .Select(pair => pair.Key).ToArray();
             foreach (var key in keys) Remove(key);
+            if (keys.Length > 0)
+                DotReactTelemetry.RecordCacheOperation("prerender-memory", "invalidate-tag", keys.Length);
             return ValueTask.FromResult(keys.Length);
         }
     }
 
-    private void Touch(Entry entry)
-    {
-        _leastRecentlyUsed.Remove(entry.Node);
-        _leastRecentlyUsed.AddFirst(entry.Node);
-    }
-
     private bool Remove(DotReactPrerenderKey key)
     {
-        if (!_entries.Remove(key, out var entry)) return false;
-        _leastRecentlyUsed.Remove(entry.Node);
+        if (!_entries.TryRemove(key, out var entry)) return false;
         _sizeBytes -= entry.Artifact.SizeBytes;
         return true;
     }
 
-    private sealed record Entry(DotReactPrerenderArtifact Artifact, LinkedListNode<DotReactPrerenderKey> Node);
+    private sealed class Entry(DotReactPrerenderArtifact artifact, long lastAccess)
+    {
+        private long _lastAccess = lastAccess;
+
+        public DotReactPrerenderArtifact Artifact { get; } = artifact;
+
+        public long LastAccess => Volatile.Read(ref _lastAccess);
+
+        public void Touch(long sequence) => Volatile.Write(ref _lastAccess, sequence);
+    }
 }

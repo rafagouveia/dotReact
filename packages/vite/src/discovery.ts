@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { inferDotReactRoute } from "./routes.js";
+import { routeRequiresHydration } from "./interactivity.js";
 
 const maxDrxFiles = 10_000;
 const maxDrxBytes = 4 * 1024 * 1024;
@@ -11,6 +12,8 @@ export interface DotReactPage {
   readonly file: string;
   readonly layouts: readonly string[];
   readonly boundaries: DotReactPageBoundaries;
+  /** True when the route graph uses browser-only React capabilities. */
+  readonly hydrate: boolean;
 }
 
 export type DotReactBoundaryKind = "not-found" | "error" | "loading";
@@ -170,7 +173,7 @@ export async function scanDotReactGraph(root: string, pagesDir = "app"): Promise
 
   layouts.sort((left, right) => left.directory.localeCompare(right.directory));
   boundaries.sort((left, right) => left.directory.localeCompare(right.directory) || left.kind.localeCompare(right.kind));
-  const pages = discoveredPages.map(page => {
+  const pages = await Promise.all(discoveredPages.map(async page => {
     const ancestors = page.directory === "" ? [""] : ["", ...page.directory.split("/").map((_, index, all) => all.slice(0, index + 1).join("/"))];
     const inheritedLayouts = ancestors
       .map(directory => layouts.find(layout => layout.directory === directory)?.file)
@@ -181,17 +184,20 @@ export async function scanDotReactGraph(root: string, pagesDir = "app"): Promise
     const notFound = nearest("not-found");
     const error = nearest("error");
     const loading = nearest("loading");
+    const inheritedLayoutFiles = inheritedLayouts;
     return {
       moduleId: page.moduleId,
       file: page.file,
-      layouts: inheritedLayouts,
+      layouts: inheritedLayoutFiles,
+      hydrate: await routeRequiresHydration(canonicalRoot, [page.file, ...inheritedLayoutFiles]),
       boundaries: {
         ...(notFound === undefined ? {} : { notFound }),
         ...(error === undefined ? {} : { error }),
         ...(loading === undefined ? {} : { loading })
       }
     };
-  }).sort((left, right) => left.moduleId.localeCompare(right.moduleId));
+  }));
+  pages.sort((left, right) => left.moduleId.localeCompare(right.moduleId));
 
   return {
     root: canonicalRoot,

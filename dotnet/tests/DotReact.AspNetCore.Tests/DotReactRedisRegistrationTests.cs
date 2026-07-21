@@ -111,4 +111,18 @@ public sealed class DotReactRedisRegistrationTests
         Assert.Throws<OptionsValidationException>(() =>
             provider.GetRequiredService<IOptions<DotReactRedisOptions>>().Value);
     }
+
+    [Fact]
+    public void Redis_plugin_rejects_unbounded_static_artifact_retention_before_connecting()
+    {
+        var services = new ServiceCollection();
+        services.AddDotReact();
+        services.AddDotReactRedis(
+            ConfigurationOptions.Parse("127.0.0.1:6379,abortConnect=false"),
+            options => options.StaticArtifactRetention = TimeSpan.FromDays(366));
+        using var provider = services.BuildServiceProvider();
+
+        Assert.Throws<OptionsValidationException>(() =>
+            provider.GetRequiredService<IOptions<DotReactRedisOptions>>().Value);
+    }
 }

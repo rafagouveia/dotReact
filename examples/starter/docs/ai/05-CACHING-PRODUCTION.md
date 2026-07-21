@@ -34,10 +34,12 @@ bundle cannot hydrate old HTML.
 
 ## Store selection
 
-The in-memory store is suitable for development or one process. Multiple
-replicas require a distributed implementation so artifacts, tag invalidation,
-idempotency and regeneration coordination are consistent. Configure Redis using
-server-side configuration; never expose its connection string to React.
+`AddDotReactApplication()` always configures page-props caching. The in-memory
+implementation is suitable for development or one process and needs no external
+service. When `DOTREACT_REDIS_CONNECTION` exists, the hosting facade switches
+page cache, sessions, tag invalidation, idempotency and regeneration coordination
+to Redis and reuses one connection multiplexer per process. Never expose its
+connection string to React.
 
 Cache keys must be based on normalized, bounded server inputs. Include tenant or
 authorization scope when output varies by actor. Never cache personalized HTML
@@ -48,12 +50,33 @@ requires an explicit `[AllowAnonymous]`. It must not be used for authenticated,
 tenant-specific or user-specific loaders, including pages protected only by a
 global fallback policy.
 
+Use bounded dependency tags when several public routes depend on the same data:
+
+```csharp
+[AllowAnonymous]
+[DotReactCache(300, Tags = ["catalog"])]
+public sealed class CatalogPage : IDotReactPage<CatalogProps> { /* ... */ }
+```
+
 ## Invalidation
 
 Prefer explicit invalidation from successful use cases/actions. Route paths and
 tags should describe the data dependency, not UI implementation details. Test
 that a mutation invalidates the correct artifact and that failed mutations do
 not invalidate anything.
+
+```csharp
+return DotReactActionResult<ProductDto>.Success(
+    product,
+    revalidatePaths: ["/products", $"/products/{product.Id}"],
+    revalidateTags: ["catalog"]);
+```
+
+Page-cache invalidation rotates bounded version tokens instead of enumerating
+Redis keys. Old values become unreachable immediately and expire through their
+normal TTL. ISR artifacts use build-scoped keys; finite artifacts expire after
+their stale recovery window and static artifacts have a configurable maximum
+retention so abandoned deployment builds cannot accumulate forever.
 
 ## Production renderer
 
@@ -94,6 +117,15 @@ Before production, validate HTTPS/forwarded-header configuration for the actual
 trusted proxy chain, identity provider, database migrations, backup/restore,
 key persistence, Redis availability and scaling behavior.
 
+## Background jobs
+
+Keep background adapters in `Server/Jobs` and their business operation in a
+focused Application use case. A lightweight, best-effort loop may use an ASP.NET
+Core `BackgroundService`. Do not hide durable cron or long-running processing in
+the web process: every web replica would execute it. Use a dedicated worker,
+Azure Container Apps Jobs, Azure Functions or an application-selected scheduler
+and reuse the same Application and Infrastructure registrations.
+
 ## Observability
 
 DotReact emits ASP.NET, renderer, action and browser Web Vitals telemetry through OpenTelemetry.
@@ -110,11 +142,33 @@ Useful production signals include browser CLS/INP/LCP/TTFB, renderer latency/fai
 time-to-shell and completion, action outcomes, cache resolution, regeneration
 duration, process restarts and readiness.
 
+The stable meters `dotreact.cache.operations` and
+`dotreact.prerender.resolutions` expose low-cardinality cache type/operation and
+fresh/generated/stale outcomes. They never include paths, tags, tenant IDs or
+payload content.
+
 `MaxSerializedPropsBytes` bounds the JSON crossing from C# to React (512 KiB by
 default). The meter records payload size without recording payload content.
 Development responses expose loader/renderer `Server-Timing` values and the
 serialized props byte count. Run `dotreact analyze` with separate limits for the
 initial client entry, largest async route chunk, total CSS, total client and SSR.
+
+Every generated project also carries versioned Lighthouse CI assertions in
+`lighthouserc.cjs`. Run them against a production build or deployed preview,
+never against `npm run dev`: Vite development modules, source maps and HMR are
+diagnostic overhead and do not represent the shipped application.
+
+```powershell
+$env:LHCI_URL = "https://preview.example.com/critical-route"
+npm run audit:lighthouse
+```
+
+The default gate requires performance >= 90, accessibility and best practices
+>= 95, FCP <= 2 s, LCP <= 2.5 s, TBT <= 200 ms and CLS <= 0.1. Application code
+can still regress those values: declare intrinsic image dimensions, preload only
+critical local fonts, keep initial props bounded, lazy-load noncritical routes
+and scripts, preserve semantic labels, and test the heaviest authenticated and
+anonymous routes separately.
 
 Use `@dotreact/script` for external application/third-party scripts. Inline code
 is unsupported; choose `beforeInteractive` only for truly critical consent or

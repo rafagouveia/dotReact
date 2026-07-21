@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.IO.Compression;
 using DotReact.AspNetCore;
 using DotReact.AspNetCore.Authentication;
 using DotReact.Redis;
@@ -7,7 +8,9 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -65,7 +68,16 @@ public static class DotReactApplicationHostingExtensions
             if (productionClientAssets is not null)
                 options.ClientRouteAssets = productionClientAssets;
             options.Development = development;
-            options.EnableStreaming = true;
+            options.EnableStreaming = ResolveBoolean(
+                builder.Configuration,
+                "DOTREACT_STREAMING_ENABLED",
+                defaultValue: true);
+            options.RendererMaxQueuedRequests = ResolveInteger(
+                builder.Configuration,
+                "DOTREACT_MAX_RENDER_QUEUE",
+                options.RendererMaxQueuedRequests,
+                minimum: -1,
+                maximum: 10_000);
             options.PrerenderBuildId = ResolveBuildId(builder.Configuration, development);
             hosting.ConfigureRuntime?.Invoke(options);
         });
@@ -76,6 +88,26 @@ public static class DotReactApplicationHostingExtensions
         builder.Services.AddDotReactSkiaSharpImages(options =>
             options.LocalRootPath = ResolvePublicPath(builder.Environment));
         builder.Services.AddDotReactSecurityHeaders();
+        builder.Services.AddResponseCompression(options =>
+        {
+            options.EnableForHttps = true;
+            options.Providers.Add<BrotliCompressionProvider>();
+            options.Providers.Add<GzipCompressionProvider>();
+            // Dynamic HTML and navigation payloads are generally small and are generated per
+            // request. Compressing them on the application CPU costs more than it saves under
+            // concurrency. Fingerprinted assets remain compressible and can also be cached at
+            // the edge for a year.
+            options.MimeTypes = ResponseCompressionDefaults.MimeTypes
+                .Where(static mimeType => mimeType is not "text/html"
+                    and not "application/json"
+                    and not "text/json")
+                .Concat(["application/javascript", "application/wasm", "image/svg+xml"])
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+        });
+        builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+            options.Level = CompressionLevel.Fastest);
+        builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+            options.Level = CompressionLevel.Fastest);
         if (!builder.Services.Any(descriptor => descriptor.ServiceType == typeof(IAuthenticationService)))
             builder.Services.AddDotReactCookieSessions();
         else
@@ -109,6 +141,38 @@ public static class DotReactApplicationHostingExtensions
                 options.ServerEntryPath = Path.Combine(appDirectory, "frontend", "server", "entry-server.js");
                 options.WorkingDirectory = appDirectory;
                 options.Port = hosting.ProductionRendererPort;
+                options.UseInterprocessSocket = ResolveBoolean(
+                    builder.Configuration,
+                    "DOTREACT_RENDERER_IPC",
+                    options.UseInterprocessSocket);
+                options.SocketPath = OperatingSystem.IsWindows()
+                    ? $@"\\.\pipe\dotreact-renderer-{Environment.ProcessId}-{options.Port}"
+                    : Path.Combine(
+                        Path.GetTempPath(), $"dotreact-renderer-{Environment.ProcessId}-{options.Port}.sock");
+                options.FrameSocketPath = OperatingSystem.IsWindows()
+                    ? $@"\\.\pipe\dotreact-renderer-{Environment.ProcessId}-{options.Port}-frames"
+                    : Path.Combine(
+                        Path.GetTempPath(), $"dotreact-renderer-{Environment.ProcessId}-{options.Port}-frames.sock");
+                options.WorkerCount = ResolveInteger(
+                    builder.Configuration,
+                    "DOTREACT_RENDERER_WORKERS",
+                    options.WorkerCount,
+                    minimum: 1,
+                    maximum: 32);
+                options.MaxConcurrencyPerWorker = ResolveInteger(
+                    builder.Configuration,
+                    "DOTREACT_MAX_RENDER_CONCURRENCY",
+                    options.MaxConcurrencyPerWorker,
+                    minimum: 1,
+                    maximum: 1_024);
+                options.UseBinaryTransport = ResolveBoolean(
+                    builder.Configuration,
+                    "DOTREACT_RENDERER_BINARY_PROTOCOL",
+                    options.UseBinaryTransport);
+                options.UseFramedTransport = options.UseBinaryTransport && ResolveBoolean(
+                    builder.Configuration,
+                    "DOTREACT_RENDERER_FRAMED_PROTOCOL",
+                    options.UseFramedTransport);
                 hosting.ConfigureNodeRenderer?.Invoke(options);
             });
             builder.Services.AddDotReactRateLimiting();
@@ -123,6 +187,7 @@ public static class DotReactApplicationHostingExtensions
         ArgumentNullException.ThrowIfNull(app);
         var features = app.Services.GetRequiredService<DotReactHostingFeatures>();
         if (features.ProductionRuntime) app.UseHsts();
+        if (features.ProductionRuntime) app.UseResponseCompression();
         app.UseDotReactSecurityHeaders();
         if (app.Services.GetRequiredService<IOptions<DotReactOptions>>().Value.Development)
         {
@@ -181,7 +246,15 @@ public static class DotReactApplicationHostingExtensions
     private static void AddDistributedStores(WebApplicationBuilder builder)
     {
         var connection = builder.Configuration["DOTREACT_REDIS_CONNECTION"];
-        if (string.IsNullOrWhiteSpace(connection)) return;
+        if (string.IsNullOrWhiteSpace(connection))
+        {
+            // A single-instance application gets a zero-configuration bounded cache.
+            // Multi-replica deployments replace it below with the shared Redis store.
+            builder.Services.AddDistributedMemoryCache();
+            builder.Services.AddDotReactDistributedCaching(options =>
+                options.KeyPrefix = BuildRedisKeyPrefix(builder.Environment.ApplicationName) + ":pages:v1:");
+            return;
+        }
         var redis = ConfigurationOptions.Parse(connection);
         redis.AbortOnConnectFail = false;
         var configuredPrefix = builder.Configuration["DOTREACT_REDIS_KEY_PREFIX"];
@@ -189,6 +262,15 @@ public static class DotReactApplicationHostingExtensions
             ? BuildRedisKeyPrefix(builder.Environment.ApplicationName)
             : configuredPrefix;
         builder.Services.AddDotReactRedis(redis, options => options.KeyPrefix = keyPrefix);
+        builder.Services.AddStackExchangeRedisCache(options =>
+            options.InstanceName = keyPrefix + ":cache:");
+        // Reuse the framework multiplexer so sessions, idempotency and page cache
+        // do not multiply outbound Redis connections per application instance.
+        builder.Services.AddOptions<RedisCacheOptions>()
+            .Configure<IConnectionMultiplexer>((options, multiplexer) =>
+                options.ConnectionMultiplexerFactory = () => Task.FromResult(multiplexer));
+        builder.Services.AddDotReactDistributedCaching(options =>
+            options.KeyPrefix = keyPrefix + ":pages:v1:");
     }
 
     private static string BuildRedisKeyPrefix(string applicationName)
@@ -205,6 +287,10 @@ public static class DotReactApplicationHostingExtensions
     private static void AddObservability(WebApplicationBuilder builder)
     {
         var export = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
+        // ActivitySource and Meter remain available to application-owned listeners. Avoid
+        // installing the OpenTelemetry processing pipeline when there is no exporter: it
+        // would allocate and process every ASP.NET/HttpClient span only to discard it.
+        if (!export) return;
         builder.Services.AddOpenTelemetry()
             .ConfigureResource(resource => resource.AddService(
                 serviceName: builder.Environment.ApplicationName,
@@ -214,14 +300,14 @@ public static class DotReactApplicationHostingExtensions
                 tracing.AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
                     .AddSource(DotReactTelemetry.ActivitySourceName);
-                if (export) tracing.AddOtlpExporter();
+                tracing.AddOtlpExporter();
             })
             .WithMetrics(metrics =>
             {
                 metrics.AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
                     .AddMeter(DotReactTelemetry.MeterName, "DotReact.Hosting.Node");
-                if (export) metrics.AddOtlpExporter();
+                metrics.AddOtlpExporter();
             });
     }
 
@@ -244,6 +330,33 @@ public static class DotReactApplicationHostingExtensions
             throw new InvalidOperationException("DOTREACT_PRODUCTION_RUNTIME must be true or false.");
         }
         return !environment.IsDevelopment() && !environment.IsEnvironment("Testing");
+    }
+
+    private static bool ResolveBoolean(
+        IConfiguration configuration,
+        string key,
+        bool defaultValue)
+    {
+        var configured = configuration[key];
+        if (configured is null) return defaultValue;
+        if (bool.TryParse(configured, out var enabled)) return enabled;
+        throw new InvalidOperationException($"{key} must be true or false.");
+    }
+
+    private static int ResolveInteger(
+        IConfiguration configuration,
+        string key,
+        int defaultValue,
+        int minimum,
+        int maximum)
+    {
+        var configured = configuration[key];
+        if (configured is null) return defaultValue;
+        if (int.TryParse(configured, System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture, out var value)
+            && value >= minimum && value <= maximum)
+            return value;
+        throw new InvalidOperationException($"{key} must be an integer between {minimum} and {maximum}.");
     }
 
     private sealed record DotReactHostingFeatures(bool ProductionRuntime);

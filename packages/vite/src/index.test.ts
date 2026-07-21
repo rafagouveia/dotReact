@@ -218,8 +218,32 @@ test("production route manifest maps pages to their layouts and boundaries", asy
 
   assert.deepEqual(manifest.routes, [{
     moduleId: "dashboard/page",
+    hydrate: false,
     modules: ["app/layout.drx", "app/dashboard/page.drx", "app/dashboard/error.drx"]
   }]);
+});
+
+test("route graph enables hydration only when browser behavior is detected", async (context) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "dotreact-hydration-analysis-"));
+  context.after(() => fs.rm(root, { recursive: true, force: true }));
+  await fs.mkdir(path.join(root, "app/static"), { recursive: true });
+  await fs.mkdir(path.join(root, "app/interactive"), { recursive: true });
+  await fs.mkdir(path.join(root, "app/router"), { recursive: true });
+  await fs.mkdir(path.join(root, "app/_components"), { recursive: true });
+  await fs.writeFile(path.join(root, "app/static/page.drx"),
+    'import { definePage } from "@dotreact/client/router"; export default definePage(() => <main>Static</main>);');
+  await fs.writeFile(path.join(root, "app/_components/Counter.tsx"),
+    'import { useState } from "react"; export default function Counter() { const [value] = useState(0); return <button>{value}</button>; }');
+  await fs.writeFile(path.join(root, "app/interactive/page.drx"),
+    'import Counter from "../_components/Counter"; export default () => <Counter />;');
+  await fs.writeFile(path.join(root, "app/router/page.drx"),
+    'import { useDotReactRouter } from "@dotreact/client/router"; export default function Page() { const router = useDotReactRouter(); return <main>{router.url}</main>; }');
+
+  const graph = await scanDotReactGraph(root, "app");
+
+  assert.equal(graph.pages.find(page => page.moduleId === "static/page")?.hydrate, false);
+  assert.equal(graph.pages.find(page => page.moduleId === "interactive/page")?.hydrate, true);
+  assert.equal(graph.pages.find(page => page.moduleId === "router/page")?.hydrate, true);
 });
 
 test("framework virtual server entry owns SSR composition", async (context) => {
@@ -331,7 +355,16 @@ test("semantic checker reports DRX type errors with the original DRX path", asyn
   context.after(() => fs.rm(root, { recursive: true, force: true }));
   await fs.mkdir(path.join(root, "src/pages"), { recursive: true });
   await fs.writeFile(path.join(root, "tsconfig.json"), JSON.stringify({
-    compilerOptions: { target: "ES2023", module: "ESNext", moduleResolution: "Bundler", jsx: "react-jsx", strict: true, noEmit: true },
+    compilerOptions: {
+      target: "ES2023",
+      module: "ESNext",
+      moduleResolution: "Bundler",
+      jsx: "react-jsx",
+      strict: true,
+      noUnusedLocals: true,
+      noUnusedParameters: true,
+      noEmit: true
+    },
     include: ["src/**/*.ts", "src/**/*.tsx"]
   }));
   await fs.writeFile(path.join(root, "src/contracts.ts"), "export interface IndexProps { message: string }\n");
@@ -357,6 +390,8 @@ test("semantic checker reports DRX type errors with the original DRX path", asyn
     diagnostic.file === "src/pages/index.drx" && diagnostic.message.includes("doesNotExist")), true,
     JSON.stringify(result.diagnostics));
   assert.equal(result.diagnostics.some(diagnostic => diagnostic.file?.endsWith(".drx.tsx") === true), false);
+  assert.equal(result.diagnostics.some(diagnostic => diagnostic.code === 6133 || diagnostic.code === 6196), false,
+    JSON.stringify(result.diagnostics));
 });
 
 test("semantic checker rejects JavaScript server actions and server-only imports in hydrated DRX", async (context) => {

@@ -8,10 +8,20 @@ node_modules/
 dist/
 out/
 .vite/
+.next/
+.nuxt/
+.svelte-kit/
+.turbo/
+.cache/
+.parcel-cache/
 .dotreact/
 *.tsbuildinfo
 coverage/
 .nyc_output/
+.lighthouseci/
+playwright-report/
+test-results/
+blob-report/
 
 # .NET build and test output
 [Bb]in/
@@ -22,12 +32,18 @@ coverage/
 *.coverage
 *.coveragexml
 BenchmarkDotNet.Artifacts/
+benchmarks/results/
 
 # Local databases and runtime data
 **/App_Data/*
 !**/App_Data/.gitkeep
+*.db
+*.db-journal
 *.db-shm
 *.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite-journal
 *.sqlite-shm
 *.sqlite-wal
 
@@ -40,6 +56,10 @@ appsettings.Local.json
 *.pfx
 *.p12
 *.snk
+*.key
+*.pem
+.secrets/
+secrets.json
 .azure/
 deploy/azure/*.parameters.json
 !deploy/azure/*.parameters.example.json
@@ -61,6 +81,13 @@ deploy/azure/*.parameters.json
 # Logs, diagnostics and local tooling
 *.log
 *.pid
+*.tmp
+*.temp
+*.trace
+*.dmp
+*.dump
+*.stackdump
+*.har
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -71,6 +98,9 @@ output/playwright/
 .vscode-test/
 *.vsix
 work/
+tmp/
+temp/
+.tmp/
 
 # Operating-system files
 .DS_Store

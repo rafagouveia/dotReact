@@ -61,7 +61,11 @@ commands work without a global installation:
 ```powershell
 npm exec -- dotreact doctor
 npm exec -- dotreact generate page catalog/[slug]
+npm exec -- dotreact generate component ProductCard --route catalog
+npm exec -- dotreact generate action SaveProduct --route catalog
 npm exec -- dotreact check
+npm exec -- dotreact security
+npm exec -- dotreact health
 ```
 
 Open `http://127.0.0.1:5080`.
@@ -81,7 +85,7 @@ Key files:
 - `app/layout.drx` wraps every page; nested directories can add their own
   `layout.drx`, composed from root to leaf. Layouts receive the current C# page
   props and URL through `DotReactLayoutProps`.
-- `Server/Actions/IncrementDemo/IncrementDemoAction.cs` is an explicitly exposed C# server
+- `app/_actions/increment-demo/IncrementDemoAction.server.cs` is an explicitly exposed C# server
   action with authorization metadata and antiforgery protection.
 - `src/contracts.ts`, `src/actions.ts` and `src/backend-manifest.json` are
   generated from the compiled C# application. Run `npm run generate` to update
@@ -101,7 +105,7 @@ Routes included in the starter:
 
 | URL | Behavior |
 | --- | --- |
-| `/` | React SSR with props loaded by C# and browser hydration. |
+| `/` | React SSR with props loaded by C# and automatic browser hydration when client behavior is detected. |
 | `/products/{id}` | Dynamic page with prerender/ISR enabled. |
 | `/streaming` | React streaming SSR with an immediate Suspense fallback. |
 
@@ -117,10 +121,22 @@ Folders such as `(catalog)` organize routes without changing their URL. Folders
 beginning with `_` are private and ignored by route discovery. Under `app/`, only
 `page.drx` becomes a route, so local helpers can live safely in `_components`.
 
+## Automatic server/client selection
+
+Every page renders on the server. During a production build, DotReact proves
+whether each route needs a browser runtime by following its local component
+imports. Hooks, JSX events, browser globals, `"use client"`, unresolved imports
+and unknown packages enable hydration conservatively. A proven server-only route
+ships HTML and blocking CSS without bootstrap props, module preloads or client
+JavaScript. Development always hydrates so Fast Refresh and diagnostics remain
+available. This is route-level selective hydration; the experimental RSC package
+continues to own component-level Server/Client Component splitting.
+
 ## Streaming SSR
 
-The starter enables protocol-v2 streaming with `EnableStreaming = true`.
-`/streaming` sends the document shell and Suspense fallback before the delayed
+The runtime supports protocol-v2 streaming, but ordinary pages use the faster
+buffered SSR path. A loader opts in with `[DotReactStreaming]` when its React
+tree has a meaningful Suspense boundary. `/streaming` sends the document shell and Suspense fallback before the delayed
 server segment is ready. The per-request CSP nonce is forwarded to React's
 streaming renderer. Renderer failures are classified as `before-shell` until a
 start frame is emitted and `after-shell` from that point onward, so the ASP.NET
@@ -181,16 +197,20 @@ The one-argument page attribute derives routing from the DRX module ID:
 Generated projects include a production Dockerfile for Azure App Service or Azure
 Container Apps. ASP.NET exposes port 8080 and supervises the private Node SSR
 renderer; use `/_health/live` and `/_health/ready` for platform probes.
+On Linux and Azure containers the managed renderer uses a private Unix-domain
+socket by default, avoiding TCP loopback overhead. Set
+`DOTREACT_RENDERER_IPC=false` only when the hosting environment cannot provide a
+local socket. Windows keeps the authenticated loopback transport.
 
 Production enables a strict CSP/security-header baseline and per-instance Server
 Action rate limiting. The generated HTML and action responses are `no-store`;
 fingerprinted assets are immutable while stable asset names are revalidated.
 
-The host registers OpenTelemetry for ASP.NET Core, HTTP, DotReact renderer,
-Server Actions and browser CLS/INP/LCP/TTFB. Browser samples use bounded labels
-and continue the SSR trace through W3C trace context. Set
-`OTEL_EXPORTER_OTLP_ENDPOINT` to send traces and metrics to an OTLP collector;
-without it, no exporter connection is attempted. Advanced hosts may set
+DotReact always exposes stable ActivitySource and Meter APIs. The host installs
+the ASP.NET Core, HTTP and DotReact OpenTelemetry processing pipeline only when
+`OTEL_EXPORTER_OTLP_ENDPOINT` is configured, avoiding span allocation that would
+otherwise be discarded. Browser samples use bounded labels and continue the SSR
+trace through W3C trace context. Advanced hosts may set
 `EnableBrowserVitals = false` without changing application views.
 
 For an action that can be retried safely, add `[DotReactIdempotent]`, send a
@@ -209,6 +229,15 @@ dotreact build
 dotreact analyze
 dotreact benchmark http://127.0.0.1:5080/
 dotreact start
+```
+
+Generated projects enforce bundle budgets during `npm run verify` and include
+Lighthouse CI thresholds for an actual production URL. Do not audit the Vite
+development server:
+
+```powershell
+$env:LHCI_URL = "https://preview.example.com/"
+npm run audit:lighthouse
 ```
 
 Before committing a C# ↔ TypeScript boundary change, regenerate and validate

@@ -29,3 +29,26 @@ Development mode, source maps and the error overlay are not production security 
 - In multi-instance or ephemeral deployments, persist and protect the ASP.NET Core Data Protection key ring. Antiforgery and authentication cookies must use the same protected key ring on every replica.
 - Keep rate limiting at the application boundary and add platform/WAF limits for volumetric attacks; an in-process limiter is not DDoS mitigation.
 - Run only compiled production assets. Development tunnels expose source maps and diagnostics by design.
+
+## Release security gates
+
+Every release candidate must pass the same deterministic checks used by the
+starter:
+
+```powershell
+npm run typecheck
+npm test
+npm run build
+npm audit --audit-level=high
+npm audit --prefix docs --audit-level=high
+npm run audit:dotnet
+# inside each generated application
+npm exec -- dotreact security --static-only
+```
+
+The source scan detects raw browser HTML sinks, string-to-code execution,
+authentication material in Web Storage, wildcard `postMessage`, client secret
+references, disabled outbound TLS validation and interpolated raw SQL. It is a
+fast gate, not a substitute for threat modeling, authorization tests, container
+image/SBOM scanning or an external penetration test before a public stable
+release.

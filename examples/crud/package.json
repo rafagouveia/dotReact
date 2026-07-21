@@ -13,7 +13,7 @@
     "build:client": "vite build",
     "build:ssr": "vite build --ssr",
     "typecheck": "tsc -p tsconfig.json --noEmit && dotreact-check --project tsconfig.json --pages app --manifest src/backend-manifest.json --contracts src/contracts.ts",
-    "build": "npm run generate && npm run build:client && npm run build:ssr && dotnet build Server/Server.csproj -c Release"
+    "build": "dotreact build"
   },
   "dependencies": {
     "@dotreact/client": "0.1.0",

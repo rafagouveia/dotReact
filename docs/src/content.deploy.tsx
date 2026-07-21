@@ -105,7 +105,7 @@ export const deploymentDocs: readonly DocPage[] = [
     tags: ["hosting", "Docker", "Azure"],
     body: <>
       <h2>Hospede o container, não dois sites públicos</h2>
-      <p>O artefato de produção contém ASP.NET Core, bundles React e o renderer Node supervisionado. Somente a porta 8080 do ASP.NET fica pública. A porta 5178 existe em loopback dentro do mesmo ambiente e nunca recebe tráfego da Internet.</p>
+      <p>O artefato de produção contém ASP.NET Core, bundles React e o renderer Node supervisionado. Somente a porta 8080 do ASP.NET fica pública. ASP.NET e renderer usam um Unix-domain socket privado em Linux/Azure e um Named Pipe no Windows; TCP autenticado em loopback fica disponível apenas como fallback explícito. Nenhum transporte do renderer recebe tráfego da Internet.</p>
       <CodeBlock label="Topologia de produção" code={productionTopology} />
       <ReferenceTable valueHeading="Indicado para" rows={[
         { name: "Azure App Service", defaultValue: "operação simples", description: "Container Linux, Always On, health check e slot de staging. Há Bicep oficial no starter." },
@@ -121,6 +121,16 @@ export const deploymentDocs: readonly DocPage[] = [
         <li>Escolha App Service quando slots e operação web tradicional reduzirem complexidade.</li>
         <li>Use banco externo, Redis e Data Protection compartilhada antes de aumentar réplicas.</li>
       </ul>
+      <h3>Comparação com Razor e Blazor</h3>
+      <p>Para o Azure, DotReact é um web app ASP.NET Core em container: domínio, TLS, identidade, probes, logs e escala seguem o mesmo modelo operacional de uma aplicação .NET comum. A diferença é interna: o artefato inclui Node para SSR, então reserve mais memória que numa página Razor equivalente. Após a hidratação, DotReact não mantém conexão de aplicação persistente; Blazor Server interativo normalmente mantém um circuito SignalR por usuário.</p>
+      <ReferenceTable valueHeading="Efeito de custo" rows={[
+        { name: "Razor Pages", defaultValue: "menor baseline", description: "Um runtime ASP.NET e HTML no servidor; costuma exigir menos memória para a mesma página." },
+        { name: "DotReact", defaultValue: "ASP.NET + Node privado", description: "Mesma unidade de deploy, com memória adicional do renderer; bundle/hidratação e cache mudam o custo por carga." },
+        { name: "Blazor Server interativo", defaultValue: "conexões persistentes", description: "O custo depende de circuitos, estado por usuário e SignalR; compare com concorrência real, não apenas requests por segundo." },
+        { name: "Container Apps Consumption", defaultValue: "uso medido", description: "Pode escalar a zero; uma réplica mínima evita cold start, mas mantém consumo faturável." },
+        { name: "App Service", defaultValue: "instância do plano", description: "O plano dedicado é cobrado enquanto alocado; várias aplicações podem compartilhar a mesma capacidade." }
+      ]} />
+      <div className="callout"><strong>Regra de decisão</strong><span>Não presuma que uma tecnologia é sempre mais barata. Rode <code>npm run benchmark:compare</code>, meça memória/RPS/LCP com a página real e dimensione a menor SKU que mantém os SLOs.</span></div>
     </>
   },
   {

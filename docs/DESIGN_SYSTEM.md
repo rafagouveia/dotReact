@@ -40,8 +40,10 @@ Dark values are defined on `[data-theme="dark"]` using the same semantic names.
 
 ## Typography and spacing
 
-- UI and prose use the shared sans stack in `src/styles.css`; code uses the shared mono stack.
+- UI and prose use the shared modern system sans stack in `src/styles.css`; code uses the shared mono stack. The stack must remain local-first so documentation rendering never depends on a third-party font request.
 - Heading weight is `600`; body copy is regular. Avoid ultra-bold display type inside documentation.
+- Documentation prose is 16px with a relaxed 32px line height. Primary navigation is at least 13px; supporting UI labels are at least 12px. Dense mono metadata may use 10–11px only when it is not required to understand or operate the interface.
+- Keep the primary reading column close to 880px and expose the in-page table of contents from the desktop `xl` breakpoint. Long prose must not expand to the full application frame.
 - Base spacing follows a 4px grid. Common component gaps are 8, 12, 16, 24 and 32px.
 - Controls use an 8px radius. Major panels use 12px. Pills are limited to status and compact metadata.
 
@@ -52,3 +54,5 @@ Dark values are defined on `[data-theme="dark"]` using the same semantic names.
 - Can hierarchy be expressed with spacing, type or a neutral surface instead?
 - Is every shadow attached to an element that is actually elevated?
 - Are light and dark themes using the same semantic hierarchy?
+- Is any required navigation, action or explanatory copy rendered below 12px?
+- Does the article preserve a comfortable line length at common 1280–1440px desktop widths?

@@ -1,0 +1,180 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-21T22:15:35.596Z",
+  "verification": "local-reference",
+  "suiteRevision": "accounting-reconciliation-v2",
+  "environment": {
+    "platform": "linux",
+    "release": "node",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 7 5700X3D 8-Core Processor",
+    "logicalCores": 16,
+    "totalMemoryBytes": 16730714112,
+    "node": "v24.18.0",
+    "dotnet": "10.0.302",
+    "dotReact": "0.1.0",
+    "next": "16.2.11",
+    "react": "19.2.7",
+    "gitCommit": "unknown",
+    "gitDirty": true,
+    "dedicated": false,
+    "dotReactRendererWorkers": 1
+  },
+  "methodology": {
+    "requests": 3000,
+    "concurrency": 64,
+    "warmup": 250,
+    "rounds": 7,
+    "aggregation": "independent-metric-medians",
+    "isolation": "fresh-single-process-tree-per-scenario-round",
+    "compression": "identity",
+    "workload": "same 20-row accounting reconciliation fixture"
+  },
+  "limitations": [
+    "Localhost microbenchmark; the load generator shares the machine with the measured server.",
+    "Exactly one server process tree is alive at a time; every scenario and round starts from a fresh process.",
+    "Interactive browser hydration is measured by the separate Lighthouse/Web Vitals suite."
+  ],
+  "resourceUsage": {
+    "DotReact server-only SSR": {
+      "host": "DotReact",
+      "peakRssBytes": 240070656,
+      "cpuTimeSeconds": 24.71,
+      "cpuMillisecondsPer1000Requests": 1176.6666666666667,
+      "measuredRequests": 21000,
+      "rounds": 7,
+      "samples": 88,
+      "samplingIntervalMs": 100
+    },
+    "DotReact interactive SSR": {
+      "host": "DotReact",
+      "peakRssBytes": 246112256,
+      "cpuTimeSeconds": 28.45,
+      "cpuMillisecondsPer1000Requests": 1354.7619047619048,
+      "measuredRequests": 21000,
+      "rounds": 7,
+      "samples": 101,
+      "samplingIntervalMs": 100
+    },
+    "Razor Pages": {
+      "host": "Razor",
+      "peakRssBytes": 117424128,
+      "cpuTimeSeconds": 12.46,
+      "cpuMillisecondsPer1000Requests": 593.3333333333334,
+      "measuredRequests": 21000,
+      "rounds": 7,
+      "samples": 74,
+      "samplingIntervalMs": 100
+    },
+    "Blazor static SSR": {
+      "host": "Blazor SSR",
+      "peakRssBytes": 131493888,
+      "cpuTimeSeconds": 15.29,
+      "cpuMillisecondsPer1000Requests": 728.0952380952381,
+      "measuredRequests": 21000,
+      "rounds": 7,
+      "samples": 74,
+      "samplingIntervalMs": 100
+    },
+    "Next.js interactive SSR": {
+      "host": "Next.js",
+      "peakRssBytes": 419897344,
+      "cpuTimeSeconds": 85.17,
+      "cpuMillisecondsPer1000Requests": 4055.714285714286,
+      "measuredRequests": 21000,
+      "rounds": 7,
+      "samples": 670,
+      "samplingIntervalMs": 100
+    },
+    "Next.js Server Component": {
+      "host": "Next.js",
+      "peakRssBytes": 507678720,
+      "cpuTimeSeconds": 93.14,
+      "cpuMillisecondsPer1000Requests": 4435.238095238095,
+      "measuredRequests": 21000,
+      "rounds": 7,
+      "samples": 734,
+      "samplingIntervalMs": 100
+    }
+  },
+  "rows": [
+    {
+      "implementation": "DotReact",
+      "scenario": "SSR dinâmico server-only",
+      "throughput": 2615.566096102917,
+      "meanMs": 24.33027977666579,
+      "p50Ms": 21.9265149999992,
+      "p95Ms": 36.12026400002651,
+      "p99Ms": 41.426298999998835,
+      "bytesPerResponse": 2186.887,
+      "failures": 0,
+      "throughputIqr": 397.987977530016,
+      "p95IqrMs": 11.140289000002667
+    },
+    {
+      "implementation": "Razor Pages",
+      "scenario": "SSR dinâmico server-only",
+      "throughput": 2900.544216832476,
+      "meanMs": 21.961570223666417,
+      "p50Ms": 20.047443999996176,
+      "p95Ms": 38.87146799999755,
+      "p99Ms": 51.30094499999541,
+      "bytesPerResponse": 1996,
+      "failures": 0,
+      "throughputIqr": 589.1447868856562,
+      "p95IqrMs": 12.873556000020471
+    },
+    {
+      "implementation": "Blazor static SSR",
+      "scenario": "SSR dinâmico server-only",
+      "throughput": 2979.2661665429523,
+      "meanMs": 21.32096984266669,
+      "p50Ms": 19.94737899999018,
+      "p95Ms": 36.18910399999004,
+      "p99Ms": 42.83639900002163,
+      "bytesPerResponse": 1788,
+      "failures": 0,
+      "throughputIqr": 947.943528851124,
+      "p95IqrMs": 17.84108000001288
+    },
+    {
+      "implementation": "Next.js Server Component",
+      "scenario": "SSR dinâmico server-only",
+      "throughput": 297.74979818072023,
+      "meanMs": 214.54997008966623,
+      "p50Ms": 203.62535099999513,
+      "p95Ms": 325.71545699995477,
+      "p99Ms": 354.90010099997744,
+      "bytesPerResponse": 11498,
+      "failures": 0,
+      "throughputIqr": 26.730572872503558,
+      "p95IqrMs": 47.51458100003947
+    },
+    {
+      "implementation": "DotReact",
+      "scenario": "SSR interativo",
+      "throughput": 2083.0459482135875,
+      "meanMs": 30.525158691999746,
+      "p50Ms": 29.22504600000684,
+      "p95Ms": 46.75469899998279,
+      "p99Ms": 58.8320090000052,
+      "bytesPerResponse": 4288.790666666667,
+      "failures": 0,
+      "throughputIqr": 362.9326048340986,
+      "p95IqrMs": 8.627774000007776
+    },
+    {
+      "implementation": "Next.js",
+      "scenario": "SSR interativo",
+      "throughput": 319.4102037948126,
+      "meanMs": 199.94807628733335,
+      "p50Ms": 183.62509899999714,
+      "p95Ms": 278.37542500000563,
+      "p99Ms": 354.2467100000067,
+      "bytesPerResponse": 8521,
+      "failures": 0,
+      "throughputIqr": 55.77886259344859,
+      "p95IqrMs": 95.72484000000986
+    }
+  ]
+}

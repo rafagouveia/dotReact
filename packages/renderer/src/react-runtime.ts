@@ -1,5 +1,5 @@
 import { PassThrough } from "node:stream";
-import { createElement, type ComponentType } from "react";
+import { createElement } from "react";
 import { renderToPipeableStream, renderToString } from "react-dom/server";
 import { DotReactApp, type DotReactAppProps, type DotReactMetadata, type DotReactNavigationPayload, type DotReactPageModule } from "@dotreact/client/router";
 import {

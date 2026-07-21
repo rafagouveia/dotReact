@@ -2,7 +2,7 @@
 
 | DotReact | .NET | Node.js | React | Vite | TypeScript |
 |---|---|---|---|---|---|
-| 0.1.x experimental | 10.x | 24.x production; 20.19+ development | 19.2.x | 8.1.x | 7.0.x |
+| 0.1.x experimental | 10.x | 24.x recommended; 22.19+ supported | 19.2.x | 8.1.x | 7.0.x |
 
 Protocol version 1 is currently required on both sides. During the current
 pre-release, generated projects vendor the runtime under `vendor/` and use

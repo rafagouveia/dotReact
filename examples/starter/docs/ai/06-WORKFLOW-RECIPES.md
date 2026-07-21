@@ -78,8 +78,10 @@ Application operation/use case?     Application
 Database/external provider?          Infrastructure
 HTTP/loader/action mapping?          Presentation/Server
 Route view or page loader?           app
-Reusable product interaction?        src/features
-Generic visual component?            src/components
+Reusable application interaction?    app/_components
+Route-private visual component?       app/<route>/_components
+Global Server Action?                 app/_actions/*.server.cs
+Route-private Server Action?          app/<route>/_actions/*.server.cs
 Generated boundary?                  generated files; never hand-edit
 Framework defect?                    upstream framework repository
 ```

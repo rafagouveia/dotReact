@@ -2,6 +2,18 @@
   "schemaVersion": 2,
   "pages": [
     {
+      "moduleId": "benchmark-interactive/page",
+      "pattern": "/benchmark-interactive",
+      "routing": "app",
+      "propsType": "DotReact.Starter.Pages.BenchmarkInteractive.BenchmarkInteractivePageProps"
+    },
+    {
+      "moduleId": "benchmark/page",
+      "pattern": "/benchmark",
+      "routing": "app",
+      "propsType": "DotReact.Starter.Pages.Benchmark.BenchmarkPageProps"
+    },
+    {
       "moduleId": "page",
       "pattern": "/",
       "routing": "app",

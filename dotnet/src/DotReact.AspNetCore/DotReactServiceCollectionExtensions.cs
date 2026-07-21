@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Net.Sockets;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -37,6 +38,25 @@ public static class DotReactServiceCollectionExtensions
             .Validate(value => value.RendererConnectTimeout >= TimeSpan.FromMilliseconds(10)
                 && value.RendererConnectTimeout <= TimeSpan.FromSeconds(5),
                 "RendererConnectTimeout must be between 10 milliseconds and five seconds.")
+            .Validate(value => value.RendererSocketPath is null
+                    || DotReactRendererInterprocessEndpoint.IsValid(value.RendererSocketPath),
+                "RendererSocketPath must be a valid Windows named pipe or absolute Unix socket path.")
+            .Validate(value => value.RendererFrameSocketPath is null
+                    || DotReactRendererInterprocessEndpoint.IsValid(value.RendererFrameSocketPath),
+                "RendererFrameSocketPath must be a valid Windows named pipe or absolute Unix socket path.")
+            .Validate(value => !value.UseFramedRendererTransport || value.RendererFrameSocketPath is not null,
+                "RendererFrameSocketPath is required when framed renderer transport is enabled.")
+            .Validate(value => !value.UseFramedRendererTransport || value.UseBinaryRendererTransport,
+                "Framed renderer transport requires the binary renderer protocol.")
+            .Validate(value => value.RendererFrameConnectionCount is >= 1 and <= 32,
+                "RendererFrameConnectionCount must be between 1 and 32.")
+            .Validate(value => value.RendererFrameMaxInFlightPerConnection is >= 1 and <= 1_024,
+                "RendererFrameMaxInFlightPerConnection must be between 1 and 1024.")
+            .Validate(value => value.RendererMaxQueuedRequests is >= -1 and <= 10_000,
+                "RendererMaxQueuedRequests must be -1 (automatic) or between 0 and 10000.")
+            .Validate(value => value.RendererOverloadRetryAfter > TimeSpan.Zero
+                    && value.RendererOverloadRetryAfter <= TimeSpan.FromMinutes(1),
+                "RendererOverloadRetryAfter must be positive and no longer than one minute.")
             .Validate(value => !value.RequireRendererToken || value.RendererToken is { Length: >= 32 },
                 "RendererToken must contain at least 32 characters when RequireRendererToken is enabled.")
             .Validate(value => !string.IsNullOrWhiteSpace(value.ClientScriptSrc), "ClientScriptSrc is required.")
@@ -62,18 +82,24 @@ public static class DotReactServiceCollectionExtensions
                 "MaxStaticPaths must be between 1 and 1000000.")
             .Validate(value => value.MaxSerializedPropsBytes is >= 1024 and <= 64 * 1024 * 1024,
                 "MaxSerializedPropsBytes must be between 1024 bytes and 64 MiB.")
+            .Validate(value => value.MaxCoalescedRenders is >= 1 and <= 65_536,
+                "MaxCoalescedRenders must be between 1 and 65536.")
+            .Validate(value => value.ClientNavigationCacheDuration >= TimeSpan.Zero
+                && value.ClientNavigationCacheDuration <= TimeSpan.FromHours(1),
+                "ClientNavigationCacheDuration must be between zero and one hour.")
             .Validate(value => !value.EnableBrowserVitals || IsSafeEndpointPath(value.BrowserVitalsEndpointPath),
                 "BrowserVitalsEndpointPath must be a safe root-relative path.")
             .ValidateOnStart();
 
         services.AddTransient<DotReactRendererTelemetryHandler>();
+        services.TryAddSingleton<DotReactFramedRendererConnectionPool>();
         services.AddHttpClient<DotReactRendererClient>((provider, client) =>
             {
                 var value = provider.GetRequiredService<IOptions<DotReactOptions>>().Value;
                 client.BaseAddress = EnsureTrailingSlash(value.RendererUrl);
                 client.Timeout = Timeout.InfiniteTimeSpan;
             })
-            .ConfigurePrimaryHttpMessageHandler(provider => CreateRendererHandler(
+            .ConfigurePrimaryHttpMessageHandler(provider => DotReactRendererConnection.CreateHandler(
                 provider.GetRequiredService<IOptions<DotReactOptions>>().Value))
             .AddHttpMessageHandler<DotReactRendererTelemetryHandler>();
         services.AddHttpClient<DotReactStreamingRendererClient>((provider, client) =>
@@ -82,12 +108,13 @@ public static class DotReactServiceCollectionExtensions
                 client.BaseAddress = EnsureTrailingSlash(value.RendererUrl);
                 client.Timeout = Timeout.InfiniteTimeSpan;
             })
-            .ConfigurePrimaryHttpMessageHandler(provider => CreateRendererHandler(
+            .ConfigurePrimaryHttpMessageHandler(provider => DotReactRendererConnection.CreateHandler(
                 provider.GetRequiredService<IOptions<DotReactOptions>>().Value))
             .AddHttpMessageHandler<DotReactRendererTelemetryHandler>();
-        services.TryAddScoped<IDotReactRenderer>(provider => provider.GetRequiredService<DotReactRendererClient>());
-        services.TryAddScoped<IDotReactStreamingRenderer>(provider =>
-            provider.GetRequiredService<DotReactStreamingRendererClient>());
+        services.TryAddSingleton<DotReactRenderCoordinator>();
+        services.TryAddSingleton<DotReactRenderAdmissionController>();
+        services.TryAddScoped<IDotReactRenderer, DotReactCoalescingRenderer>();
+        services.TryAddScoped<IDotReactStreamingRenderer, DotReactAdmissionStreamingRenderer>();
         services.AddHealthChecks().AddCheck<DotReactRendererHealthCheck>(
             "dotreact_renderer", tags: ["ready"]);
         services.AddAntiforgery(options => options.HeaderName = "X-DotReact-CSRF");
@@ -198,8 +225,12 @@ public static class DotReactServiceCollectionExtensions
         var returnsResult = contract.GetGenericTypeDefinition() == typeof(IDotReactResultPage<>);
         var prerender = type.GetCustomAttribute<DotReactPrerenderAttribute>(inherit: false) is null
             ? null : DotReactPrerenderMetadata.Create(type);
+        var streaming = type.GetCustomAttribute<DotReactStreamingAttribute>(inherit: false) is not null;
+        if (streaming && prerender is not null)
+            throw new InvalidOperationException(
+                $"Page '{type.FullName}' cannot combine streaming SSR with static prerendering.");
         registry.Items.Add(new(
-            type, contract.GenericTypeArguments[0], pattern, moduleId, returnsResult, prerender));
+            type, contract.GenericTypeArguments[0], pattern, moduleId, returnsResult, streaming, prerender));
         services.TryAddTransient(type);
         if (prerender is not null)
             RegisterStaticPathProvider(services, assemblies, prerender);
@@ -315,9 +346,22 @@ public static class DotReactServiceCollectionExtensions
             ? uri
             : new Uri(uri.AbsoluteUri + '/', UriKind.Absolute);
 
-    private static SocketsHttpHandler CreateRendererHandler(DotReactOptions options) => new()
+}
+
+internal static class DotReactRendererConnection
+{
+    internal static SocketsHttpHandler CreateHandler(DotReactOptions options)
     {
-        ConnectTimeout = options.RendererConnectTimeout,
-        PooledConnectionLifetime = TimeSpan.FromMinutes(5)
-    };
+        var handler = new SocketsHttpHandler
+        {
+            ConnectTimeout = options.RendererConnectTimeout,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5)
+        };
+        if (options.RendererSocketPath is { Length: > 0 } socketPath)
+        {
+            handler.ConnectCallback = (_, cancellationToken) =>
+                DotReactRendererInterprocessEndpoint.ConnectAsync(socketPath, cancellationToken);
+        }
+        return handler;
+    }
 }

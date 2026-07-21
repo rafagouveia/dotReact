@@ -56,7 +56,7 @@ manifest are the allowlist.
 Route groups such as `(crm)` remain in the module ID but are omitted from the
 URL. Directories beginning with `_` are private and never produce routes. Only
 `page.drx` is routable under `app/`; helper DRX files belong in a private folder
-or under `src/components`.
+or under the nearest `_components` private folder.
 
 ## Route and query values
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import path from "node:path";
 import { checkDotReactProject } from "./check.js";
 
 function value(args: string[], option: string): string | undefined {

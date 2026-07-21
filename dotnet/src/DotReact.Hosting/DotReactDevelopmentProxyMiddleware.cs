@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.WebSockets;
+using System.Text.Json;
 using DotReact.AspNetCore;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -53,7 +54,13 @@ internal sealed class DotReactDevelopmentProxyMiddleware(
             options.Value.DevelopmentRuntimeProbePath,
             StringComparison.Ordinal))
         {
+            if (context.WebSockets.IsWebSocketRequest)
+            {
+                await HandleRuntimeWebSocketAsync(context);
+                return;
+            }
             context.Response.Headers.CacheControl = "no-store";
+            context.Response.Headers.XContentTypeOptions = "nosniff";
             await context.Response.WriteAsJsonAsync(
                 new
                 {
@@ -71,6 +78,38 @@ internal sealed class DotReactDevelopmentProxyMiddleware(
         }
 
         await ProxyHttpAsync(context);
+    }
+
+    private static async Task HandleRuntimeWebSocketAsync(HttpContext context)
+    {
+        using var socket = await context.WebSockets.AcceptWebSocketAsync();
+        var revision = DotReactDevelopmentRevision.Current;
+        await SendRuntimeStateAsync(socket, revision, context.RequestAborted);
+        try
+        {
+            while (socket.State == WebSocketState.Open)
+            {
+                revision = await DotReactDevelopmentRevision.WaitForChangeAsync(
+                    revision, context.RequestAborted);
+                await SendRuntimeStateAsync(socket, revision, context.RequestAborted);
+            }
+        }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+        }
+        catch (WebSocketException) when (socket.State != WebSocketState.Open)
+        {
+        }
+    }
+
+    private static Task SendRuntimeStateAsync(WebSocket socket, long revision, CancellationToken cancellationToken)
+    {
+        var payload = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            instanceId = DevelopmentInstanceId,
+            revision
+        });
+        return socket.SendAsync(payload, WebSocketMessageType.Text, true, cancellationToken);
     }
 
     private async Task ProxyHttpAsync(HttpContext context)

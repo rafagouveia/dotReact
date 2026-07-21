@@ -36,7 +36,7 @@ for (const id of requiredPages) {
   if (!portugueseIds.includes(id)) throw new Error(`Required documentation page is missing: ${id}`);
 }
 
-const nonPageAnchors = new Set(["home", "purpose", "architecture", "capabilities", "content"]);
+const nonPageAnchors = new Set(["home", "purpose", "architecture", "benchmarks", "capabilities", "content"]);
 const pageIds = new Set(portugueseIds);
 for (const file of linkedFiles) {
   for (const match of read(file).matchAll(/href="#([a-z0-9-]+)"/gu)) {
@@ -52,7 +52,7 @@ for (const path of [
   "deploy/azure/app-service.parameters.example.json",
   "deploy/azure/container-apps.bicep",
   "deploy/azure/container-apps.parameters.example.json",
-  "examples/crud/Server/Actions/CreateWorkItemAction.cs",
+  "examples/crud/app/_actions/work-items/CreateWorkItemAction.server.cs",
   "examples/crud/Server/Composition/InfrastructureServices.cs",
   "examples/crud/Server/Infrastructure/Persistence/EfWorkItemRepository.cs",
   "examples/crud/Server/Infrastructure/Persistence/WorkItemsDbContext.cs",

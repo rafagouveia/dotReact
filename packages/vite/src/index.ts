@@ -3,9 +3,9 @@ import path from "node:path";
 import { createFontPreloadLinks, createFontStyleSheet, type DotReactFont } from "@dotreact/font";
 import react from "@vitejs/plugin-react";
 import { defineConfig, transformWithOxc, type Plugin, type PluginOption, type ResolvedConfig, type UserConfigExport, type ViteDevServer } from "vite";
-import { isContained, realpathOrResolved, scanDotReactGraph, scanDotReactPages, type DotReactBoundary, type DotReactBoundaryKind, type DotReactGraph, type DotReactLayout, type DotReactPage, type DotReactPageBoundaries } from "./discovery.js";
+import { isContained, realpathOrResolved, scanDotReactGraph, type DotReactGraph } from "./discovery.js";
 import { readBackendManifest, validateBackendPages } from "./manifest.js";
-import { collectDotReactRouteStyles, createDotReactDevelopmentStyleSheet, createDotReactRouteStyleSheet, dotReactRouteStylePath, resolveDotReactLocalImport } from "./styles.js";
+import { collectDotReactRouteStyles, createDotReactDevelopmentStyleSheet, dotReactRouteStylePath, resolveDotReactLocalImport } from "./styles.js";
 
 export { checkDotReactProject, type DotReactCheckOptions, type DotReactCheckResult, type DotReactDiagnostic } from "./check.js";
 export { scanDotReactGraph, scanDotReactPages, type DotReactBoundary, type DotReactBoundaryKind, type DotReactGraph, type DotReactLayout, type DotReactPage, type DotReactPageBoundaries } from "./discovery.js";
@@ -164,9 +164,10 @@ export interface DotReactViteApi {
 }
 
 export interface DotReactRouteAssetManifest {
-  readonly version: 1;
+  readonly version: 2;
   readonly routes: readonly Readonly<{
     moduleId: string;
+    hydrate: boolean;
     modules: readonly string[];
   }>[];
 }
@@ -208,9 +209,10 @@ export function createDotReactRouteAssetManifest(
 ): DotReactRouteAssetManifest {
   const relative = (file: string): string => path.relative(root, file).replaceAll("\\", "/");
   return Object.freeze({
-    version: 1 as const,
+    version: 2 as const,
     routes: Object.freeze(graph.pages.map(page => Object.freeze({
       moduleId: page.moduleId,
+      hydrate: page.hydrate,
       modules: Object.freeze([...new Set([
         ...page.layouts,
         page.file,

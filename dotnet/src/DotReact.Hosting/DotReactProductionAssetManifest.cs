@@ -17,7 +17,8 @@ internal static class DotReactProductionAssetManifest
                 "DotReact production client manifests were not found. Run the Vite client build before publishing.");
         using var manifest = ParseBounded(manifestPath);
         using var routes = ParseBounded(routesPath);
-        if (!routes.RootElement.TryGetProperty("version", out var version) || version.GetInt32() != 1
+        if (!routes.RootElement.TryGetProperty("version", out var version)
+            || version.GetInt32() is not (1 or 2)
             || !routes.RootElement.TryGetProperty("routes", out var routeArray)
             || routeArray.ValueKind != JsonValueKind.Array)
             throw new InvalidOperationException("DotReact route asset manifest has an unsupported schema.");
@@ -38,6 +39,11 @@ internal static class DotReactProductionAssetManifest
             if (string.IsNullOrWhiteSpace(moduleId) || moduleId.Length > 1_024
                 || !route.TryGetProperty("modules", out var modules) || modules.ValueKind != JsonValueKind.Array)
                 throw new InvalidOperationException("DotReact route asset manifest contains an invalid route.");
+            var hydrate = version.GetInt32() == 1 || !route.TryGetProperty("hydrate", out var hydration)
+                ? true
+                : hydration.ValueKind is JsonValueKind.True or JsonValueKind.False
+                    ? hydration.GetBoolean()
+                    : throw new InvalidOperationException("DotReact route hydration mode must be a boolean.");
             var styles = new List<string>(globalStyles);
             var preloads = new List<string>(globalPreloads);
             var visited = new HashSet<string>(StringComparer.Ordinal);
@@ -49,7 +55,8 @@ internal static class DotReactProductionAssetManifest
             }
             output.Add(moduleId, new(
                 styles.Distinct(StringComparer.Ordinal).ToArray(),
-                preloads.Distinct(StringComparer.Ordinal).ToArray()));
+                preloads.Distinct(StringComparer.Ordinal).ToArray(),
+                hydrate));
         }
         return output;
     }

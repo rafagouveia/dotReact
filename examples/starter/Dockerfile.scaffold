@@ -6,8 +6,7 @@ COPY --from=node-base /usr/local /usr/local
 WORKDIR /src
 COPY . .
 RUN npm ci
-RUN npm run generate && npm run build:client && npm run build:ssr
-RUN dotnet restore Server/Server.csproj
+RUN npm run build
 RUN dotnet publish Server/Server.csproj -c Release -o /publish --no-restore /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-bookworm-slim AS runtime

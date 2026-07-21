@@ -38,10 +38,10 @@ verify the behavior in framework tests before changing application code.
   `src/backend-manifest.json` by hand. Run `npm run generate` after changing a
   public C# loader, action or presentation contract.
 - Keep page modules thin. Put backend loading in C# page loaders and reusable UI
-  behavior under `src/features` or `src/components`.
-- Keep Domain independent from ASP.NET Core, EF Core, React and serialization.
-  Keep endpoints/loaders/actions as adapters around focused application use
-  cases.
+  behavior under the nearest `app/**/_components` folder.
+- The internal `Server/` folder structure is application-owned. For non-trivial
+  systems, prefer framework-independent business rules and thin transport
+  adapters, but do not assume one mandatory layering or folder scheme.
 - Do not edit the vendored `vendor/` directory for application features.
   It is the local framework runtime snapshot and may be replaced by a future
   DotReact upgrade.
@@ -63,11 +63,12 @@ verify the behavior in framework tests before changing application code.
 ## File ownership map
 
 - Maintain routes in `app/`: each `page.drx` may have a co-located
-  `page.server.cs`. Keep domain, application, infrastructure and global actions
-  under `Server/`; keep shared React code under `src/features` and
-  `src/components`.
-- Put application fonts, icons and images in `public/`. Do not author assets in
-  `Server/wwwroot`; that is a framework deployment detail.
+  `page.server.cs`. Structure `Server/` according to the application's needs;
+  keep shared React code under `app/_components` and
+  route-private React code under `app/<route>/_components`.
+- Put framework-managed fonts, icons and images in `public/`. `Server/wwwroot`
+  remains available when the application intentionally uses ASP.NET Core's
+  separate static-file pipeline.
 - Treat `src/contracts.ts`, `src/actions.ts` and
   `src/backend-manifest.json` as generated output. Never edit them manually.
 - Treat `vendor/` as an opaque, pinned runtime. It is hidden from normal VS Code

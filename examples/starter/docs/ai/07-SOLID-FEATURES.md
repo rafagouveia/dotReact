@@ -1,11 +1,12 @@
 +# SOLID, use cases and feature organization
 
-## Dependency rule
+## Recommended dependency rule
 
-Application code follows one inward dependency direction:
+DotReact does not enforce this folder tree. For products that choose layered
+architecture, the recommended dependency direction is:
 
 ```text
-app/page.server.cs or Server/Actions
+app/page.server.cs or app/**/_actions/*.server.cs
                  |
                  v
        Server/<Feature>/Application
@@ -85,8 +86,8 @@ model.
 
 ## React responsibilities and CSS
 
-Put reusable product UI in `src/features/<feature>` and neutral primitives in
-`src/components`. Keep state local and lift it only when two consumers need
+Put reusable application UI in `app/_components`, and route-private UI in the
+nearest `app/<route>/_components`. Keep state local and lift it only when two consumers need
 the same owner. Separate data-independent formatting functions from components
 when they deserve direct tests.
 

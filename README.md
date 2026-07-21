@@ -71,7 +71,7 @@ credentialed Azure deployment validation are external release gates.
 
 ## Run the included starter
 
-Requirements: Node.js 20.19+ and .NET SDK 10.
+Requirements: Node.js 22.19+ (24.x recommended) and .NET SDK 10.
 
 ```powershell
 npm install
@@ -131,6 +131,7 @@ dotreact workspace reveal
 dotreact workspace focus
 dotreact analyze
 dotreact benchmark http://127.0.0.1:5080/
+dotreact benchmark https://candidate.example.com/ --compare https://baseline.example.com/ --max-p95-ratio 1.25 --min-throughput-ratio 0.80 --json
 dotreact export
 dotreact start
 ```
@@ -143,6 +144,11 @@ never overwrite an existing file.
 Set `OTEL_EXPORTER_OTLP_ENDPOINT` in the host to export ASP.NET Core, renderer,
 Server Action and browser Web Vitals traces/metrics over OTLP. No request props,
 tokens, request IDs or URLs are used as telemetry labels.
+
+The repository also includes production-equivalent DotReact, Razor Pages and
+Blazor static SSR fixtures. `npm run benchmark:compare` measures TTFB and the
+complete bounded response body, rejects failed requests and writes a JSON report.
+Do not compare development/HMR servers.
 
 Set `DOTREACT_REDIS_CONNECTION` for shared ISR and idempotency across replicas,
 and `DOTREACT_BUILD_ID` to the immutable deployment/revision identifier. The
@@ -224,6 +230,16 @@ editors/vscode-dotreact         VS Code diagnostics and loader CodeLens
 deploy/azure                    App Service and Container Apps infrastructure
 docs/adr                        architectural decisions
 ```
+
+Generated applications enforce only the App Router surface: routes and React
+components live below `app/`, while the internal organization of `Server/` is
+application-owned. Co-located Server Actions are the generated convention, not
+the only supported C# layout. `public/` is the framework-managed asset root and
+`src/` contains generated boundary artifacts only.
+`dotreact architecture` explains violations, `dotreact build` owns the complete
+client/SSR/.NET build, and `dotreact health` executes the release gate. Durable
+jobs run outside autoscaled web replicas while reusing the same Application
+layer; see [ADR 011](./docs/adr/011-application-contract-health-and-jobs.md).
 
 ## Interactive documentation
 

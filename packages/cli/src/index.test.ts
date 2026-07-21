@@ -5,8 +5,16 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { benchmarkUrl, formatBenchmark } from "./benchmark.js";
+import {
+  aggregateBenchmarkSamples,
+  benchmarkUrl,
+  compareBenchmarkResults,
+  evaluateBenchmarkThresholds,
+  formatBenchmark,
+  formatBenchmarkComparison
+} from "./benchmark.js";
 import { parsePrerenderManifest, validateStaticRoutes } from "./static-export.js";
+import { formatRouteDiagnostics, inspectRoutes } from "./routes.js";
 
 const cli = path.join(path.dirname(fileURLToPath(import.meta.url)), "index.js");
 
@@ -25,18 +33,81 @@ test("static export validates and consumes the server-generated prerender manife
 test("help lists the complete project lifecycle", () => {
   const result = spawnSync(process.execPath, [cli, "help"], { encoding: "utf8" });
   assert.equal(result.status, 0);
-  for (const command of ["create", "templates", "generate", "sync", "dev", "build", "analyze", "benchmark", "check", "start", "doctor", "upgrade", "workspace"])
+  for (const command of ["create", "templates", "generate", "sync", "dev", "build", "analyze", "routes", "benchmark", "check", "start", "doctor", "upgrade", "workspace"])
     assert.match(result.stdout, new RegExp(`dotreact ${command}`));
+});
+
+test("route diagnostics explain dynamic SSR and client hydration without requiring a running host", async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "dotreact-routes-"));
+  try {
+    mkdirSync(path.join(directory, "src"));
+    writeFileSync(path.join(directory, "src/backend-manifest.json"), JSON.stringify({
+      schemaVersion: 2,
+      pages: [{ moduleId: "reports/page", pattern: "/reports", routing: "app", propsType: "ReportsProps" }],
+      actions: [{ id: "reports/save" }]
+    }));
+    const report = await inspectRoutes(directory);
+    assert.equal(report.routes[0]?.pattern, "/reports");
+    assert.equal(report.actionCount, 1);
+    assert.match(formatRouteDiagnostics(report), /dynamic SSR/);
+    assert.match(formatRouteDiagnostics(report), /production hydrates only routes that require browser behavior/);
+  } finally { rmSync(directory, { recursive: true, force: true }); }
 });
 
 test("SSR benchmark calculates percentiles and failure rate without leaking response data", async () => {
   let count = 0;
   const result = await benchmarkUrl({ url: "http://127.0.0.1:5080/", requests: 20, concurrency: 4, warmup: 2, timeoutMs: 1000 },
-    async () => ({ ok: ++count % 7 !== 0 }));
+    async () => ({ ok: ++count % 7 !== 0, arrayBuffer: async () => new ArrayBuffer(4) }));
   assert.equal(result.requests, 20);
   assert.equal(result.failures, 3);
+  assert.equal(result.failureRate, 0.15);
+  assert.ok(result.meanMs >= 0);
+  assert.equal(result.receivedBytes, 80);
+  assert.ok(result.ttfbP95Ms >= 0);
   assert.ok(result.p50Ms >= 0);
   assert.match(formatBenchmark(result), /p50 .* p95 .* p99/);
+});
+
+test("comparative benchmark reports ratios and enforces explicit regression budgets", () => {
+  const candidate = {
+    requests: 100, failures: 0, failureRate: 0, durationMs: 1000,
+    requestsPerSecond: 90, receivedBytes: 102_400, megabytesPerSecond: 0.1,
+    meanMs: 8, ttfbP50Ms: 3, ttfbP95Ms: 4, p50Ms: 7, p95Ms: 12, p99Ms: 15
+  };
+  const baseline = {
+    requests: 100, failures: 0, failureRate: 0, durationMs: 900,
+    requestsPerSecond: 100, receivedBytes: 102_400, megabytesPerSecond: 0.11,
+    meanMs: 7, ttfbP50Ms: 2, ttfbP95Ms: 3, p50Ms: 6, p95Ms: 10, p99Ms: 13
+  };
+  const comparison = compareBenchmarkResults(
+    "http://candidate.test/", candidate, "http://baseline.test/", baseline);
+
+  assert.equal(comparison.p95Ratio, 1.2);
+  assert.equal(comparison.throughputRatio, 0.9);
+  assert.match(formatBenchmarkComparison(comparison), /candidate \/ baseline/i);
+  assert.deepEqual(evaluateBenchmarkThresholds(comparison, {
+    maxP95Ratio: 1.1,
+    minThroughputRatio: 0.95,
+    maxFailureRate: 0
+  }), [
+    "candidate p95 ratio 1.200 exceeds 1.100",
+    "candidate throughput ratio 0.900 is below 0.950"
+  ]);
+});
+
+test("benchmark aggregation takes each metric median and reports dispersion", () => {
+  const samples = [80, 100, 120].map((requestsPerSecond, index) => ({
+    requests: 100, failures: 0, failureRate: 0, durationMs: 1000,
+    requestsPerSecond, receivedBytes: 1000, megabytesPerSecond: 1,
+    meanMs: 10, ttfbP50Ms: 2, ttfbP95Ms: 4,
+    p50Ms: 8, p95Ms: 10 + index * 2, p99Ms: 20
+  }));
+  const aggregate = aggregateBenchmarkSamples(samples);
+  assert.equal(aggregate.requestsPerSecond, 100);
+  assert.equal(aggregate.p95Ms, 12);
+  assert.equal(aggregate.throughputIqr, 40);
+  assert.equal(aggregate.rounds, 3);
+  assert.equal(aggregate.samples.length, 3);
 });
 
 test("generator dry-run is side-effect free and page generation is fail-closed", () => {
@@ -93,11 +164,16 @@ test("generator rejects traversal and creates typed action and boundary artifact
     const action = spawnSync(process.execPath, [cli, "add", "action", "SaveProduct"],
       { cwd: directory, encoding: "utf8" });
     assert.equal(action.status, 0, action.stderr);
-    const actionSource = readFileSync(path.join(directory, "Server/Actions/SaveProductAction.cs"), "utf8");
+    const actionSource = readFileSync(path.join(directory, "app/_actions/SaveProductAction.server.cs"), "utf8");
     assert.match(actionSource, /DotReactAction\("save-product"\)/);
     assert.doesNotMatch(actionSource, /AllowAnonymous/);
     assert.match(actionSource, /Authorization is required by default/);
     assert.match(actionSource, /Authorize\(Policy/);
+
+    const component = spawnSync(process.execPath, [cli, "generate", "component", "ProductCard", "--route", "products"],
+      { cwd: directory, encoding: "utf8" });
+    assert.equal(component.status, 0, component.stderr);
+    assert.equal(existsSync(path.join(directory, "app/products/_components/ProductCard.tsx")), true);
 
     const boundary = spawnSync(process.execPath, [cli, "generate", "boundary", "catalog", "--kind", "error"],
       { cwd: directory, encoding: "utf8" });
@@ -168,7 +244,15 @@ test("minimal template is self-contained and omits demo actions and routes", () 
     assert.match(gitignore, /node_modules\//);
     assert.match(gitignore, /\[Bb\]in\//);
     assert.match(gitignore, /\.dotreact\//);
+    assert.match(gitignore, /\.next\//);
+    assert.match(gitignore, /tmp\//);
+    assert.match(gitignore, /\*\.har/);
+    assert.match(gitignore, /secrets\.json/);
     assert.match(gitignore, /!\.env\.example/);
+    const dockerignore = readFileSync(path.join(app, ".dockerignore"), "utf8");
+    assert.match(dockerignore, /\*\*\/\.next/);
+    assert.match(dockerignore, /^tmp$/m);
+    assert.match(dockerignore, /\*\.har/);
     assert.equal(existsSync(path.join(app, "vendor/DotReact.AspNetCore/DotReact.AspNetCore.csproj")), true);
     assert.equal(existsSync(path.join(app, "vendor/DotReact.Hosting/DotReact.Hosting.csproj")), true);
     assert.equal(existsSync(path.join(app, "vendor/DotReact.Images.SkiaSharp/DotReact.Images.SkiaSharp.csproj")), true);
@@ -198,6 +282,7 @@ test("minimal template is self-contained and omits demo actions and routes", () 
     assert.equal(generatedPackage.scripts["dev:contracts"], "dotreact sync --watch");
     assert.equal(generatedPackage.scripts["build:ssr"], "vite build --ssr");
     assert.match(generatedPackage.scripts["dev:server"], /dotnet watch --project/);
+    assert.match(generatedPackage.scripts["dev:server"], /DOTNET_WATCH_RESTART_ON_RUDE_EDIT=1/);
     assert.doesNotMatch(generatedPackage.scripts["dev:server"], /--no-hot-reload/);
     assert.match(generatedPackage.scripts["dev:renderer"], /vendor\/renderer\/dist\/server\.js/);
     assert.match(generatedPackage.scripts.generate, /vendor\/DotReact\.TypeGen\/DotReact\.TypeGen\.csproj/);
@@ -206,7 +291,13 @@ test("minimal template is self-contained and omits demo actions and routes", () 
     assert.match(generatedPackage.scripts["dotreact:runtime"], /vendor\/client/);
     assert.equal(generatedPackage.scripts["build:framework"], undefined);
     assert.equal(generatedPackage.scripts["audit:dotnet"], "node scripts/audit-dotnet-packages.mjs");
+    assert.match(generatedPackage.scripts.analyze, /max-initial-client-kb 75/);
+    assert.equal(generatedPackage.scripts["audit:lighthouse"], "node scripts/lighthouse-audit.mjs");
+    assert.equal(generatedPackage.devDependencies.lighthouse, "13.4.1");
+    assert.equal(existsSync(path.join(app, "lighthouserc.cjs")), true);
+    assert.equal(existsSync(path.join(app, "scripts/lighthouse-audit.mjs")), true);
     assert.match(generatedPackage.scripts.verify, /audit:dotnet/);
+    assert.match(generatedPackage.scripts.verify, /npm run analyze/);
     assert.equal(existsSync(path.join(app, "src/entry-server.tsx")), false);
     assert.doesNotMatch(readFileSync(path.join(app, "vite.config.ts"), "utf8"), /cssCodeSplit:\s*false/);
     const generatedCsproj = readFileSync(path.join(app, "Server/Server.csproj"), "utf8");
@@ -216,7 +307,7 @@ test("minimal template is self-contained and omits demo actions and routes", () 
     assert.doesNotMatch(generatedCsproj, /DotReact\.AspNetCore|DotReact\.Images\.SkiaSharp|DotReact\.Redis/,
       "application projects should reference the hosting facade instead of runtime internals");
     const dockerfile = readFileSync(path.join(app, "Dockerfile"), "utf8");
-    assert.match(dockerfile, /RUN npm run generate && npm run build:client && npm run build:ssr/);
+    assert.match(dockerfile, /RUN npm run build/);
     assert.doesNotMatch(dockerfile, /RUN npm run dotreact:runtime/);
     assert.match(dockerfile, /MinimalApp\.Server\.dll/);
     const workflow = readFileSync(path.join(app, ".github/workflows/ci.yml"), "utf8");
@@ -301,7 +392,7 @@ test("minimal template is self-contained and omits demo actions and routes", () 
       assert.doesNotMatch(content, /(?:\.\.[\\/])+(?:packages|dotnet)(?:[\\/]|$)/,
         `monorepo-relative path leaked into ${path.relative(app, file)}`);
     }
-    assert.equal(existsSync(path.join(app, "Server/Actions")), false);
+    assert.equal(existsSync(path.join(app, "app/_actions")), false);
     assert.equal(existsSync(path.join(app, "app/products")), false);
     assert.equal(existsSync(path.join(app, "app/streaming")), false);
     assert.match(readFileSync(path.join(app, "app/page.drx"), "utf8"), /minimal template/);

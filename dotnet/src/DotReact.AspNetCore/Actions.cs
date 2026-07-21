@@ -65,16 +65,20 @@ public sealed record DotReactActionResult<TResponse>
     public string? Detail { get; private init; }
     /// <summary>Local application paths whose data became stale after a successful action.</summary>
     public IReadOnlyList<string> RevalidatePaths { get; private init; } = [];
+    /// <summary>Cache tags whose data became stale after a successful action.</summary>
+    public IReadOnlyList<string> RevalidateTags { get; private init; } = [];
 
     /// <summary>Creates a successful result.</summary>
     public static DotReactActionResult<TResponse> Success(
         TResponse value,
-        IEnumerable<string>? revalidatePaths = null) =>
+        IEnumerable<string>? revalidatePaths = null,
+        IEnumerable<string>? revalidateTags = null) =>
         new()
         {
             Kind = DotReactActionResultKind.Success,
             Value = value,
-            RevalidatePaths = ValidateRevalidationPaths(revalidatePaths)
+            RevalidatePaths = ValidateRevalidationPaths(revalidatePaths),
+            RevalidateTags = ValidateRevalidationTags(revalidateTags)
         };
 
     /// <summary>Creates a validation failure.</summary>
@@ -103,6 +107,14 @@ public sealed record DotReactActionResult<TResponse>
                 || path.Contains('\\') || path.Any(char.IsControl))
                 throw new ArgumentException("Revalidation paths must be bounded local application paths.", nameof(paths));
         }
+        return result;
+    }
+
+    private static IReadOnlyList<string> ValidateRevalidationTags(IEnumerable<string>? tags)
+    {
+        var result = DotReactPrerenderValidation.NormalizeTags(tags);
+        if (result.Count > 32)
+            throw new ArgumentException("At most 32 revalidation tags are supported.", nameof(tags));
         return result;
     }
 }

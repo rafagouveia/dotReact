@@ -48,6 +48,13 @@ public sealed class DotReactPageAttribute : Attribute
 }
 
 /// <summary>
+/// Opts a page into protocol-v2 streaming SSR. Use it when the React tree contains
+/// meaningful Suspense boundaries; ordinary pages use the lower-overhead buffered path.
+/// </summary>
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+public sealed class DotReactStreamingAttribute : Attribute;
+
+/// <summary>
 /// Build-time registration emitted for a co-located <c>app/**/page.server.cs</c> loader.
 /// Application code should not apply this attribute directly; use the DotReact app generator.
 /// </summary>

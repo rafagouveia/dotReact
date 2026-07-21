@@ -6,7 +6,7 @@ import { inferDotReactRoute } from "./routes.js";
 const maxManifestBytes = 1024 * 1024;
 const moduleIdPattern = /^[A-Za-z0-9_.()\[\]-]+(?:\/[A-Za-z0-9_.()\[\]-]+)*$/;
 
-export interface BackendPage {
+interface BackendPage {
   readonly moduleId: string;
   readonly propsType: string;
   readonly pattern?: string;

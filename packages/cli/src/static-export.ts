@@ -1,4 +1,4 @@
-export interface PrerenderManifestRoute {
+interface PrerenderManifestRoute {
   readonly path: string;
   readonly moduleId: string;
   readonly revalidateSeconds: number | null;

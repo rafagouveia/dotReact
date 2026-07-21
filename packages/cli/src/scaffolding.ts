@@ -4,11 +4,12 @@ import { resolve } from "node:path";
 const segmentPattern = /^(?:[a-zA-Z][a-zA-Z0-9_-]*|\[(?:\.\.\.)?[a-zA-Z][a-zA-Z0-9_]*\]|\([a-zA-Z_][a-zA-Z0-9_]*\))$/;
 const typePattern = /^[A-Z][a-zA-Z0-9]*$/;
 
-export type ScaffoldKind = "page" | "layout" | "action" | "boundary";
+export type ScaffoldKind = "page" | "layout" | "action" | "boundary" | "component";
 
 export interface AddOptions {
   boundaryKind?: "error" | "not-found" | "loading" | "global-error";
   dryRun?: boolean;
+  route?: string;
 }
 
 interface FilePlan { path: string; content: string }
@@ -19,7 +20,8 @@ export async function addArtifact(
   rawName: string | undefined,
   options: AddOptions = {}
 ): Promise<string[]> {
-  if (kind === "action") return addAction(root, rawName, options.dryRun === true);
+  if (kind === "action") return addAction(root, rawName, options.route, options.dryRun === true);
+  if (kind === "component") return addComponent(root, rawName, options.route, options.dryRun === true);
   if (kind === "boundary" && options.boundaryKind === "global-error")
     return addGlobalError(root, options.dryRun === true);
   const route = normalizeRoute(rawName);
@@ -32,7 +34,7 @@ export async function addArtifact(
     options.dryRun === true);
 }
 
-export function normalizeRoute(value: string | undefined): string {
+function normalizeRoute(value: string | undefined): string {
   if (value === undefined) throw new Error("A route is required.");
   if (value.includes("\\") || value.startsWith("//") || /[\u0000-\u001f:]/.test(value))
     throw new Error("Route must be a portable project-relative path using forward slashes.");
@@ -104,14 +106,39 @@ export default function GlobalError({ reset }: DotReactGlobalErrorProps) {
 ` }], dryRun);
 }
 
-async function addAction(root: string, rawName: string | undefined, dryRun: boolean): Promise<string[]> {
+async function addAction(
+  root: string,
+  rawName: string | undefined,
+  rawRoute: string | undefined,
+  dryRun: boolean
+): Promise<string[]> {
   if (!rawName || !typePattern.test(rawName))
     throw new Error("Action names must be PascalCase identifiers.");
   const name = rawName.endsWith("Action") ? rawName.slice(0, -6) : rawName;
   if (name === "") throw new Error("Action name cannot be empty.");
   const id = name.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
-  const file = resolve(root, "Server/Actions", `${name}Action.cs`);
-  return applyPlans([{ path: file, content: `using DotReact.AspNetCore;\n\nnamespace DotReact.App.Actions;\n\npublic sealed record ${name}Request(string Value);\npublic sealed record ${name}Response(string Value);\n\n// Authorization is required by default. Register ASP.NET Core authentication and\n// authorization, then add [Microsoft.AspNetCore.Authorization.Authorize(Policy = "...")]\n// when this action needs an explicit policy.\n[DotReactAction("${id}")]\npublic sealed class ${name}Action : IDotReactAction<${name}Request, ${name}Response>\n{\n    public ValueTask<DotReactActionResult<${name}Response>> ExecuteAsync(\n        ${name}Request request,\n        CancellationToken cancellationToken)\n    {\n        if (string.IsNullOrWhiteSpace(request.Value))\n            return ValueTask.FromResult(DotReactActionResult<${name}Response>.Validation(\n                new Dictionary<string, string[]> { ["value"] = ["Value is required."] }));\n\n        return ValueTask.FromResult(DotReactActionResult<${name}Response>.Success(\n            new ${name}Response(request.Value.Trim())));\n    }\n}\n` }], dryRun);
+  const route = normalizeOptionalRoute(rawRoute);
+  const segments = routeSegments(route);
+  const file = resolve(root, "app", ...segments, "_actions", `${name}Action.server.cs`);
+  const namespace = ["DotReact", "App", ...segments.map(namespaceSegment), "Actions"].join(".");
+  return applyPlans([{ path: file, content: `using DotReact.AspNetCore;\n\nnamespace ${namespace};\n\npublic sealed record ${name}Request(string Value);\npublic sealed record ${name}Response(string Value);\n\n// Server Actions are thin presentation adapters. Invoke an Application use case\n// here; keep domain rules and persistence out of this class.\n// Authorization is required by default. Add [Authorize(Policy = "...")] for a capability policy.\n[DotReactAction("${id}")]\npublic sealed class ${name}Action : IDotReactAction<${name}Request, ${name}Response>\n{\n    public ValueTask<DotReactActionResult<${name}Response>> ExecuteAsync(\n        ${name}Request request,\n        CancellationToken cancellationToken)\n    {\n        if (string.IsNullOrWhiteSpace(request.Value))\n            return ValueTask.FromResult(DotReactActionResult<${name}Response>.Validation(\n                new Dictionary<string, string[]> { ["value"] = ["Value is required."] }));\n\n        return ValueTask.FromResult(DotReactActionResult<${name}Response>.Success(\n            new ${name}Response(request.Value.Trim())));\n    }\n}\n` }], dryRun);
+}
+
+async function addComponent(
+  root: string,
+  rawName: string | undefined,
+  rawRoute: string | undefined,
+  dryRun: boolean
+): Promise<string[]> {
+  if (!rawName || !typePattern.test(rawName))
+    throw new Error("Component names must be PascalCase identifiers.");
+  const route = normalizeOptionalRoute(rawRoute);
+  const file = resolve(root, "app", ...routeSegments(route), "_components", `${rawName}.tsx`);
+  return applyPlans([{ path: file, content: `import type { ReactNode } from "react";\n\nexport interface ${rawName}Props {\n  readonly children?: ReactNode;\n}\n\nexport function ${rawName}({ children }: ${rawName}Props) {\n  return <div data-component="${rawName}">{children}</div>;\n}\n` }], dryRun);
+}
+
+function normalizeOptionalRoute(value: string | undefined): string {
+  return value === undefined ? "" : normalizeRoute(value);
 }
 
 async function applyPlans(plans: FilePlan[], dryRun: boolean): Promise<string[]> {

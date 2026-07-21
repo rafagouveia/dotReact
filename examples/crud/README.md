@@ -33,9 +33,9 @@ Create, update or delete
 ```
 
 The React route is `app/page.drx`; it is intentionally thin and delegates
-the interactive UI to `src/features/work-items/WorkItemsBoard.tsx`. The matching
+the interactive UI to `app/_components/work-items/WorkItemsBoard.tsx`. The matching
 C# loader is co-located at `app/page.server.cs`. Server Actions
-live under `Server/Actions` and are exposed to React through generated
+live under `app/_actions/work-items` and are exposed to React through generated
 `src/actions.ts` functions.
 
 ## SOLID architecture
@@ -54,11 +54,11 @@ Presentation / Server  ->  Application  ->  Domain
   cross an actual infrastructure boundary.
 - `Server/Infrastructure` implements persistence and time using EF Core, SQLite
   and the system clock.
-- `app`, `Server/Actions` and `Server/Presentation` adapt framework or
+- `app/page.server.cs`, `app/_actions` and `Server/Presentation` adapt framework or
   HTTP requests into application use cases. They do not access `DbContext`.
 - `Server/Composition` is the dependency-injection composition root.
-- `src/features` contains client interaction; `app` contains route,
-  layout, loading, error and not-found boundaries.
+- `app/_components` contains client interaction; `app` also contains route,
+  layout, loading, error and not-found boundaries. `src` is generated only.
 
 The REST endpoints under `/api/work-items` remain only as a Minimal API route
 handler interoperability example. The DotReact UI does not use them; it uses the

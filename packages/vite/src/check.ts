@@ -95,8 +95,16 @@ function assertionSource(
   boundaries: readonly { file: string; kind: "not-found" | "error" | "loading" }[],
   globalError: string | undefined
 ): string {
-  const lines = ["import type { ComponentType, FunctionComponent } from \"react\";", "import type { DotReactLayoutProps } from \"@dotreact/client/router\";"];
-  lines.push("type DotReactBoundaryProps = { readonly statusCode: number; readonly requestId: string; readonly message?: string };");
+  const lines: string[] = [];
+  const reactTypes: string[] = [];
+  if ((manifest !== undefined && pages.length > 0) || boundaries.length > 0 || globalError !== undefined)
+    reactTypes.push("ComponentType");
+  if (layouts.length > 0) reactTypes.push("FunctionComponent");
+  if (reactTypes.length > 0) lines.push(`import type { ${reactTypes.join(", ")} } from "react";`);
+  if (layouts.length > 0)
+    lines.push("import type { DotReactLayoutProps } from \"@dotreact/client/router\";");
+  if (boundaries.some(boundary => boundary.kind !== "loading"))
+    lines.push("type DotReactBoundaryProps = { readonly statusCode: number; readonly requestId: string; readonly message?: string };");
   if (manifest !== undefined) {
     const names = [...new Set(manifest.pages.map(page => typeExportName(page.propsType)))].sort();
     lines.push(`import type { ${names.join(", ")} } from ${JSON.stringify(relativeImport(pagesRoot, contractsPath, true))};`);
@@ -104,7 +112,9 @@ function assertionSource(
   pages.forEach((page, index) => {
     lines.push(`import Page${index} from ${JSON.stringify(relativeImport(pagesRoot, `${page.file}.tsx`, true))};`);
     const backend = manifest?.pages.find(candidate => candidate.moduleId === page.moduleId);
-    if (backend !== undefined) lines.push(`const page${index}: ComponentType<${typeExportName(backend.propsType)}> = Page${index};`);
+    lines.push(backend === undefined
+      ? `void Page${index};`
+      : `Page${index} satisfies ComponentType<${typeExportName(backend.propsType)}>;`);
   });
   layouts.forEach((layout, index) => {
     lines.push(`import Layout${index} from ${JSON.stringify(relativeImport(pagesRoot, `${layout.file}.tsx`, true))};`);
@@ -113,17 +123,17 @@ function assertionSource(
       .filter((page): page is NonNullable<typeof page> => page !== undefined)
       .map(page => typeExportName(page.propsType));
     const props = applicable.length === 0 ? "Record<string, unknown>" : [...new Set(applicable)].sort().join(" | ");
-    lines.push(`const layout${index}: FunctionComponent<DotReactLayoutProps<${props}>> = Layout${index};`);
+    lines.push(`Layout${index} satisfies FunctionComponent<DotReactLayoutProps<${props}>>;`);
   });
   boundaries.forEach((boundary, index) => {
     lines.push(`import Boundary${index} from ${JSON.stringify(relativeImport(pagesRoot, `${boundary.file}.tsx`, true))};`);
     lines.push(boundary.kind === "loading"
-      ? `const boundary${index}: ComponentType<Record<never, never>> = Boundary${index};`
-      : `const boundary${index}: ComponentType<DotReactBoundaryProps> = Boundary${index};`);
+      ? `Boundary${index} satisfies ComponentType<Record<never, never>>;`
+      : `Boundary${index} satisfies ComponentType<DotReactBoundaryProps>;`);
   });
   if (globalError !== undefined) {
     lines.push(`import GlobalError from ${JSON.stringify(relativeImport(pagesRoot, `${globalError}.tsx`, true))};`);
-    lines.push("const globalError: ComponentType<{ readonly error: Error; readonly reset: () => void }> = GlobalError;");
+    lines.push("GlobalError satisfies ComponentType<{ readonly error: Error; readonly reset: () => void }>;");
   }
   return lines.join("\n") + "\n";
 }
