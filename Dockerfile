@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM node:24-bookworm-slim AS node-base
+FROM node:26-bookworm-slim AS node-base
 
 FROM node-base AS frontend-build
 WORKDIR /src
