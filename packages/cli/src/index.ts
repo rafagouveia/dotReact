@@ -285,6 +285,8 @@ async function create(name: string | undefined, template: string | undefined): P
 async function applyMinimalTemplate(target: string): Promise<void> {
   for (const path of [
     "app/_actions",
+    "app/benchmark",
+    "app/benchmark-interactive",
     "app/products",
     "app/streaming"
   ]) await rm(resolve(target, path), { recursive: true, force: true });

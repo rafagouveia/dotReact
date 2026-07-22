@@ -10,7 +10,7 @@ on the server and hydrates it in the browser.
 
 This repository contains a reusable pre-release framework, CLI scaffold and three
 reference applications. The runtime boundary and production lifecycle are
-implemented; coordinated private npm and NuGet packages are available at version `0.1.2`.
+implemented; coordinated private npm and NuGet packages are available at version `0.1.3`.
 Public surfaces follow the repository's [compatibility and deprecation policy](COMPATIBILITY.md).
 
 The source is licensed under [MPL 2.0](LICENSE). Applications may use DotReact,
@@ -89,7 +89,7 @@ the counter proves that React hydrated the same tree in the browser.
 Using the published private CLI package:
 
 ```powershell
-npm exec --yes --package=@rafagouveia/dotreact-cli@0.1.2 -- dotreact create my-app --template starter
+npm exec --yes --package=@rafagouveia/dotreact-cli@0.1.3 -- dotreact create my-app --template starter
 cd my-app
 npm install
 npm run dev
