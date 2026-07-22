@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted for the first opt-in vertical slice.
+Superseded for new applications by ADR 014. This document preserves the first
+opt-in slice and its security decisions; current scaffolds use the unified
+`app/` router.
 
 ## Decision
 
@@ -23,7 +25,7 @@ and emits three deterministic artifacts: TypeScript contracts, typed action
 clients and a backend manifest. The existing explicit TypeGen and
 `MapDotReactPage` APIs remain supported.
 
-The Vite plugin scans only `src/pages/**/*.drx`, resolves canonical paths,
+The original Vite plugin scanned only `src/pages/**/*.drx`, resolved canonical paths,
 rejects a pages root outside the application, ignores escaping symlinks and
 builds `virtual:dotreact/pages` from static imports. Request data is never used
 to construct a filesystem path or import specifier.

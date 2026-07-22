@@ -163,11 +163,14 @@ export const docs: readonly DocPage[] = [
         { name: "React", defaultValue: "19.2.x", description: "SSR com react-dom/server e hydrateRoot no cliente." },
         { name: "Vite / TypeScript", defaultValue: "8.1.x / 7.0.x", description: "Build, HMR e verificação semântica de .drx." }
       ]} />
-      <h3>Pré-release privado por pacotes</h3>
+      <h3>Distribuição privada 0.x por pacotes</h3>
       <p>O runtime, a CLI e o TypeGen são publicados no GitHub Packages sob as versões coordenadas do DotReact. O scaffold fixa versões exatas em <code>package.json</code>, <code>Server.csproj</code> e <code>.config/dotnet-tools.json</code>; ele não copia o código-fonte do framework para a aplicação.</p>
       <CodeBlock label="PowerShell · autenticação local" code={'npm config set @rafagouveia:registry https://npm.pkg.github.com --location=user\nnpm config set //npm.pkg.github.com/:_authToken "$env:GITHUB_PACKAGES_TOKEN" --location=user\n\n# O NuGet.config do projeto já declara o feed. A credencial fica fora do Git.\n${env:NuGetPackageSourceCredentials_github-dotreact}="Username=rafagouveia;Password=$env:GITHUB_PACKAGES_TOKEN"'} />
       <p>O projeto abre em modo <strong>focus</strong>: páginas, features, componentes, loaders, actions e pontos oficiais de extensão ficam visíveis; contratos gerados, entrypoints, compiladores e deploy permanecem versionados, mas fora da navegação cotidiana. Use <code>dotreact workspace reveal</code> para configurar infraestrutura e <code>dotreact workspace focus</code> para voltar à visão de aplicação.</p>
-      <CodeBlock label="PowerShell" code={'npm exec --yes --package=@rafagouveia/dotreact-cli@0.1.3 -- dotreact create minha-app --template starter\ncd minha-app\nnpm install\nnpm exec -- dotreact doctor\nnpm run dev'} />
+      <h3>Um comando direto, versão local previsível</h3>
+      <p>Instale o launcher global uma vez. Ao entrar em um projeto, <code>dotreact</code> delega automaticamente para a CLI exata declarada e instalada naquele <code>package.json</code>. O global cria projetos; o local executa doctor, dev, build e generators sem drift.</p>
+      <CodeBlock label="PowerShell" code={'npm install --global @rafagouveia/dotreact-cli@0.1.4 --registry=https://npm.pkg.github.com\ndotreact version\ndotreact create minha-app --template starter\ncd minha-app\nnpm install\ndotreact doctor\ndotreact dev'} />
+      <p>Se o executável ainda não estiver no PATH, reabra o terminal e confirme com <code>Get-Command dotreact</code>. O fallback sem instalação global é <code>npm exec -- dotreact doctor</code>. Em CI, prefira os scripts do projeto ou <code>npm exec</code>.</p>
       <h3>Pronto para versionamento</h3>
       <p>O gerador não cria a pasta <code>.git</code> nem executa <code>git init</code>. Ele entrega somente os arquivos portáveis do repositório: <code>.gitignore</code>, <code>.gitattributes</code>, <code>.editorconfig</code>, <code>.dockerignore</code>, <code>.npmrc</code>, <code>.nvmrc</code>, <code>global.json</code>, regras MSBuild e um workflow GitHub Actions.</p>
       <p>Execute <code>npm install</code> e versione o <code>package-lock.json</code>. Contratos gerados em <code>src/contracts.ts</code>, <code>src/actions.ts</code> e <code>src/backend-manifest.json</code> também devem ser versionados: o CI usa esses arquivos para detectar drift entre C# e TypeScript.</p>
@@ -186,8 +189,8 @@ export const docs: readonly DocPage[] = [
         <Step title="Abra a aplicação"><p>Acesse <code>http://127.0.0.1:5080</code>. O texto inicial já deve existir no HTML retornado pelo servidor.</p></Step>
         <Step title="Mude o loader"><p>Edite <code>app/page.server.cs</code>. O Hot Reload incrementa a revisão do backend e o router busca props SSR novas pela mesma origem.</p></Step>
         <Step title="Mude a view"><p>Edite <code>app/page.drx</code>. Vite aplica Fast Refresh preservando estado React compatível.</p></Step>
-        <Step title="Valide os contratos"><CodeBlock label="Terminal" code={'npm exec -- dotreact sync\nnpm exec -- dotreact check'} /></Step>
-        <Step title="Teste produção"><p><code>npm exec -- dotreact build</code> gera client e SSR separados. <code>npm exec -- dotreact start</code> publica o host e inicia o renderer privado supervisionado.</p></Step>
+        <Step title="Valide os contratos"><CodeBlock label="Terminal" code={'dotreact sync\ndotreact check'} /></Step>
+        <Step title="Teste produção"><p><code>dotreact build</code> gera client e SSR separados. <code>dotreact start</code> publica o host e inicia o renderer privado supervisionado.</p></Step>
       </Steps>
     </>
   },
@@ -580,7 +583,7 @@ app.MapDotReactFallback();`} />
       <p>Artefatos Redis finitos expiram após a janela stale mais a retenção de recuperação. Artefatos estáticos também recebem retenção máxima — 30 dias por padrão — e podem ser regenerados, impedindo que builds abandonados consumam armazenamento indefinidamente.</p>
       <p>Artefatos persistidos nunca contêm cookie, token CSRF ou estado de usuário. Quando uma página estática executa sua primeira Server Action, o client adquire um token antiforgery por <code>/_dotreact/csrf</code> e o reutiliza.</p>
       <p><code>/_dotreact/prerender-manifest</code> expande os providers tipados, limita a cardinalidade e rejeita paths duplicados/incompletos. Hits fresh pulam o loader C#; o HTML usa request ID determinístico e não emite cookie antiforgery.</p>
-      <CodeBlock label="Export estático" code={'# descobre as rotas no manifest C#\nnpm exec -- dotreact export --url http://127.0.0.1:5080 --out dist/static\n\n# --routes continua disponível como override explícito\nnpm exec -- dotreact export --routes /,/products/1'} />
+      <CodeBlock label="Export estático" code={'# descobre as rotas no manifest C#\ndotreact export --url http://127.0.0.1:5080 --out dist/static\n\n# --routes continua disponível como override explícito\ndotreact export --routes /,/products/1'} />
       <h3>Image component + processor real</h3>
       <PairedCode csharp={'// AddDotReactApplication usa public/ por convenção.\n// Configure apenas origens remotas adicionais quando necessário.\nbuilder.AddDotReactApplication(options => { /* extensões */ });'} react={'import { Image } from "@rafagouveia/dotreact-image";\n\n<Image src="/images/product.jpg" width={640} height={480}\n  quality={75} alt="Produto" />'} csharpLabel="Program.cs" reactLabel="page.drx" />
       <p>O plugin SkiaSharp separado faz resize e encode JPEG/PNG/WebP em Windows/Linux. O endpoint limita origem, bytes, pixels, width e quality, bloqueia SSRF/traversal e responde ETag/cache. O core continua aceitando outro <code>IDotReactImageProcessor</code>.</p>
@@ -614,6 +617,7 @@ app.MapDotReactFallback();`} />
     body: <>
       <h2>Comandos implementados</h2>
       <ReferenceTable valueHeading="Argumentos principais" rows={[
+        { name: "version", description: "Mostra a versão efetiva depois da delegação global para local." },
         { name: "create", defaultValue: "<name> --template starter|minimal", description: "Cria um projeto autônomo com pacotes npm, NuGet e TypeGen alinhados." },
         { name: "templates", description: "Lista starter e minimal." },
         { name: "generate page", defaultValue: "<route> [--dry-run]", description: "Cria page.drx e companion C# sem sobrescrever." },
@@ -626,15 +630,17 @@ app.MapDotReactFallback();`} />
         { name: "dev / build / start", description: "O executor do framework coordena contratos, bundles client/SSR, Release ASP.NET, publish e runtime." },
         { name: "analyze", defaultValue: "--max-client-kb / --max-ssr-kb", description: "Mede bundle raw/gzip e aplica budgets." },
         { name: "benchmark", defaultValue: "[url] --compare baseline --json", description: "Mede TTFB, resposta completa, p50/p95/p99, throughput e budgets comparativos." },
+        { name: "routes", defaultValue: "[--url]", description: "Explica SSR, prerender/ISR e hidratação seletiva por rota." },
         { name: "export", defaultValue: "[--routes] --url --out", description: "Descobre o prerender manifest C# ou usa override e materializa HTML portátil." },
         { name: "architecture", description: "Valida o contrato App Router e apresenta correções acionáveis." },
         { name: "security", defaultValue: "[--static-only]", description: "Procura sinks inseguros e, no modo completo, audita dependências npm e .NET." },
         { name: "health", description: "Executa doctor e o gate completo do projeto: contratos, testes, build, budgets e auditorias." },
         { name: "doctor", description: "Valida runtimes, zonas, scripts, assets públicos, Lighthouse, Docker e manifests Azure." },
+        { name: "upgrade", defaultValue: "<version> [--dry-run]", description: "Alinha npm, NuGet e TypeGen sem reescrever código da aplicação." },
         { name: "workspace", defaultValue: "focus|reveal|status", description: "Alterna entre a visão limpa da aplicação e a infraestrutura avançada." }
       ]} />
-      <CodeBlock label="Terminal" code={'npm exec -- dotreact generate page catalog/[slug] --dry-run\nnpm exec -- dotreact generate page catalog/[slug]\nnpm exec -- dotreact generate component ProductCard --route catalog\nnpm exec -- dotreact generate action SaveProduct --route catalog\nnpm exec -- dotreact generate boundary catalog --kind loading\nnpm exec -- dotreact sync\nnpm exec -- dotreact architecture\nnpm exec -- dotreact check\nnpm exec -- dotreact security\nnpm exec -- dotreact build\nnpm exec -- dotreact analyze --max-client-kb 100 --max-ssr-kb 50\nnpm exec -- dotreact health\nnpm exec -- dotreact workspace focus'} />
-      <p>Projetos gerados fixam <code>@rafagouveia/dotreact-cli</code> como devDependency. Portanto <code>npm exec -- dotreact</code> usa a versão do próprio projeto, sem instalação global e sem depender de um checkout do framework.</p>
+      <CodeBlock label="Terminal" code={'dotreact version\ndotreact generate page catalog/[slug] --dry-run\ndotreact generate page catalog/[slug]\ndotreact generate component ProductCard --route catalog\ndotreact generate action SaveProduct --route catalog\ndotreact generate boundary catalog --kind loading\ndotreact sync\ndotreact routes\ndotreact architecture\ndotreact check\ndotreact security\ndotreact build\ndotreact analyze --max-client-kb 100 --max-ssr-kb 50\ndotreact health\ndotreact workspace focus'} />
+      <p>Projetos gerados fixam <code>@rafagouveia/dotreact-cli</code> como devDependency. O launcher global encontra e executa essa versão local; <code>npm exec -- dotreact</code> continua disponível como fallback explícito.</p>
       <p><code>add</code> é alias de <code>generate</code>. Generators rejeitam traversal e colisões; não há flag de overwrite.</p>
     </>
   },

@@ -115,7 +115,7 @@ export function CliLab() {
       <label>{locale === "pt" ? "Projeto" : "Project"}
         <input value={name} onChange={event => setName(event.target.value)} />
       </label>
-      <CodeBlock label="Terminal" code={`npm run create -- create ${safeName} --template ${template}\ncd ${safeName}\nnpm install\ndotreact doctor\ndotreact dev`} />
+      <CodeBlock label="Terminal" code={`dotreact create ${safeName} --template ${template}\ncd ${safeName}\nnpm install\ndotreact doctor\ndotreact dev`} />
     </div>
   );
 }

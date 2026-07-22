@@ -1,6 +1,6 @@
 {
   "name": "dotreact-monorepo",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -44,6 +44,6 @@
     "postcss": "8.5.21"
   },
   "dependencies": {
-    "@rafagouveia/dotreact-cli": "0.1.3"
+    "@rafagouveia/dotreact-cli": "0.1.4"
   }
 }

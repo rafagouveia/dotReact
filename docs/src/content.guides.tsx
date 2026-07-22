@@ -117,7 +117,7 @@ export const guideDocs: readonly DocPage[] = [
     body: <>
       <h2>Comece por uma entrega vertical pequena</h2>
       <p>Um projeto DotReact nasce pronto para SSR, hydration, segurança, assets e produção. O primeiro trabalho da equipe não é configurar Vite ou montar um segundo backend: é descrever o domínio, criar um caso de uso C# e expor somente o contrato necessário para uma página DRX.</p>
-      <CodeBlock label="Terminal" code={'npm run create -- create accounting-portal --template starter\ncd accounting-portal\nnpm install\nnpm exec -- dotreact doctor\nnpm run dev'} />
+      <CodeBlock label="Terminal" code={'dotreact create accounting-portal --template starter\ncd accounting-portal\nnpm install\ndotreact doctor\ndotreact dev'} />
       <Steps>
         <Step title="Registre a identidade"><p>Atualize <code>docs/ai/PROJECT.md</code> com produto, usuários, módulos, persistência e alvo de deploy. O CLI já aplica o nome informado ao package, namespace C#, assembly, metadata e manifesto.</p></Step>
         <Step title="Gere a rota"><p>Use <code>dotreact generate page invoices/[id]</code>. O comando cria somente os arquivos públicos da feature e não altera o runtime.</p></Step>
@@ -167,7 +167,7 @@ export const guideDocs: readonly DocPage[] = [
         { name: "SQL Server", defaultValue: "ecossistema Microsoft", description: "Provider oficial EF Core, Azure SQL e integração madura com ferramentas .NET." }
       ]} />
       <h3>1. Gere a feature e escolha o provider</h3>
-      <CodeBlock label="Terminal" code={'npm exec -- dotreact generate page work-items\nnpm exec -- dotreact generate action CreateWorkItem\nnpm exec -- dotreact generate action UpdateWorkItem\nnpm exec -- dotreact generate action DeleteWorkItem\n\n' + databasePackages} />
+      <CodeBlock label="Terminal" code={'dotreact generate page work-items\ndotreact generate action CreateWorkItem\ndotreact generate action UpdateWorkItem\ndotreact generate action DeleteWorkItem\n\n' + databasePackages} />
       <p>O tutorial instala os três providers para o switch compilar como está. No produto real, remova os cases e pacotes que não serão usados. Tudo fica em Infrastructure; Domain e Application continuam sem referência ao EF Core.</p>
       <h3>2. Configure sem colocar secret no Git</h3>
       <CodeBlock label="appsettings.Development.json + ambiente" code={databaseConfiguration} />
@@ -239,7 +239,7 @@ export const guideDocs: readonly DocPage[] = [
         { name: "minimal", defaultValue: "produto limpo", description: "Mantém uma rota SSR, infraestrutura de produção e documentação, removendo demos e actions." }
       ]} />
       <p>O nome passado ao <code>create</code> define package npm, namespace/root namespace C#, assembly, metadata inicial, manifesto e perfil do projeto. Um projeto <code>Arxis</code> não deve conservar <code>DotReact.Starter</code> em código de aplicação.</p>
-      <CodeBlock label="Criar e manter" code={'npm exec --yes --package=@rafagouveia/dotreact-cli@0.1.3 -- dotreact create arxis --template minimal\ncd arxis\nnpm install\n\n# em uma próxima versão, atualize npm, NuGet e TypeGen em conjunto\nnpm exec -- dotreact upgrade 0.1.4\nnpm install\nnpm run verify'} />
+      <CodeBlock label="Criar e manter" code={'# instalação única do launcher\nnpm install --global @rafagouveia/dotreact-cli@0.1.4 --registry=https://npm.pkg.github.com\n\ndotreact create arxis --template minimal\ncd arxis\nnpm install\ndotreact doctor\n\n# em uma release futura, alinhe npm, NuGet e TypeGen em conjunto\ndotreact upgrade <versão-publicada> --dry-run\ndotreact upgrade <versão-publicada>\nnpm install\nnpm run verify'} />
       <h3>O que o upgrade pode alterar</h3>
       <ul className="feature-list">
         <li>dependências DotReact em <code>package.json</code>, <code>Server.csproj</code> e no manifesto da ferramenta local;</li>

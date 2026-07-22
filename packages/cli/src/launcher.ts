@@ -21,10 +21,10 @@ function canonicalPath(path: string): string {
   }
 }
 
-function declaresCli(manifest: PackageManifest): boolean {
-  return manifest.dependencies?.[cliPackageName] !== undefined
-    || manifest.devDependencies?.[cliPackageName] !== undefined
-    || manifest.optionalDependencies?.[cliPackageName] !== undefined;
+function declaredCliVersion(manifest: PackageManifest): string | undefined {
+  return manifest.dependencies?.[cliPackageName]
+    ?? manifest.devDependencies?.[cliPackageName]
+    ?? manifest.optionalDependencies?.[cliPackageName];
 }
 
 /**
@@ -35,24 +35,36 @@ function declaresCli(manifest: PackageManifest): boolean {
 export function resolveProjectCli(startDirectory: string, launcherBin = currentBin): string | undefined {
   let directory = resolve(startDirectory);
   const volumeRoot = parse(directory).root;
+  let nearestDeclaration: { readonly packagePath: string; readonly version: string } | undefined;
   while (true) {
     const packagePath = resolve(directory, "package.json");
     if (existsSync(packagePath)) {
       try {
         const manifest = JSON.parse(readFileSync(packagePath, "utf8")) as PackageManifest;
-        if (declaresCli(manifest)) {
+        const version = declaredCliVersion(manifest);
+        if (version !== undefined) {
+          nearestDeclaration ??= { packagePath, version };
           const candidate = resolve(directory, "node_modules", "@rafagouveia", "dotreact-cli", "bin", "dotreact.js");
-          if (existsSync(candidate) && canonicalPath(candidate) !== canonicalPath(launcherBin)) return candidate;
-          if (!existsSync(candidate) && process.env[delegationGuard] !== "1")
-            throw new Error(`DotReact CLI is declared by ${packagePath} but is not installed. Run npm install.`);
+          if (existsSync(candidate)) {
+            const installedManifest = JSON.parse(readFileSync(resolve(dirname(candidate), "../package.json"), "utf8")) as { version?: string };
+            if (/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(nearestDeclaration.version)
+              && installedManifest.version !== nearestDeclaration.version)
+              throw new Error(`DotReact CLI ${nearestDeclaration.version} is declared by ${nearestDeclaration.packagePath}, but ${installedManifest.version ?? "an unknown version"} is installed. Run npm install.`);
+            if (canonicalPath(candidate) !== canonicalPath(launcherBin)) return candidate;
+            return undefined;
+          }
         }
       } catch (error) {
-        if (error instanceof Error && error.message.startsWith("DotReact CLI is declared")) throw error;
+        if (error instanceof Error && error.message.startsWith("DotReact CLI")) throw error;
         // The CLI command itself will provide the project diagnostic. A broken
         // package manifest must never redirect execution to an arbitrary file.
       }
     }
-    if (directory === volumeRoot) return undefined;
+    if (directory === volumeRoot) {
+      if (nearestDeclaration !== undefined && process.env[delegationGuard] !== "1")
+        throw new Error(`DotReact CLI is declared by ${nearestDeclaration.packagePath} but is not installed. Run npm install.`);
+      return undefined;
+    }
     directory = dirname(directory);
   }
 }

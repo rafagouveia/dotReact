@@ -55,17 +55,17 @@ npm install
 npm run dev
 ```
 
-Projects created during the pre-release vendor the CLI too, so project-local
-commands work without a global installation:
+The project pins its CLI version. A one-time global launcher delegates every
+command below to that project-local package:
 
 ```powershell
-npm exec -- dotreact doctor
-npm exec -- dotreact generate page catalog/[slug]
-npm exec -- dotreact generate component ProductCard --route catalog
-npm exec -- dotreact generate action SaveProduct --route catalog
-npm exec -- dotreact check
-npm exec -- dotreact security
-npm exec -- dotreact health
+dotreact doctor
+dotreact generate page catalog/[slug]
+dotreact generate component ProductCard --route catalog
+dotreact generate action SaveProduct --route catalog
+dotreact check
+dotreact security
+dotreact health
 ```
 
 Open `http://127.0.0.1:5080`.
@@ -177,7 +177,7 @@ DotReact is consumed through exact npm and NuGet versions plus a pinned local
 machine, then upgrade the complete runtime contract together:
 
 ```powershell
-dotreact upgrade 0.1.3
+dotreact upgrade <published-version>
 npm install
 npm run verify
 ```

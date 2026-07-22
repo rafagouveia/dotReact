@@ -103,7 +103,14 @@ async function generate(expected, missing, stale, current) {
 }
 
 function normalizeTechnicalTranslation(source, translation) {
+  if (/^(?:dotreact(?:\s+.*)?|virtual:dotreact\/[A-Za-z0-9_./-]+|@rafagouveia\/dotreact-[A-Za-z0-9_-]+)$/u.test(source))
+    return source;
   let result = translation;
+  result = result
+    .replaceAll("dotreat", "dotreact")
+    .replaceAll("doreact", "dotreact")
+    .replaceAll("Dotreat", "DotReact")
+    .replaceAll("Doreact", "DotReact");
   if (/\bbanco|bancos\b/iu.test(source))
     result = result.replace(/\bbank(?:ing)?\b/giu, "database").replace(/\bbanks\b/giu, "databases");
   if (/\bhidrat/iu.test(source))
@@ -117,6 +124,9 @@ function normalizeTechnicalTranslation(source, translation) {
 
 function hasTerminologyError(source, translation) {
   if (typeof translation !== "string") return false;
+  if (/\b(?:doreact|dotreat)\b/iu.test(translation)) return true;
+  const protectedTokens = source.match(/(?:virtual:dotreact\/[A-Za-z0-9_./-]+|@rafagouveia\/dotreact-[A-Za-z0-9_-]+|\bdotreact(?:\s+[a-z][a-z-]*)?)/gu) ?? [];
+  if (protectedTokens.some(token => !translation.includes(token))) return true;
   if (/\bbanco|bancos\b/iu.test(source) && /\bbank(?:ing|s)?\b/iu.test(translation)) return true;
   if (/\bhidrat/iu.test(source) && /\bmoistur/iu.test(translation)) return true;
   if (/\bporta\b/iu.test(source) && /\bdoor\b/iu.test(translation)) return true;
@@ -153,6 +163,7 @@ function shouldKeep(value) {
   if (/^\d+(?:\.\d+)?$/u.test(value)) return true;
   if (/^[A-Z0-9_.+/@:[\]()-]{2,}$/u.test(value)) return true;
   if (/^(?:C#|React|TypeScript|PowerShell|Terminal|Program\.cs|page\.drx|package\.json)$/u.test(value)) return true;
+  if (/^(?:dotreact(?:\s+.*)?|virtual:dotreact\/|@rafagouveia\/dotreact-)/u.test(value)) return true;
   if (/^(?:app|src|Server|Domain|Application|Infrastructure|Presentation|public|vendor)\//u.test(value)) return true;
   return false;
 }

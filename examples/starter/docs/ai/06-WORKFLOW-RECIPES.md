@@ -4,7 +4,7 @@
 
 ```powershell
 npm install
-npm exec -- dotreact doctor
+dotreact doctor
 npm run check:contracts
 npm run typecheck
 npm run dev
@@ -18,7 +18,7 @@ ASP.NET; the renderer port is private infrastructure.
 Prefer the CLI to create collision-safe files:
 
 ```powershell
-npm exec -- dotreact generate page invoices/[id]
+dotreact generate page invoices/[id]
 ```
 
 Then:
@@ -34,7 +34,7 @@ Then:
 ## Add a Server Action
 
 ```powershell
-npm exec -- dotreact generate action CreateInvoice
+dotreact generate action CreateInvoice
 ```
 
 Then:
@@ -51,10 +51,10 @@ Then:
 ## Add a layout or boundary
 
 ```powershell
-npm exec -- dotreact generate layout invoices
-npm exec -- dotreact generate boundary invoices --kind loading
-npm exec -- dotreact generate boundary invoices --kind error
-npm exec -- dotreact generate boundary invoices --kind not-found
+dotreact generate layout invoices
+dotreact generate boundary invoices --kind loading
+dotreact generate boundary invoices --kind error
+dotreact generate boundary invoices --kind not-found
 ```
 
 Keep layouts free of hidden backend access. Boundaries must be accessible,

@@ -1,9 +1,10 @@
-# ADR 006: Unified app router
+# ADR 014: Unified app router
 
 ## Status
 
-Accepted for the 0.2 development line. The legacy `src/pages` plus attributed
-loader model remains supported for compatibility during the deprecation window.
+Accepted and shipped in the 0.1.x scaffold. The legacy `src/pages` plus
+attributed loader model remains a compatibility surface, but it is not generated
+for new applications.
 
 ## Context
 

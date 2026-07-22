@@ -1,6 +1,6 @@
 # Private GitHub Packages
 
-DotReact prerelease packages are published in the `rafagouveia` GitHub Packages
+DotReact private 0.x packages are published in the `rafagouveia` GitHub Packages
 namespace. Publishing new immutable versions is manual and disabled by default.
 
 ## Package coordinates
@@ -67,14 +67,26 @@ For another private repository, grant that repository access on each package's
 GitHub **Manage Actions access** page; `packages: read` alone cannot bypass a
 package that has not shared access with the consuming repository.
 
-Create a project without cloning the framework repository:
+Install the launcher once and create a project without cloning the framework
+repository:
 
 ```powershell
-npm exec --yes --package=@rafagouveia/dotreact-cli@0.1.3 -- dotreact create my-app --template starter
+npm install --global @rafagouveia/dotreact-cli@0.1.4 --registry=https://npm.pkg.github.com
+dotreact version
+dotreact create my-app --template starter
 cd my-app
 npm install
-npm exec -- dotreact doctor
+dotreact doctor
 ```
+
+The global executable is only a launcher. Inside a project, it locates the
+nearest `package.json` that explicitly declares `@rafagouveia/dotreact-cli` and
+executes that installed local version. If dependencies are missing it fails
+closed and asks for `npm install`; it never silently runs a different global
+version. `npm exec -- dotreact doctor` remains the no-global fallback and is the
+recommended form for CI. With nvm/fnm, global packages belong to the active Node
+installation, so reinstall the launcher after switching Node versions if
+`Get-Command dotreact` no longer resolves it.
 
 ## Cost controls
 

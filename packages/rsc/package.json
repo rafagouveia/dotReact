@@ -1,6 +1,6 @@
 {
   "name": "@rafagouveia/dotreact-rsc",
-  "version": "0.1.3-experimental.0",
+  "version": "0.1.4-experimental.0",
   "description": "Experimental React Server Components integration for DotReact.",
   "license": "MPL-2.0",
   "repository": {
