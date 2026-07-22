@@ -1,3 +1,3 @@
-import { defineDotReactConfig } from "@dotreact/vite";
+import { defineDotReactConfig } from "@blackredsolutionsteam/dotreact-vite";
 
 export default defineDotReactConfig();

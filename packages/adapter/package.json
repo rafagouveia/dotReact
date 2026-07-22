@@ -1,7 +1,11 @@
 {
-  "name": "@dotreact/adapter",
+  "name": "@blackredsolutionsteam/dotreact-adapter",
   "version": "0.1.0",
-  "private": true,
+  "description": "Deployment adapters for DotReact applications.",
+  "license": "MPL-2.0",
+  "repository": { "type": "git", "url": "git+https://github.com/rafagouveia/dotReact.git", "directory": "packages/adapter" },
+  "publishConfig": { "registry": "https://npm.pkg.github.com", "access": "restricted" },
+  "files": ["dist", "README.md", "!dist/**/*.test.*"],
   "type": "module",
   "exports": {
     ".": {

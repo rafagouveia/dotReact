@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>Redis-backed cache, prerender and session infrastructure for DotReact.</Description>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../DotReact.AspNetCore/DotReact.AspNetCore.csproj" />

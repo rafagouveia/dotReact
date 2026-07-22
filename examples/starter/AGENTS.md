@@ -57,7 +57,7 @@ verify the behavior in framework tests before changing application code.
   same route module, layouts, boundaries and initial props.
 - Import modular CSS from its owning DRX/layout/component. Keep only reset,
   tokens and document defaults in `src/styles.css`; declare local fonts in
-  `app/fonts.ts` with `@dotreact/font`. DotReact promotes
+  `app/fonts.ts` with `@blackredsolutionsteam/dotreact-font`. DotReact promotes
   route CSS into the SSR head before first paint.
 
 ## File ownership map

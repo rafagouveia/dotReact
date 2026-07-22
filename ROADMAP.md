@@ -111,12 +111,12 @@ continues to validate conventional ASP.NET Core endpoints and SQLite flows.
 - Production emits fingerprinted global/route CSS and initial module preloads from a build-generated private manifest before SSR HTML.
 - Props have a fail-closed serialized-size budget and OpenTelemetry histogram.
 - Browser CLS, INP, LCP and TTFB use a bounded same-origin collector correlated through W3C trace context.
-- Local fonts support face-level critical preload and `@dotreact/script` provides safe loading strategies.
+- Local fonts support face-level critical preload and `@blackredsolutionsteam/dotreact-script` provides safe loading strategies.
 
 ## M6 — Experimental React architecture
 
 - Flight frame transport and capability negotiation exist in protocol v2.
-- `@dotreact/rsc` uses the official Vite RSC plugin with pinned React/RSC versions,
+- `@blackredsolutionsteam/dotreact-rsc` uses the official Vite RSC plugin with pinned React/RSC versions,
   separates rsc/ssr/client environments and rejects JavaScript Server Actions.
 - `examples/rsc` produces real SSR HTML, embedded Flight hydration data and a
   `text/x-component` response; it remains isolated from the stable DRX runtime.

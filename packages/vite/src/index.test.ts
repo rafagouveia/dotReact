@@ -3,7 +3,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { localFont } from "@dotreact/font";
+import { localFont } from "@blackredsolutionsteam/dotreact-font";
 import { checkDotReactProject, collectDotReactRouteStyles, createDotReactDevelopmentStyleSheet, createDotReactRouteAssetManifest, createDotReactRouteStyleSheet, defineDotReactConfig, dotReact, inferDotReactRoute, resolveDotReactDiagnosticFile, scanDotReactGraph, scanDotReactPages } from "./index.js";
 
 async function fixture(): Promise<string> {
@@ -231,13 +231,13 @@ test("route graph enables hydration only when browser behavior is detected", asy
   await fs.mkdir(path.join(root, "app/router"), { recursive: true });
   await fs.mkdir(path.join(root, "app/_components"), { recursive: true });
   await fs.writeFile(path.join(root, "app/static/page.drx"),
-    'import { definePage } from "@dotreact/client/router"; export default definePage(() => <main>Static</main>);');
+    'import { definePage } from "@blackredsolutionsteam/dotreact-client/router"; export default definePage(() => <main>Static</main>);');
   await fs.writeFile(path.join(root, "app/_components/Counter.tsx"),
     'import { useState } from "react"; export default function Counter() { const [value] = useState(0); return <button>{value}</button>; }');
   await fs.writeFile(path.join(root, "app/interactive/page.drx"),
     'import Counter from "../_components/Counter"; export default () => <Counter />;');
   await fs.writeFile(path.join(root, "app/router/page.drx"),
-    'import { useDotReactRouter } from "@dotreact/client/router"; export default function Page() { const router = useDotReactRouter(); return <main>{router.url}</main>; }');
+    'import { useDotReactRouter } from "@blackredsolutionsteam/dotreact-client/router"; export default function Page() { const router = useDotReactRouter(); return <main>{router.url}</main>; }');
 
   const graph = await scanDotReactGraph(root, "app");
 

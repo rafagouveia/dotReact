@@ -1,8 +1,8 @@
 import { useState } from "react";
 import type { HomePageProps } from "../src/contracts";
 import { demoIncrement } from "../src/actions";
-import type { DotReactMetadata } from "@dotreact/vite";
-import { definePage, DotReactLink } from "@dotreact/client/router";
+import type { DotReactMetadata } from "@blackredsolutionsteam/dotreact-vite";
+import { definePage, DotReactLink } from "@blackredsolutionsteam/dotreact-client/router";
 
 export const metadata: DotReactMetadata = {
   title: "DotReact · C# + React SSR",

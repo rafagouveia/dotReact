@@ -1,7 +1,11 @@
 {
-  "name": "@dotreact/cli",
+  "name": "@blackredsolutionsteam/dotreact-cli",
   "version": "0.1.0",
-  "private": true,
+  "description": "Project lifecycle and diagnostics CLI for DotReact.",
+  "license": "MPL-2.0",
+  "repository": { "type": "git", "url": "git+https://github.com/rafagouveia/dotReact.git", "directory": "packages/cli" },
+  "publishConfig": { "registry": "https://npm.pkg.github.com", "access": "restricted" },
+  "files": ["dist", "!dist/**/*.test.*"],
   "type": "module",
   "bin": { "dotreact": "./dist/index.js" },
   "scripts": {

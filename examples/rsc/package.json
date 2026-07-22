@@ -1,5 +1,5 @@
 {
-  "name": "@dotreact/example-rsc",
+  "name": "@blackredsolutionsteam/dotreact-example-rsc",
   "version": "0.1.0-experimental.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@dotreact/rsc": "0.1.0-experimental.0",
+    "@blackredsolutionsteam/dotreact-rsc": "0.1.0-experimental.0",
     "react": "19.2.7",
     "react-dom": "19.2.7"
   },

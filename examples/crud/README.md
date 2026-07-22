@@ -7,8 +7,8 @@ Actions, automatic route revalidation, authorization, and SQLite persistence.
 
 ```powershell
 npm install
-npm run generate -w @dotreact/example-crud
-npm run dev -w @dotreact/example-crud
+npm run generate -w @blackredsolutionsteam/dotreact-example-crud
+npm run dev -w @blackredsolutionsteam/dotreact-example-crud
 ```
 
 Open `http://127.0.0.1:5090`.
@@ -66,14 +66,14 @@ generated Server Actions.
 
 ## Generated boundary
 
-Run `npm run generate -w @dotreact/example-crud` after changing a public loader,
+Run `npm run generate -w @blackredsolutionsteam/dotreact-example-crud` after changing a public loader,
 action or presentation contract. It regenerates:
 
 - `src/contracts.ts`: C# records, DTOs and enum unions as TypeScript types;
 - `src/actions.ts`: typed action callers;
 - `src/backend-manifest.json`: discovered page and action metadata.
 
-`npm run check:contracts -w @dotreact/example-crud` is the non-mutating CI guard
+`npm run check:contracts -w @blackredsolutionsteam/dotreact-example-crud` is the non-mutating CI guard
 that fails when these artifacts are stale.
 
 ## Security model
@@ -90,9 +90,9 @@ concurrency policies. `/health` is intentionally public for platform probes.
 ## Validation
 
 ```powershell
-npm run check:contracts -w @dotreact/example-crud
-npm run typecheck -w @dotreact/example-crud
-npm run build -w @dotreact/example-crud
+npm run check:contracts -w @blackredsolutionsteam/dotreact-example-crud
+npm run typecheck -w @blackredsolutionsteam/dotreact-example-crud
+npm run build -w @blackredsolutionsteam/dotreact-example-crud
 dotnet test examples/crud/Server.Tests/Server.Tests.csproj -c Release
 ```
 

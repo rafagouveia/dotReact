@@ -6,7 +6,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { createServer as createNetServer, type Socket } from "node:net";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { PROTOCOL_VERSION, isRenderRequest, type RenderFailure, type RenderResponse } from "@dotreact/protocol";
+import { PROTOCOL_VERSION, isRenderRequest, type RenderFailure, type RenderResponse } from "@blackredsolutionsteam/dotreact-protocol";
 import {
   BINARY_RENDER_MEDIA_TYPE,
   binaryFailure,

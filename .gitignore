@@ -51,6 +51,8 @@ benchmarks/results/
 .env
 .env.*
 !.env.example
+.npmrc.local
+nuget.config.local
 appsettings.*.local.json
 appsettings.Local.json
 *.pfx

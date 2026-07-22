@@ -1,5 +1,5 @@
 {
-  "name": "@dotreact/example-starter",
+  "name": "@blackredsolutionsteam/dotreact-example-starter",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -26,17 +26,18 @@
     "verify": "npm run check:contracts && npm run typecheck && dotreact security --static-only && npm run build && npm run analyze && npm audit --audit-level=high && npm run audit:dotnet"
   },
   "dependencies": {
-    "@dotreact/client": "0.1.0",
-    "@dotreact/font": "0.1.0",
-    "@dotreact/image": "0.1.0",
-    "@dotreact/script": "0.1.0",
-    "@dotreact/protocol": "0.1.0",
-    "@dotreact/renderer": "0.1.0",
+    "@blackredsolutionsteam/dotreact-client": "0.1.0",
+    "@blackredsolutionsteam/dotreact-font": "0.1.0",
+    "@blackredsolutionsteam/dotreact-image": "0.1.0",
+    "@blackredsolutionsteam/dotreact-script": "0.1.0",
+    "@blackredsolutionsteam/dotreact-protocol": "0.1.0",
+    "@blackredsolutionsteam/dotreact-renderer": "0.1.0",
     "react": "19.2.7",
     "react-dom": "19.2.7"
   },
   "devDependencies": {
-    "@dotreact/vite": "0.1.0",
+    "@blackredsolutionsteam/dotreact-cli": "0.1.0",
+    "@blackredsolutionsteam/dotreact-vite": "0.1.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "lighthouse": "13.4.1",

@@ -59,7 +59,7 @@ export function createAzureDeploymentAdapter(options: AzureDeploymentAdapterOpti
     requiredServices
   };
   const descriptor = {
-    name: "@dotreact/adapter-azure",
+    name: "@blackredsolutionsteam/dotreact-adapter-azure",
     version: "1.0.0",
     capabilities,
     platform,

@@ -1,7 +1,11 @@
 {
-  "name": "@dotreact/client",
+  "name": "@blackredsolutionsteam/dotreact-client",
   "version": "0.1.0",
-  "private": true,
+  "description": "Hydration, navigation and Server Action client runtime for DotReact.",
+  "license": "MPL-2.0",
+  "repository": { "type": "git", "url": "git+https://github.com/rafagouveia/dotReact.git", "directory": "packages/client" },
+  "publishConfig": { "registry": "https://npm.pkg.github.com", "access": "restricted" },
+  "files": ["dist", "!dist/**/*.test.*"],
   "type": "module",
   "exports": {
     ".": "./dist/index.js",

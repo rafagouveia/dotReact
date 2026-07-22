@@ -1,7 +1,11 @@
 {
-  "name": "@dotreact/vite",
+  "name": "@blackredsolutionsteam/dotreact-vite",
   "version": "0.1.0",
-  "private": true,
+  "description": "Vite plugin, App Router compiler and DRX checker for DotReact.",
+  "license": "MPL-2.0",
+  "repository": { "type": "git", "url": "git+https://github.com/rafagouveia/dotReact.git", "directory": "packages/vite" },
+  "publishConfig": { "registry": "https://npm.pkg.github.com", "access": "restricted" },
+  "files": ["dist", "scripts", "!dist/**/*.test.*"],
   "type": "module",
   "exports": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,7 +18,7 @@
     "test": "node --test dist/index.test.js"
   },
   "dependencies": {
-    "@dotreact/font": "0.1.0",
+    "@blackredsolutionsteam/dotreact-font": "0.1.0",
     "@vitejs/plugin-react": "6.0.3",
     "typescript": "7.0.2",
     "vite": "8.1.5"

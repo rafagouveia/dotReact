@@ -170,7 +170,7 @@ critical local fonts, keep initial props bounded, lazy-load noncritical routes
 and scripts, preserve semantic labels, and test the heaviest authenticated and
 anonymous routes separately.
 
-Use `@dotreact/script` for external application/third-party scripts. Inline code
+Use `@blackredsolutionsteam/dotreact-script` for external application/third-party scripts. Inline code
 is unsupported; choose `beforeInteractive` only for truly critical consent or
 bootstrap code, and prefer `lazyOnload` for analytics. Root-relative and
 credential-free HTTPS sources are validated and deduplicated by the framework.

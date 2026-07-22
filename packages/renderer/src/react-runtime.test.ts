@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createElement } from "react";
-import { PROTOCOL_VERSION } from "@dotreact/protocol";
+import { PROTOCOL_VERSION } from "@blackredsolutionsteam/dotreact-protocol";
 import { createDotReactReactRuntime } from "./react-runtime.js";
 
 test("framework React runtime owns SSR markup, metadata and font preloads", () => {

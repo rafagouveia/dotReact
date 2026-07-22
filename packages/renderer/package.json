@@ -1,7 +1,11 @@
 {
-  "name": "@dotreact/renderer",
+  "name": "@blackredsolutionsteam/dotreact-renderer",
   "version": "0.1.0",
-  "private": true,
+  "description": "Private Node renderer runtime used by DotReact ASP.NET Core hosts.",
+  "license": "MPL-2.0",
+  "repository": { "type": "git", "url": "git+https://github.com/rafagouveia/dotReact.git", "directory": "packages/renderer" },
+  "publishConfig": { "registry": "https://npm.pkg.github.com", "access": "restricted" },
+  "files": ["dist", "!dist/**/*.test.*"],
   "type": "module",
   "bin": { "dotreact-renderer": "./dist/server.js" },
   "exports": {
@@ -16,8 +20,8 @@
     "start:production": "node dist/production-server.js"
   },
   "dependencies": {
-    "@dotreact/client": "0.1.0",
-    "@dotreact/protocol": "0.1.0",
+    "@blackredsolutionsteam/dotreact-client": "0.1.0",
+    "@blackredsolutionsteam/dotreact-protocol": "0.1.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "vite": "8.1.5"

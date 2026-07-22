@@ -1,4 +1,4 @@
-import { defineLayout, DotReactLink, type DotReactLayoutProps } from "@dotreact/client/router";
+import { defineLayout, DotReactLink, type DotReactLayoutProps } from "@blackredsolutionsteam/dotreact-client/router";
 
 export default defineLayout(function RootLayout({ children, pageProps }: DotReactLayoutProps) {
   const values = typeof pageProps === "object" && pageProps !== null ? pageProps : {};

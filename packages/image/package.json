@@ -1,7 +1,11 @@
 {
-  "name": "@dotreact/image",
+  "name": "@blackredsolutionsteam/dotreact-image",
   "version": "0.1.0",
-  "private": true,
+  "description": "Responsive image component for the DotReact image pipeline.",
+  "license": "MPL-2.0",
+  "repository": { "type": "git", "url": "git+https://github.com/rafagouveia/dotReact.git", "directory": "packages/image" },
+  "publishConfig": { "registry": "https://npm.pkg.github.com", "access": "restricted" },
+  "files": ["dist", "!dist/**/*.test.*"],
   "type": "module",
   "exports": "./dist/index.js",
   "types": "./dist/index.d.ts",

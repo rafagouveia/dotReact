@@ -1,7 +1,11 @@
 {
-  "name": "@dotreact/script",
+  "name": "@blackredsolutionsteam/dotreact-script",
   "version": "0.1.0",
-  "private": true,
+  "description": "Controlled script loading strategies for DotReact.",
+  "license": "MPL-2.0",
+  "repository": { "type": "git", "url": "git+https://github.com/rafagouveia/dotReact.git", "directory": "packages/script" },
+  "publishConfig": { "registry": "https://npm.pkg.github.com", "access": "restricted" },
+  "files": ["dist", "!dist/**/*.test.*"],
   "type": "module",
   "exports": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -11,7 +15,7 @@
     "test": "node --test dist/index.test.js"
   },
   "dependencies": {
-    "@dotreact/client": "0.1.0"
+    "@blackredsolutionsteam/dotreact-client": "0.1.0"
   },
   "devDependencies": {
     "@types/node": "24.10.1",

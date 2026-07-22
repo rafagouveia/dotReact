@@ -1,4 +1,4 @@
-import type { DotReactScriptDescriptor } from "@dotreact/client/router";
+import type { DotReactScriptDescriptor } from "@blackredsolutionsteam/dotreact-client/router";
 
 const idPattern = /^[A-Za-z][A-Za-z0-9._:-]{0,127}$/;
 const integrityPattern = /^sha(?:256|384|512)-[A-Za-z0-9+/]+={0,2}(?:\s+sha(?:256|384|512)-[A-Za-z0-9+/]+={0,2})*$/;
@@ -39,4 +39,4 @@ function isSafeSource(source: string): boolean {
   } catch { return false; }
 }
 
-export type { DotReactScriptDescriptor, DotReactScriptStrategy } from "@dotreact/client/router";
+export type { DotReactScriptDescriptor, DotReactScriptStrategy } from "@blackredsolutionsteam/dotreact-client/router";

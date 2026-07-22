@@ -3,7 +3,7 @@ import {
   type RenderFailure,
   type RenderRequest,
   type RenderResponse
-} from "@dotreact/protocol";
+} from "@blackredsolutionsteam/dotreact-protocol";
 
 const MAGIC = Buffer.from("DTR2", "ascii");
 const REQUEST_HEADER_BYTES = 24;

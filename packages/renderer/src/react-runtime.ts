@@ -1,7 +1,7 @@
 import { PassThrough } from "node:stream";
 import { createElement } from "react";
 import { renderToPipeableStream, renderToString } from "react-dom/server";
-import { DotReactApp, type DotReactAppProps, type DotReactMetadata, type DotReactNavigationPayload, type DotReactPageModule } from "@dotreact/client/router";
+import { DotReactApp, type DotReactAppProps, type DotReactMetadata, type DotReactNavigationPayload, type DotReactPageModule } from "@blackredsolutionsteam/dotreact-client/router";
 import {
   PROTOCOL_VERSION,
   STREAM_PROTOCOL_VERSION,
@@ -10,7 +10,7 @@ import {
   type RenderResponse,
   type RenderStreamFrame,
   type RenderStreamRequest
-} from "@dotreact/protocol";
+} from "@blackredsolutionsteam/dotreact-protocol";
 
 export interface DotReactReactRegistry {
   readonly pages: DotReactAppProps["pages"];

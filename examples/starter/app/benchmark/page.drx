@@ -1,5 +1,5 @@
 import type { BenchmarkPageProps } from "../../src/contracts";
-import { definePage } from "@dotreact/client/router";
+import { definePage } from "@blackredsolutionsteam/dotreact-client/router";
 
 export default definePage<BenchmarkPageProps>(function BenchmarkPage(Model) {
   return (

@@ -100,6 +100,12 @@ runtime under `vendor/`. VS Code hides that managed dependency from normal
 browsing and search. It will be replaced by pinned package references at
 release time.
 
+Private prerelease publishing is prepared under the Black Red Solutions GitHub
+Packages namespace. It remains manual and opt-in; no package is published by the
+normal CI or this repository build. See [Private GitHub Packages](docs/private-packages.md)
+for package coordinates, token permissions, local archive validation and cost
+controls.
+
 Scaffolds start in workspace **focus mode**. Daily editing shows application
 code and supported extension points; generated boundaries, compiler bootstrap,
 deployment assets and managed runtime configuration remain versioned but hidden.
@@ -304,8 +310,8 @@ from SQLite for SSR, TypeGen produces the React contracts, and the hydrated UI
 creates, updates and deletes records through ASP.NET Core endpoints.
 
 ```powershell
-npm run generate -w @dotreact/example-crud
-npm run dev -w @dotreact/example-crud
+npm run generate -w @blackredsolutionsteam/dotreact-example-crud
+npm run dev -w @blackredsolutionsteam/dotreact-example-crud
 ```
 
 Open `http://127.0.0.1:5090`. It uses renderer port `5174`, so it can run beside
