@@ -19,6 +19,7 @@
 - [ ] C# ↔ TypeScript contracts checked when relevant
 - [ ] Portuguese and English documentation remain in parity
 - [ ] No secrets, generated databases or local artifacts are included
+- [ ] I have the right to contribute this work and accept the repository license
 
 ## Screenshots or traces
 

@@ -1,0 +1,3 @@
+# Ownership identifies the maintainer for review routing. The main ruleset does
+# not require self-approval, so the repository remains usable by a solo owner.
+* @rafagouveia

@@ -2,7 +2,7 @@
   "name": "@rafagouveia/dotreact-image",
   "version": "0.1.4",
   "description": "Responsive image component for the DotReact image pipeline.",
-  "license": "MPL-2.0",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rafagouveia/dotReact.git",

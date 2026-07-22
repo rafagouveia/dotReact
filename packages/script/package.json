@@ -2,7 +2,7 @@
   "name": "@rafagouveia/dotreact-script",
   "version": "0.1.4",
   "description": "Controlled script loading strategies for DotReact.",
-  "license": "MPL-2.0",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rafagouveia/dotReact.git",
