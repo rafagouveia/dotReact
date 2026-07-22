@@ -177,7 +177,7 @@ DotReact is consumed through exact npm and NuGet versions plus a pinned local
 machine, then upgrade the complete runtime contract together:
 
 ```powershell
-dotreact upgrade 0.1.1
+dotreact upgrade 0.1.2
 npm install
 npm run verify
 ```

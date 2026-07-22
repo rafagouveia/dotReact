@@ -70,7 +70,7 @@ package that has not shared access with the consuming repository.
 Create a project without cloning the framework repository:
 
 ```powershell
-npm exec --yes --package=@rafagouveia/dotreact-cli@0.1.1 -- dotreact create my-app --template starter
+npm exec --yes --package=@rafagouveia/dotreact-cli@0.1.2 -- dotreact create my-app --template starter
 cd my-app
 npm install
 npm exec -- dotreact doctor

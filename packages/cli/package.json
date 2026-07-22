@@ -1,13 +1,26 @@
 {
   "name": "@rafagouveia/dotreact-cli",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Project lifecycle and diagnostics CLI for DotReact.",
   "license": "MPL-2.0",
-  "repository": { "type": "git", "url": "git+https://github.com/rafagouveia/dotReact.git", "directory": "packages/cli" },
-  "publishConfig": { "registry": "https://npm.pkg.github.com", "access": "restricted" },
-  "files": ["bin", "dist", "!dist/**/*.test.*"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rafagouveia/dotReact.git",
+    "directory": "packages/cli"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "!dist/**/*.test.*"
+  ],
   "type": "module",
-  "bin": { "dotreact": "./bin/dotreact.js" },
+  "bin": {
+    "dotreact": "./bin/dotreact.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/build-template.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",

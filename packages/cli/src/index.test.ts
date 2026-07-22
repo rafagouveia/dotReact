@@ -256,10 +256,10 @@ test("minimal template is self-contained and omits demo actions and routes", () 
     assert.equal(existsSync(path.join(app, "vendor")), false,
       "published package projects must not copy framework sources into the application");
     const generatedPackage = JSON.parse(readFileSync(path.join(app, "package.json"), "utf8"));
-    assert.equal(generatedPackage.devDependencies["@rafagouveia/dotreact-cli"], "0.1.1");
-    assert.equal(generatedPackage.dependencies["@rafagouveia/dotreact-image"], "0.1.1");
-    assert.equal(generatedPackage.dependencies["@rafagouveia/dotreact-font"], "0.1.1");
-    assert.equal(generatedPackage.dependencies["@rafagouveia/dotreact-script"], "0.1.1");
+    assert.equal(generatedPackage.devDependencies["@rafagouveia/dotreact-cli"], "0.1.2");
+    assert.equal(generatedPackage.dependencies["@rafagouveia/dotreact-image"], "0.1.2");
+    assert.equal(generatedPackage.dependencies["@rafagouveia/dotreact-font"], "0.1.2");
+    assert.equal(generatedPackage.dependencies["@rafagouveia/dotreact-script"], "0.1.2");
     assert.equal(generatedPackage.scripts.postinstall, "dotnet tool restore");
     assert.equal(generatedPackage.scripts.drx, "dotreact");
     assert.match(generatedPackage.scripts.dev, /npm run generate/);
@@ -286,8 +286,8 @@ test("minimal template is self-contained and omits demo actions and routes", () 
     assert.equal(existsSync(path.join(app, "src/entry-server.tsx")), false);
     assert.doesNotMatch(readFileSync(path.join(app, "vite.config.ts"), "utf8"), /cssCodeSplit:\s*false/);
     const generatedCsproj = readFileSync(path.join(app, "Server/Server.csproj"), "utf8");
-    assert.match(generatedCsproj, /<PackageReference Include="DotReact\.Hosting" Version="0\.1\.1"/);
-    assert.match(generatedCsproj, /<PackageReference Include="DotReact\.AppGenerator" Version="0\.1\.1"/);
+    assert.match(generatedCsproj, /<PackageReference Include="DotReact\.Hosting" Version="0\.1\.2"/);
+    assert.match(generatedCsproj, /<PackageReference Include="DotReact\.AppGenerator" Version="0\.1\.2"/);
     assert.match(generatedCsproj, /PrivateAssets="all"/);
     assert.match(generatedCsproj, /<RootNamespace>MinimalApp\.Server<\/RootNamespace>/);
     assert.match(generatedCsproj, /<AssemblyName>MinimalApp\.Server<\/AssemblyName>/);
@@ -348,24 +348,26 @@ test("minimal template is self-contained and omits demo actions and routes", () 
     const doctor = spawnSync(process.execPath, [cli, "doctor"], { cwd: app, encoding: "utf8" });
     assert.equal(doctor.status, 0, doctor.stderr);
     assert.match(doctor.stdout, /runtime=packages/);
-    assert.match(doctor.stdout, /Published package runtime 0\.1\.1/);
+    assert.match(doctor.stdout, /Published package runtime 0\.1\.2/);
     assert.match(readFileSync(path.join(app, "app/page.server.cs"), "utf8"), /namespace MinimalApp\.Pages\.Home/);
     assert.match(readFileSync(path.join(app, "src/backend-manifest.json"), "utf8"), /MinimalApp\.HomePageProps/);
     assert.match(readFileSync(path.join(app, "docs/ai/PROJECT.md"), "utf8"), /Product name: Minimal App/);
     assert.match(readFileSync(path.join(app, "README.md"), "utf8"), /^# Minimal App/m);
 
     writeFileSync(path.join(app, "app/application-owned.marker"), "keep\n");
-    const dryUpgrade = spawnSync(process.execPath, [cli, "upgrade", "0.1.2", "--dry-run"],
+    const dryUpgrade = spawnSync(process.execPath, [cli, "upgrade", "0.1.3", "--dry-run"],
       { cwd: app, encoding: "utf8" });
     assert.equal(dryUpgrade.status, 0, dryUpgrade.stderr);
-    assert.equal(JSON.parse(readFileSync(path.join(app, "package.json"), "utf8")).devDependencies["@rafagouveia/dotreact-cli"], "0.1.1");
-    const upgrade = spawnSync(process.execPath, [cli, "upgrade", "0.1.2"],
+    const generatedActions = readFileSync(path.join(app, "src/actions.ts"), "utf8");
+    assert.doesNotMatch(generatedActions, /createServerAction/);
+    assert.equal(JSON.parse(readFileSync(path.join(app, "package.json"), "utf8")).devDependencies["@rafagouveia/dotreact-cli"], "0.1.2");
+    const upgrade = spawnSync(process.execPath, [cli, "upgrade", "0.1.3"],
       { cwd: app, encoding: "utf8", timeout: 30_000 });
     assert.equal(upgrade.status, 0, upgrade.stderr);
     assert.equal(existsSync(path.join(app, "app/application-owned.marker")), true);
-    assert.equal(JSON.parse(readFileSync(path.join(app, "package.json"), "utf8")).devDependencies["@rafagouveia/dotreact-cli"], "0.1.2");
-    assert.match(readFileSync(path.join(app, "Server/Server.csproj"), "utf8"), /DotReact\.Hosting" Version="0\.1\.2"/);
-    assert.equal(JSON.parse(readFileSync(path.join(app, ".config/dotnet-tools.json"), "utf8")).tools["dotreact.typegen.tool"].version, "0.1.2");
+    assert.equal(JSON.parse(readFileSync(path.join(app, "package.json"), "utf8")).devDependencies["@rafagouveia/dotreact-cli"], "0.1.3");
+    assert.match(readFileSync(path.join(app, "Server/Server.csproj"), "utf8"), /DotReact\.Hosting" Version="0\.1\.3"/);
+    assert.equal(JSON.parse(readFileSync(path.join(app, ".config/dotnet-tools.json"), "utf8")).tools["dotreact.typegen.tool"].version, "0.1.3");
     mkdirSync(path.join(app, "framework"));
     const ambiguousDoctor = spawnSync(process.execPath, [cli, "doctor"], { cwd: app, encoding: "utf8" });
     assert.equal(ambiguousDoctor.status, 1);
