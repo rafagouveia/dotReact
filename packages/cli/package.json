@@ -1,6 +1,6 @@
 {
   "name": "@rafagouveia/dotreact-cli",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Project lifecycle and diagnostics CLI for DotReact.",
   "license": "MPL-2.0",
   "repository": {
