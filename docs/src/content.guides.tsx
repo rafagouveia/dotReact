@@ -230,7 +230,7 @@ export const guideDocs: readonly DocPage[] = [
   },
   {
     id: "templates-starter", group: "Guias", title: "Templates e atualização",
-    summary: "Escolha o scaffold certo e mantenha projetos vendorizados coerentes com o runtime do framework.",
+    summary: "Escolha o scaffold certo e mantenha npm, NuGet e TypeGen na mesma versão do framework.",
     tags: ["starter", "minimal", "upgrade"],
     body: <>
       <h2>Dois pontos de partida, o mesmo padrão</h2>
@@ -239,15 +239,15 @@ export const guideDocs: readonly DocPage[] = [
         { name: "minimal", defaultValue: "produto limpo", description: "Mantém uma rota SSR, infraestrutura de produção e documentação, removendo demos e actions." }
       ]} />
       <p>O nome passado ao <code>create</code> define package npm, namespace/root namespace C#, assembly, metadata inicial, manifesto e perfil do projeto. Um projeto <code>Arxis</code> não deve conservar <code>DotReact.Starter</code> em código de aplicação.</p>
-      <CodeBlock label="Criar e manter" code={'npm run create -- create arxis --template minimal\ncd arxis\nnpm install\n\n# enquanto o preview usa vendor/\nnode C:/caminho/dotreact/packages/cli/dist/index.js upgrade --from C:/caminho/dotreact\nnpm install\nnpm run verify'} />
+      <CodeBlock label="Criar e manter" code={'npm exec --yes --package=@rafagouveia/dotreact-cli@0.1.1 -- dotreact create arxis --template minimal\ncd arxis\nnpm install\n\n# em uma próxima versão, atualize npm, NuGet e TypeGen em conjunto\nnpm exec -- dotreact upgrade 0.1.2\nnpm install\nnpm run verify'} />
       <h3>O que o upgrade pode alterar</h3>
       <ul className="feature-list">
-        <li>somente <code>vendor/</code> e seu manifesto de versão gerenciada;</li>
-        <li>nunca <code>app/</code>, <code>Server/</code>, <code>public/</code>, produto ou banco;</li>
-        <li>usa staging e restauração para não deixar runtime parcial;</li>
-        <li>depois do upgrade, reinstale/recompile o runtime e rode todos os gates.</li>
+        <li>dependências DotReact em <code>package.json</code>, <code>Server.csproj</code> e no manifesto da ferramenta local;</li>
+        <li>nunca <code>app/</code>, código C# da aplicação, <code>public/</code>, produto ou banco;</li>
+        <li><code>--dry-run</code> mostra o alinhamento antes de escrever;</li>
+        <li>depois do upgrade, reinstale as dependências e rode todos os gates.</li>
       </ul>
-      <div className="warning"><strong>Preview</strong><span>Até npm/NuGet serem publicados, o runtime é uma snapshot versionada. Não copie arquivos isolados nem edite <code>vendor/</code>; use o comando de upgrade ou regenere conscientemente.</span></div>
+      <div className="warning"><strong>Versão coordenada</strong><span>Não atualize somente um pacote. O protocolo C# ↔ TypeScript, o renderer, o checker e o gerador devem permanecer na mesma versão DotReact.</span></div>
     </>
   }
 ];

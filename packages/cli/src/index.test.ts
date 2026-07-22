@@ -229,7 +229,7 @@ test("minimal template is self-contained and omits demo actions and routes", () 
     assert.equal(existsSync(path.join(app, ".git")), false);
     for (const repositoryFile of [
       ".gitignore", ".gitattributes", ".editorconfig", ".dockerignore", ".npmrc", ".nvmrc",
-      "global.json", "Directory.Build.props", ".env.example", "AGENTS.md",
+      "global.json", "Directory.Build.props", "NuGet.config", ".config/dotnet-tools.json", ".env.example", "AGENTS.md",
       "docs/ai/PROJECT.md", "docs/ai/DOTREACT.md", "docs/ai/01-ARCHITECTURE.md",
       "docs/ai/02-DRX-ROUTING.md", "docs/ai/03-SSR-HYDRATION.md",
       "docs/ai/04-DATA-ACTIONS-SECURITY.md", "docs/ai/05-CACHING-PRODUCTION.md",
@@ -253,29 +253,14 @@ test("minimal template is self-contained and omits demo actions and routes", () 
     assert.match(dockerignore, /\*\*\/\.next/);
     assert.match(dockerignore, /^tmp$/m);
     assert.match(dockerignore, /\*\.har/);
-    assert.equal(existsSync(path.join(app, "vendor/DotReact.AspNetCore/DotReact.AspNetCore.csproj")), true);
-    assert.equal(existsSync(path.join(app, "vendor/DotReact.Hosting/DotReact.Hosting.csproj")), true);
-    assert.equal(existsSync(path.join(app, "vendor/DotReact.Images.SkiaSharp/DotReact.Images.SkiaSharp.csproj")), true);
-    assert.equal(existsSync(path.join(app, "vendor/image/package.json")), true);
-    assert.equal(existsSync(path.join(app, "vendor/font/package.json")), true);
-    assert.equal(existsSync(path.join(app, "vendor/script/package.json")), true);
-    assert.equal(existsSync(path.join(app, "vendor/adapter/package.json")), true);
-    assert.equal(existsSync(path.join(app, "vendor/cli/package.json")), true);
-    assert.equal(existsSync(path.join(app, "vendor/README.md")), true);
-    assert.equal(existsSync(path.join(app, "vendor/dotreact-runtime.json")), true);
-    assert.equal(existsSync(path.join(app, "vendor/cli/dist/index.js")), true,
-      "the CLI executable must exist before npm links the dotreact bin");
-    assert.equal(existsSync(path.join(app, "vendor/vite/dist/check-cli.js")), true,
-      "the checker executable must exist before npm links the dotreact-check bin");
+    assert.equal(existsSync(path.join(app, "vendor")), false,
+      "published package projects must not copy framework sources into the application");
     const generatedPackage = JSON.parse(readFileSync(path.join(app, "package.json"), "utf8"));
-    assert.equal(generatedPackage.devDependencies["@rafagouveia/dotreact-cli"], "file:vendor/cli");
-    assert.equal(generatedPackage.dependencies["@rafagouveia/dotreact-image"], "file:vendor/image");
-    assert.equal(generatedPackage.dependencies["@rafagouveia/dotreact-font"], "file:vendor/font");
-    assert.equal(generatedPackage.dependencies["@rafagouveia/dotreact-script"], "file:vendor/script");
-    assert.equal(generatedPackage.devDependencies["@rafagouveia/dotreact-adapter"], "file:vendor/adapter");
-    assert.equal(existsSync(path.join(app, "vendor/rsc")), false,
-      "unused experimental RSC sources must not be vendored into stable scaffolds");
-    assert.equal(existsSync(path.join(app, "vendor/DotReact.Redis/DotReact.Redis.csproj")), true);
+    assert.equal(generatedPackage.devDependencies["@rafagouveia/dotreact-cli"], "0.1.1");
+    assert.equal(generatedPackage.dependencies["@rafagouveia/dotreact-image"], "0.1.1");
+    assert.equal(generatedPackage.dependencies["@rafagouveia/dotreact-font"], "0.1.1");
+    assert.equal(generatedPackage.dependencies["@rafagouveia/dotreact-script"], "0.1.1");
+    assert.equal(generatedPackage.scripts.postinstall, "dotnet tool restore");
     assert.equal(generatedPackage.scripts.drx, "dotreact");
     assert.match(generatedPackage.scripts.dev, /npm run generate/);
     assert.match(generatedPackage.scripts.dev, /npm:dev:contracts/);
@@ -284,11 +269,11 @@ test("minimal template is self-contained and omits demo actions and routes", () 
     assert.match(generatedPackage.scripts["dev:server"], /dotnet watch --project/);
     assert.match(generatedPackage.scripts["dev:server"], /DOTNET_WATCH_RESTART_ON_RUDE_EDIT=1/);
     assert.doesNotMatch(generatedPackage.scripts["dev:server"], /--no-hot-reload/);
-    assert.match(generatedPackage.scripts["dev:renderer"], /vendor\/renderer\/dist\/server\.js/);
-    assert.match(generatedPackage.scripts.generate, /vendor\/DotReact\.TypeGen\/DotReact\.TypeGen\.csproj/);
+    assert.match(generatedPackage.scripts["dev:renderer"], /node_modules\/@rafagouveia\/dotreact-renderer\/dist\/server\.js/);
+    assert.match(generatedPackage.scripts.generate, /dotnet tool run dotreact-typegen/);
     assert.match(generatedPackage.scripts.generate, /MinimalApp\.Server\.dll/);
-    assert.match(generatedPackage.scripts["check:contracts"], /vendor\/DotReact\.TypeGen\/DotReact\.TypeGen\.csproj/);
-    assert.match(generatedPackage.scripts["dotreact:runtime"], /vendor\/client/);
+    assert.match(generatedPackage.scripts["check:contracts"], /dotnet tool run dotreact-typegen/);
+    assert.equal(generatedPackage.scripts["dotreact:runtime"], undefined);
     assert.equal(generatedPackage.scripts["build:framework"], undefined);
     assert.equal(generatedPackage.scripts["audit:dotnet"], "node scripts/audit-dotnet-packages.mjs");
     assert.match(generatedPackage.scripts.analyze, /max-initial-client-kb 75/);
@@ -301,7 +286,9 @@ test("minimal template is self-contained and omits demo actions and routes", () 
     assert.equal(existsSync(path.join(app, "src/entry-server.tsx")), false);
     assert.doesNotMatch(readFileSync(path.join(app, "vite.config.ts"), "utf8"), /cssCodeSplit:\s*false/);
     const generatedCsproj = readFileSync(path.join(app, "Server/Server.csproj"), "utf8");
-    assert.match(generatedCsproj, /\.\.\/vendor\/DotReact\.Hosting/);
+    assert.match(generatedCsproj, /<PackageReference Include="DotReact\.Hosting" Version="0\.1\.1"/);
+    assert.match(generatedCsproj, /<PackageReference Include="DotReact\.AppGenerator" Version="0\.1\.1"/);
+    assert.match(generatedCsproj, /PrivateAssets="all"/);
     assert.match(generatedCsproj, /<RootNamespace>MinimalApp\.Server<\/RootNamespace>/);
     assert.match(generatedCsproj, /<AssemblyName>MinimalApp\.Server<\/AssemblyName>/);
     assert.doesNotMatch(generatedCsproj, /DotReact\.AspNetCore|DotReact\.Images\.SkiaSharp|DotReact\.Redis/,
@@ -309,9 +296,14 @@ test("minimal template is self-contained and omits demo actions and routes", () 
     const dockerfile = readFileSync(path.join(app, "Dockerfile"), "utf8");
     assert.match(dockerfile, /RUN npm run build/);
     assert.doesNotMatch(dockerfile, /RUN npm run dotreact:runtime/);
+    assert.match(dockerfile, /node_modules\/@rafagouveia\/dotreact-renderer\/dist/);
     assert.match(dockerfile, /MinimalApp\.Server\.dll/);
     const workflow = readFileSync(path.join(app, ".github/workflows/ci.yml"), "utf8");
     assert.match(workflow, /azure-infrastructure:/);
+    assert.match(workflow, /packages: read/);
+    assert.match(workflow, /NODE_AUTH_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
+    assert.match(workflow, /NuGetPackageSourceCredentials_github-dotreact/);
+    assert.match(workflow, /nuget_credentials=Username=/);
     assert.match(workflow, /az bicep build --file deploy\/azure\/container-apps\.bicep/);
     assert.match(workflow, /npm run audit:dotnet/);
     assert.doesNotMatch(workflow, /uses: [^\n]+@v[0-9]/);
@@ -327,9 +319,10 @@ test("minimal template is self-contained and omits demo actions and routes", () 
     assert.match(agentInstructions, /06-WORKFLOW-RECIPES\.md/);
     assert.match(agentInstructions, /07-SOLID-FEATURES\.md/);
     assert.match(agentInstructions, /08-AUTHENTICATION-SESSIONS\.md/);
-    assert.match(agentInstructions, /Treat `vendor\/` as an opaque, pinned runtime/);
+    assert.doesNotMatch(agentInstructions, /Treat `vendor\/` as an opaque, pinned runtime/);
     const vscodeSettings = readFileSync(path.join(app, ".vscode/settings.json"), "utf8");
-    assert.match(vscodeSettings, /"vendor": true/);
+    assert.match(vscodeSettings, /"NuGet\.config": true/);
+    assert.match(vscodeSettings, /"\.config": true/);
     assert.match(vscodeSettings, /"src\/contracts\.ts": true/);
     assert.match(vscodeSettings, /"src\/actions\.ts": true/);
     assert.match(vscodeSettings, /"src\/backend-manifest\.json": true/);
@@ -354,29 +347,29 @@ test("minimal template is self-contained and omits demo actions and routes", () 
       true);
     const doctor = spawnSync(process.execPath, [cli, "doctor"], { cwd: app, encoding: "utf8" });
     assert.equal(doctor.status, 0, doctor.stderr);
-    assert.match(doctor.stdout, /runtime=vendor\//);
-    assert.match(doctor.stdout, /Managed runtime/);
+    assert.match(doctor.stdout, /runtime=packages/);
+    assert.match(doctor.stdout, /Published package runtime 0\.1\.1/);
     assert.match(readFileSync(path.join(app, "app/page.server.cs"), "utf8"), /namespace MinimalApp\.Pages\.Home/);
     assert.match(readFileSync(path.join(app, "src/backend-manifest.json"), "utf8"), /MinimalApp\.HomePageProps/);
     assert.match(readFileSync(path.join(app, "docs/ai/PROJECT.md"), "utf8"), /Product name: Minimal App/);
     assert.match(readFileSync(path.join(app, "README.md"), "utf8"), /^# Minimal App/m);
 
     writeFileSync(path.join(app, "app/application-owned.marker"), "keep\n");
-    writeFileSync(path.join(app, "vendor/obsolete.marker"), "remove\n");
-    const dryUpgrade = spawnSync(process.execPath, [cli, "upgrade", "--from", path.resolve(path.dirname(cli), "../../.."), "--dry-run"],
+    const dryUpgrade = spawnSync(process.execPath, [cli, "upgrade", "0.1.2", "--dry-run"],
       { cwd: app, encoding: "utf8" });
     assert.equal(dryUpgrade.status, 0, dryUpgrade.stderr);
-    assert.equal(existsSync(path.join(app, "vendor/obsolete.marker")), true);
-    const upgrade = spawnSync(process.execPath, [cli, "upgrade", "--from", path.resolve(path.dirname(cli), "../../..")],
+    assert.equal(JSON.parse(readFileSync(path.join(app, "package.json"), "utf8")).devDependencies["@rafagouveia/dotreact-cli"], "0.1.1");
+    const upgrade = spawnSync(process.execPath, [cli, "upgrade", "0.1.2"],
       { cwd: app, encoding: "utf8", timeout: 30_000 });
     assert.equal(upgrade.status, 0, upgrade.stderr);
     assert.equal(existsSync(path.join(app, "app/application-owned.marker")), true);
-    assert.equal(existsSync(path.join(app, "vendor/obsolete.marker")), false);
-    assert.equal(existsSync(path.join(app, "vendor/dotreact-runtime.json")), true);
+    assert.equal(JSON.parse(readFileSync(path.join(app, "package.json"), "utf8")).devDependencies["@rafagouveia/dotreact-cli"], "0.1.2");
+    assert.match(readFileSync(path.join(app, "Server/Server.csproj"), "utf8"), /DotReact\.Hosting" Version="0\.1\.2"/);
+    assert.equal(JSON.parse(readFileSync(path.join(app, ".config/dotnet-tools.json"), "utf8")).tools["dotreact.typegen.tool"].version, "0.1.2");
     mkdirSync(path.join(app, "framework"));
     const ambiguousDoctor = spawnSync(process.execPath, [cli, "doctor"], { cwd: app, encoding: "utf8" });
     assert.equal(ambiguousDoctor.status, 1);
-    assert.match(ambiguousDoctor.stderr, /Both vendor\/ and legacy framework\//);
+    assert.match(ambiguousDoctor.stderr, /Legacy framework\/ runtime/);
     rmSync(path.join(app, "framework"), { recursive: true, force: true });
     const agentGuide = readFileSync(path.join(app, "docs/ai/DOTREACT.md"), "utf8");
     assert.match(agentGuide, /DRX is not a mixed C#\/JSX language/);

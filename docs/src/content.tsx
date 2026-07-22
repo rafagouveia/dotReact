@@ -153,8 +153,8 @@ export const docs: readonly DocPage[] = [
   ...introDocs,
   {
     id: "installation", group: "Começar", title: "Instalação e requisitos",
-    summary: "Prepare Node, .NET e o modelo vendorizado usado durante o pré-release.",
-    tags: ["Node 24", ".NET 10", "pré-release"],
+    summary: "Prepare Node, .NET e a autenticação dos pacotes privados publicados.",
+    tags: ["Node 24", ".NET 10", "GitHub Packages"],
     body: <>
       <h2>Requisitos suportados</h2>
       <ReferenceTable valueHeading="Versão" rows={[
@@ -163,15 +163,16 @@ export const docs: readonly DocPage[] = [
         { name: "React", defaultValue: "19.2.x", description: "SSR com react-dom/server e hydrateRoot no cliente." },
         { name: "Vite / TypeScript", defaultValue: "8.1.x / 7.0.x", description: "Build, HMR e verificação semântica de .drx." }
       ]} />
-      <h3>Pré-release vendorizado</h3>
-      <p>Os pacotes ainda não foram publicados em npm/NuGet. O comando <code>create</code> copia um runtime fixado para <code>vendor/</code> e reescreve referências para dependências locais. O VS Code oculta essa dependência gerenciada da navegação e da busca normais; não a edite como código da aplicação.</p>
+      <h3>Pré-release privado por pacotes</h3>
+      <p>O runtime, a CLI e o TypeGen são publicados no GitHub Packages sob as versões coordenadas do DotReact. O scaffold fixa versões exatas em <code>package.json</code>, <code>Server.csproj</code> e <code>.config/dotnet-tools.json</code>; ele não copia o código-fonte do framework para a aplicação.</p>
+      <CodeBlock label="PowerShell · autenticação local" code={'npm config set @rafagouveia:registry https://npm.pkg.github.com --location=user\nnpm config set //npm.pkg.github.com/:_authToken "$env:GITHUB_PACKAGES_TOKEN" --location=user\n\n# O NuGet.config do projeto já declara o feed. A credencial fica fora do Git.\n${env:NuGetPackageSourceCredentials_github-dotreact}="Username=rafagouveia;Password=$env:GITHUB_PACKAGES_TOKEN"'} />
       <p>O projeto abre em modo <strong>focus</strong>: páginas, features, componentes, loaders, actions e pontos oficiais de extensão ficam visíveis; contratos gerados, entrypoints, compiladores e deploy permanecem versionados, mas fora da navegação cotidiana. Use <code>dotreact workspace reveal</code> para configurar infraestrutura e <code>dotreact workspace focus</code> para voltar à visão de aplicação.</p>
-      <CodeBlock label="PowerShell" code={'npm install\nnpm run build\nnpm run create -- create minha-app --template starter\ncd minha-app\nnpm install\nnpm exec -- dotreact doctor'} />
+      <CodeBlock label="PowerShell" code={'npm exec --yes --package=@rafagouveia/dotreact-cli@0.1.1 -- dotreact create minha-app --template starter\ncd minha-app\nnpm install\nnpm exec -- dotreact doctor\nnpm run dev'} />
       <h3>Pronto para versionamento</h3>
       <p>O gerador não cria a pasta <code>.git</code> nem executa <code>git init</code>. Ele entrega somente os arquivos portáveis do repositório: <code>.gitignore</code>, <code>.gitattributes</code>, <code>.editorconfig</code>, <code>.dockerignore</code>, <code>.npmrc</code>, <code>.nvmrc</code>, <code>global.json</code>, regras MSBuild e um workflow GitHub Actions.</p>
       <p>Execute <code>npm install</code> e versione o <code>package-lock.json</code>. Contratos gerados em <code>src/contracts.ts</code>, <code>src/actions.ts</code> e <code>src/backend-manifest.json</code> também devem ser versionados: o CI usa esses arquivos para detectar drift entre C# e TypeScript.</p>
       <p>A extensão do VS Code inclui associação para <code>.drx</code>, check-on-save e CodeLens para loaders. Seu núcleo participa dos testes e gates do workspace.</p>
-      <div className="warning"><strong>Publicação pendente</strong><span>A instalação por versões npm/NuGet é um gate externo, não uma capacidade disponível hoje.</span></div>
+      <div className="warning"><strong>Credencial privada</strong><span>Nunca grave tokens no <code>.npmrc</code>, <code>NuGet.config</code>, <code>.env</code> ou workflow versionado. O token precisa apenas de leitura de pacotes para consumir o framework.</span></div>
     </>
   },
   {
@@ -613,7 +614,7 @@ app.MapDotReactFallback();`} />
     body: <>
       <h2>Comandos implementados</h2>
       <ReferenceTable valueHeading="Argumentos principais" rows={[
-        { name: "create", defaultValue: "<name> --template starter|minimal", description: "Cria projeto vendorizado e transacional." },
+        { name: "create", defaultValue: "<name> --template starter|minimal", description: "Cria um projeto autônomo com pacotes npm, NuGet e TypeGen alinhados." },
         { name: "templates", description: "Lista starter e minimal." },
         { name: "generate page", defaultValue: "<route> [--dry-run]", description: "Cria page.drx e companion C# sem sobrescrever." },
         { name: "generate layout", defaultValue: "<route>", description: "Cria layout.drx." },
@@ -633,7 +634,7 @@ app.MapDotReactFallback();`} />
         { name: "workspace", defaultValue: "focus|reveal|status", description: "Alterna entre a visão limpa da aplicação e a infraestrutura avançada." }
       ]} />
       <CodeBlock label="Terminal" code={'npm exec -- dotreact generate page catalog/[slug] --dry-run\nnpm exec -- dotreact generate page catalog/[slug]\nnpm exec -- dotreact generate component ProductCard --route catalog\nnpm exec -- dotreact generate action SaveProduct --route catalog\nnpm exec -- dotreact generate boundary catalog --kind loading\nnpm exec -- dotreact sync\nnpm exec -- dotreact architecture\nnpm exec -- dotreact check\nnpm exec -- dotreact security\nnpm exec -- dotreact build\nnpm exec -- dotreact analyze --max-client-kb 100 --max-ssr-kb 50\nnpm exec -- dotreact health\nnpm exec -- dotreact workspace focus'} />
-      <p>Durante o pré-release, projetos gerados incluem <code>vendor/cli</code> como dependência local. Portanto <code>npm exec dotreact</code> funciona sem instalação global e sem depender do checkout original do framework.</p>
+      <p>Projetos gerados fixam <code>@rafagouveia/dotreact-cli</code> como devDependency. Portanto <code>npm exec -- dotreact</code> usa a versão do próprio projeto, sem instalação global e sem depender de um checkout do framework.</p>
       <p><code>add</code> é alias de <code>generate</code>. Generators rejeitam traversal e colisões; não há flag de overwrite.</p>
     </>
   },
@@ -663,7 +664,7 @@ app.MapDotReactFallback();`} />
       <CodeBlock label="settings.json" code={'{\n  "dotreact.checkOnSave": true,\n  "dotreact.validation.debounceMs": 350\n}'} />
       <h3>Segurança e desempenho</h3>
       <p>A associação de linguagem permanece disponível em Restricted Mode, mas a extensão não executa o checker instalado pelo projeto enquanto o workspace não for confiável. Workspaces virtuais também não executam o toolchain local. O processo usa <code>execFile</code> sem shell, argumentos fechados, timeout e limite de saída.</p>
-      <p>O checker é resolvido tanto de pacotes publicados em <code>@rafagouveia/dotreact-vite</code> quanto do runtime <code>vendor/vite</code> usado no preview. A validação é coalescida por workspace, preserva diagnósticos de outras raízes e evita varrer o backend quando o loader está junto da rota.</p>
+      <p>O checker é resolvido pelo pacote publicado <code>@rafagouveia/dotreact-vite</code> fixado no projeto. A validação é coalescida por workspace, preserva diagnósticos de outras raízes e evita varrer o backend quando o loader está junto da rota.</p>
       <div className="callout"><strong>Autoridade única</strong><span>O editor acelera o feedback, mas <code>dotreact check</code> e o build continuam sendo os gates oficiais. Desabilitar check-on-save não reduz a validação do CI.</span></div>
       <h3>Publicação e versionamento</h3>
       <p>Cada release executa teste unitário, inicia um Extension Host real, empacota o VSIX e publica exatamente o artefato testado por um ambiente GitHub protegido. Tags <code>vscode-v*</code> promovem versões estáveis; execuções manuais podem publicar um pré-release. GitHub OIDC e Microsoft Entra ID fornecem uma credencial curta ao job, sem PAT permanente ou secret dentro do pacote.</p>

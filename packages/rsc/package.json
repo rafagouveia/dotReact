@@ -1,6 +1,6 @@
 {
   "name": "@rafagouveia/dotreact-rsc",
-  "version": "0.1.0-experimental.0",
+  "version": "0.1.1-experimental.0",
   "description": "Experimental React Server Components integration for DotReact.",
   "license": "MPL-2.0",
   "repository": { "type": "git", "url": "git+https://github.com/rafagouveia/dotReact.git", "directory": "packages/rsc" },

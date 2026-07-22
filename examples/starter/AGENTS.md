@@ -42,9 +42,9 @@ verify the behavior in framework tests before changing application code.
 - The internal `Server/` folder structure is application-owned. For non-trivial
   systems, prefer framework-independent business rules and thin transport
   adapters, but do not assume one mandatory layering or folder scheme.
-- Do not edit the vendored `vendor/` directory for application features.
-  It is the local framework runtime snapshot and may be replaced by a future
-  DotReact upgrade.
+- Keep DotReact npm, NuGet and local-tool versions aligned. Framework runtime
+  source does not belong in the application; update it through
+  `dotreact upgrade <version>` and validate the complete project.
 - Treat every Server Action and route as a security boundary. Apply explicit
   authorization policies and validate input in C#. Anonymous access must be a
   deliberate, reviewed decision.
@@ -71,8 +71,8 @@ verify the behavior in framework tests before changing application code.
   separate static-file pipeline.
 - Treat `src/contracts.ts`, `src/actions.ts` and
   `src/backend-manifest.json` as generated output. Never edit them manually.
-- Treat `vendor/` as an opaque, pinned runtime. It is hidden from normal VS Code
-  browsing and search; application work must never modify it.
+- Treat `node_modules/`, the NuGet global-packages cache and `.config/dotnet-tools.json`
+  as managed dependencies. Never copy framework source into product code.
 - Change root configuration files only when the application runtime, build or
   deployment behavior genuinely changes. Do not place business rules there.
 - The workspace starts in focused mode. Do not reveal or edit hidden

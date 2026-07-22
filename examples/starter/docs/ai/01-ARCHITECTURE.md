@@ -87,8 +87,8 @@ canonical module tree.
 - `app/<route>/_components/`: route-private UI and browser interaction.
 - `app/_actions/` or `app/<route>/_actions/`: thin C# Server Action adapters.
 - `src/contracts.ts`, `src/actions.ts`, `src/backend-manifest.json`: generated.
-- `vendor/`: vendored DotReact runtime snapshot. Application work must not
-  modify it.
+- `package.json`, `Server/Server.csproj` and `.config/dotnet-tools.json`: exact,
+  aligned DotReact runtime versions. Framework source is never copied here.
 - `deploy/azure/`: deployment infrastructure.
 - `docs/ai/`: mandatory context for coding agents.
 
@@ -99,8 +99,9 @@ application-owned `Server/` layout; the CLI reports convention advice without
 failing the build.
 
 If a framework bug is discovered in a generated application, reproduce and fix
-it in the DotReact framework repository, then upgrade the vendored snapshot.
-Do not hide framework forks inside product code.
+it in the DotReact framework repository, publish a coordinated package version,
+then run `dotreact upgrade <version>`. Do not hide framework forks inside product
+code.
 
 ## Startup order
 

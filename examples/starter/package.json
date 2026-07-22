@@ -26,18 +26,18 @@
     "verify": "npm run check:contracts && npm run typecheck && dotreact security --static-only && npm run build && npm run analyze && npm audit --audit-level=high && npm run audit:dotnet"
   },
   "dependencies": {
-    "@rafagouveia/dotreact-client": "0.1.0",
-    "@rafagouveia/dotreact-font": "0.1.0",
-    "@rafagouveia/dotreact-image": "0.1.0",
-    "@rafagouveia/dotreact-script": "0.1.0",
-    "@rafagouveia/dotreact-protocol": "0.1.0",
-    "@rafagouveia/dotreact-renderer": "0.1.0",
+    "@rafagouveia/dotreact-client": "0.1.1",
+    "@rafagouveia/dotreact-font": "0.1.1",
+    "@rafagouveia/dotreact-image": "0.1.1",
+    "@rafagouveia/dotreact-script": "0.1.1",
+    "@rafagouveia/dotreact-protocol": "0.1.1",
+    "@rafagouveia/dotreact-renderer": "0.1.1",
     "react": "19.2.7",
     "react-dom": "19.2.7"
   },
   "devDependencies": {
-    "@rafagouveia/dotreact-cli": "0.1.0",
-    "@rafagouveia/dotreact-vite": "0.1.0",
+    "@rafagouveia/dotreact-cli": "0.1.1",
+    "@rafagouveia/dotreact-vite": "0.1.1",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "lighthouse": "13.4.1",

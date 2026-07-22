@@ -10,7 +10,7 @@ on the server and hydrates it in the browser.
 
 This repository contains a reusable pre-release framework, CLI scaffold and three
 reference applications. The runtime boundary and production lifecycle are
-implemented; the public API remains version `0.1.0` until packages are published.
+implemented; coordinated private npm and NuGet packages are available at version `0.1.1`.
 Public surfaces follow the repository's [compatibility and deprecation policy](COMPATIBILITY.md).
 
 The source is licensed under [MPL 2.0](LICENSE). Applications may use DotReact,
@@ -86,25 +86,24 @@ the counter proves that React hydrated the same tree in the browser.
 
 ## Create a project
 
-From this repository:
+Using the published private CLI package:
 
 ```powershell
-npm run build
-npm run create -- create my-app
-node packages/cli/dist/index.js create my-minimal-app --template minimal
+npm exec --yes --package=@rafagouveia/dotreact-cli@0.1.1 -- dotreact create my-app --template starter
 cd my-app
 npm install
 npm run dev
 ```
 
-Until the first npm/NuGet publication, generated projects keep the pinned
-runtime under `vendor/`. VS Code hides that managed dependency from normal
-browsing and search. It will be replaced by pinned package references at
-release time.
+Generated projects pin the CLI, browser runtime, renderer, Vite integration,
+NuGet hosting libraries and local TypeGen tool to one exact DotReact version.
+Framework source is not copied into product repositories. Use
+`dotreact upgrade <version>` to align every runtime surface before reinstalling
+and running the release gates.
 
-Private prerelease publishing is prepared under the Black Red Solutions GitHub
-Packages namespace. It remains manual and opt-in; no package is published by the
-normal CI or this repository build. See [Private GitHub Packages](docs/private-packages.md)
+Private prerelease packages are hosted under the `rafagouveia` GitHub Packages
+namespace. Publishing remains manual and opt-in; normal CI never republishes a
+package. See [Private GitHub Packages](docs/private-packages.md)
 for package coordinates, token permissions, local archive validation and cost
 controls.
 

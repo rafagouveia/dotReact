@@ -93,7 +93,7 @@ export const introDocs: readonly DocPage[] = [
         { name: "Renderer", description: "Processo Node privado que transforma componentes e props em HTML." },
         { name: "ISR", description: "HTML público cacheado que pode ser regenerado após um intervalo." }
       ]} />
-      <div className="warning"><strong>Evite o atalho</strong><span>Não comece editando <code>vendor/</code>, entrypoints gerados ou bootstrap do renderer. O caminho diário é <code>app/</code>, <code>Server/</code>, <code>src/</code> e <code>public/</code>.</span></div>
+      <div className="warning"><strong>Evite o atalho</strong><span>Não copie código-fonte do framework nem edite entrypoints gerados ou o bootstrap do renderer. O caminho diário é <code>app/</code>, <code>Server/</code>, <code>src/</code> e <code>public/</code>.</span></div>
     </>
   }
 ];

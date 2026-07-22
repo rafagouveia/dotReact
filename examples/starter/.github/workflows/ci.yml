@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   quality:
@@ -18,10 +19,15 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          registry-url: https://npm.pkg.github.com
+          scope: '@rafagouveia'
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: 10.0.x
       - run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NuGetPackageSourceCredentials_github-dotreact: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }}
       - run: npm run check:contracts
       - run: npm run typecheck
       - run: npm run build
@@ -57,3 +63,6 @@ jobs:
           tags: dotreact-app:ci
           provenance: mode=max
           sbom: true
+          secrets: |
+            npmrc=//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}
+            nuget_credentials=Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }}

@@ -172,21 +172,20 @@ features. `npm run typecheck` additionally checks `.drx` semantics, page props,
 layout signatures and drift against `src/backend-manifest.json`. DRX does not
 execute C# inside JSX; typed props and server actions are the language boundary.
 
-The `vendor/` directory is a pinned pre-release runtime snapshot. VS Code hides
-it from normal browsing and search, and application code must never edit it.
-It will become pinned package dependencies once the public packages are
-available. While the private preview is vendored, replace the complete snapshot
-transactionally instead of copying individual files:
+DotReact is consumed through exact npm and NuGet versions plus a pinned local
+.NET tool. Authenticate both private GitHub Packages feeds once on the developer
+machine, then upgrade the complete runtime contract together:
 
 ```powershell
-dotreact upgrade --from C:\path\to\dotreact
+dotreact upgrade 0.1.1
 npm install
-npm run dotreact:runtime
 npm run verify
 ```
 
-The upgrade command changes only `vendor/`; it does not rewrite `app/`,
-`Server/`, `src/`, `public/`, deployment settings or application data.
+The upgrade command aligns framework entries in `package.json`, the two NuGet
+references in `Server.csproj` and `.config/dotnet-tools.json`. It does not
+rewrite `app/`, application C# code, generated contracts, public assets,
+deployment settings or data.
 
 The one-argument page attribute derives routing from the DRX module ID:
 

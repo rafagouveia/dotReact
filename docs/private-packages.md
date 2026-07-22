@@ -1,7 +1,7 @@
 # Private GitHub Packages
 
-DotReact prerelease packages are prepared for the `rafagouveia`
-GitHub Packages namespace. Publishing is manual and disabled by default.
+DotReact prerelease packages are published in the `rafagouveia` GitHub Packages
+namespace. Publishing new immutable versions is manual and disabled by default.
 
 ## Package coordinates
 
@@ -58,11 +58,23 @@ npm login --scope=@rafagouveia --auth-type=legacy --registry=https://npm.pkg.git
 Add the private NuGet source to the user-level configuration:
 
 ```powershell
-dotnet nuget add source --username rafagouveia --password YOUR_CLASSIC_PAT --store-password-in-clear-text --name RafagouveiaGitHub "https://nuget.pkg.github.com/rafagouveia/index.json"
+dotnet nuget add source --username rafagouveia --password YOUR_CLASSIC_PAT --store-password-in-clear-text --name github-dotreact "https://nuget.pkg.github.com/rafagouveia/index.json"
 ```
 
 Prefer a credential provider or CI secret over a clear-text local configuration
 on shared machines. Consumers need `read:packages` and repository/package access.
+For another private repository, grant that repository access on each package's
+GitHub **Manage Actions access** page; `packages: read` alone cannot bypass a
+package that has not shared access with the consuming repository.
+
+Create a project without cloning the framework repository:
+
+```powershell
+npm exec --yes --package=@rafagouveia/dotreact-cli@0.1.1 -- dotreact create my-app --template starter
+cd my-app
+npm install
+npm exec -- dotreact doctor
+```
 
 ## Cost controls
 

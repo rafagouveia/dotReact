@@ -2,7 +2,7 @@
 import { access, cp, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { watch as watchFiles } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { dirname, relative, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { addArtifact, type ScaffoldKind } from "./scaffolding.js";
@@ -38,9 +38,11 @@ const workspaceInfrastructure = [
   ".gitignore",
   ".npmrc",
   ".nvmrc",
+  ".config",
   "Directory.Build.props",
   "Dockerfile",
   "global.json",
+  "NuGet.config",
   "package-lock.json",
   "tsconfig.base.json",
   "tsconfig.json",
@@ -54,6 +56,33 @@ interface ProjectIdentity {
   readonly packageName: string;
   readonly namespace: string;
   readonly displayName: string;
+}
+
+interface EmbeddedTemplate {
+  readonly schemaVersion: number;
+  readonly entries: ReadonlyArray<{ readonly path: string; readonly content: string }>;
+}
+
+async function frameworkVersion(): Promise<string> {
+  const packageJson = JSON.parse(await readFile(resolve(here, "../package.json"), "utf8")) as { version?: string };
+  if (!packageJson.version || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(packageJson.version))
+    throw new Error("The installed DotReact CLI package has no valid framework version.");
+  return packageJson.version;
+}
+
+async function writeEmbeddedTemplate(target: string): Promise<void> {
+  const template = JSON.parse(await readFile(resolve(here, "template.json"), "utf8")) as EmbeddedTemplate;
+  if (template.schemaVersion !== 1 || !Array.isArray(template.entries) || template.entries.length === 0)
+    throw new Error("The installed DotReact CLI package does not contain a valid project template. Reinstall it.");
+  for (const entry of template.entries) {
+    if (!entry.path || isAbsolute(entry.path)) throw new Error("The embedded project template contains an unsafe path.");
+    const destination = resolve(target, entry.path);
+    const localPath = relative(target, destination);
+    if (localPath.startsWith("..") || isAbsolute(localPath))
+      throw new Error("The embedded project template attempted to write outside the project directory.");
+    await mkdir(dirname(destination), { recursive: true });
+    await writeFile(destination, Buffer.from(entry.content, "base64"));
+  }
 }
 
 function createProjectIdentity(name: string): ProjectIdentity {
@@ -157,6 +186,13 @@ function replaceRequired(source: string, search: string, replacement: string, la
   return source.replace(search, replacement);
 }
 
+function replacePatternRequired(source: string, pattern: RegExp, replacement: string, label: string): string {
+  const occurrences = [...source.matchAll(pattern)].length;
+  if (occurrences !== 1)
+    throw new Error(`Scaffold template drift: expected exactly one ${label}, found ${occurrences}.`);
+  return source.replace(pattern, replacement);
+}
+
 async function assertNoMonorepoPaths(target: string): Promise<void> {
   const leakedPath = /(?:\.\.[\\/])+(?:packages|dotnet)(?:[\\/]|$)/;
   const visit = async (directory: string): Promise<void> => {
@@ -186,29 +222,18 @@ async function create(name: string | undefined, template: string | undefined): P
   const target = resolve(process.cwd(), name);
   await mkdir(target, { recursive: false });
   try {
-  await cp(resolve(repoRoot, "examples/starter"), target, { recursive: true, filter: shouldCopy });
+  await writeEmbeddedTemplate(target);
   if (template === "minimal") await applyMinimalTemplate(target);
   await rename(resolve(target, "Dockerfile.scaffold"), resolve(target, "Dockerfile"));
-  await cp(resolve(repoRoot, ".dockerignore"), resolve(target, ".dockerignore"));
-  await cp(resolve(repoRoot, ".gitignore"), resolve(target, ".gitignore"));
-  await cp(resolve(repoRoot, ".gitattributes"), resolve(target, ".gitattributes"));
-  await cp(resolve(repoRoot, ".editorconfig"), resolve(target, ".editorconfig"));
-  await cp(resolve(repoRoot, ".npmrc"), resolve(target, ".npmrc"));
-  await cp(resolve(repoRoot, ".nvmrc"), resolve(target, ".nvmrc"));
-  await cp(resolve(repoRoot, ".env.example"), resolve(target, ".env.example"));
-  await cp(resolve(repoRoot, "global.json"), resolve(target, "global.json"));
-  await cp(resolve(repoRoot, "deploy/azure"), resolve(target, "deploy/azure"), { recursive: true, filter: shouldCopy });
-  await cp(resolve(repoRoot, "dotnet/Directory.Build.props"), resolve(target, "Directory.Build.props"));
-  await copyRuntime(repoRoot, resolve(target, "vendor"));
-  await cp(resolve(repoRoot, "tsconfig.base.json"), resolve(target, "tsconfig.base.json"));
+  const version = await frameworkVersion();
   const csprojPath = resolve(target, "Server/Server.csproj");
   const csproj = await readFile(csprojPath, "utf8");
   const rewrittenCsproj = replaceRequired(csproj,
-    "../../../dotnet/src/DotReact.Hosting/DotReact.Hosting.csproj",
-    "../vendor/DotReact.Hosting/DotReact.Hosting.csproj", "hosting project reference");
-  const rewrittenProject = replaceRequired(rewrittenCsproj,
-    "../../../dotnet/src/DotReact.AppGenerator/DotReact.AppGenerator.csproj",
-    "../vendor/DotReact.AppGenerator/DotReact.AppGenerator.csproj", "app generator project reference");
+    "    <ProjectReference Include=\"../../../dotnet/src/DotReact.Hosting/DotReact.Hosting.csproj\" />",
+    `    <PackageReference Include=\"DotReact.Hosting\" Version=\"${version}\" />`, "hosting project reference");
+  const rewrittenProject = replacePatternRequired(rewrittenCsproj,
+    /    <ProjectReference Include="\.\.\/\.\.\/\.\.\/dotnet\/src\/DotReact\.AppGenerator\/DotReact\.AppGenerator\.csproj"\s+OutputItemType="Analyzer"\s+ReferenceOutputAssembly="false" \/>/gu,
+    `    <PackageReference Include="DotReact.AppGenerator" Version="${version}"\n                      OutputItemType="Analyzer"\n                      ReferenceOutputAssembly="false"\n                      PrivateAssets="all" />`, "app generator project reference");
   await writeFile(csprojPath, rewrittenProject);
   const packagePath = resolve(target, "package.json");
   const packageJson = JSON.parse(await readFile(packagePath, "utf8")) as {
@@ -217,27 +242,33 @@ async function create(name: string | undefined, template: string | undefined): P
     name: string;
   };
   packageJson.name = identity.packageName;
-  packageJson.dependencies["@rafagouveia/dotreact-protocol"] = "file:vendor/protocol";
-  packageJson.dependencies["@rafagouveia/dotreact-renderer"] = "file:vendor/renderer";
-  packageJson.dependencies["@rafagouveia/dotreact-client"] = "file:vendor/client";
-  packageJson.dependencies["@rafagouveia/dotreact-image"] = "file:vendor/image";
-  packageJson.dependencies["@rafagouveia/dotreact-font"] = "file:vendor/font";
-  packageJson.dependencies["@rafagouveia/dotreact-script"] = "file:vendor/script";
-  packageJson.devDependencies["@rafagouveia/dotreact-adapter"] = "file:vendor/adapter";
-  packageJson.devDependencies["@rafagouveia/dotreact-vite"] = "file:vendor/vite";
-  packageJson.devDependencies["@rafagouveia/dotreact-cli"] = "file:vendor/cli";
+  for (const dependency of Object.keys(packageJson.dependencies)) {
+    if (dependency.startsWith("@rafagouveia/dotreact-")) packageJson.dependencies[dependency] = version;
+  }
+  for (const dependency of Object.keys(packageJson.devDependencies)) {
+    if (dependency.startsWith("@rafagouveia/dotreact-")) packageJson.devDependencies[dependency] = version;
+  }
   const scripts = (packageJson as unknown as { scripts: Record<string, string> }).scripts;
-  scripts["dotreact:runtime"] = "npm run build --prefix vendor/protocol && npm run build --prefix vendor/client && npm run build --prefix vendor/renderer && npm run build --prefix vendor/image && npm run build --prefix vendor/font && npm run build --prefix vendor/script && npm run build --prefix vendor/adapter && npm run build --prefix vendor/vite && npm run build --prefix vendor/cli";
+  scripts.postinstall = "dotnet tool restore";
   delete scripts["build:framework"];
+  delete scripts["dotreact:runtime"];
+  delete scripts.prepare;
   scripts.drx = "dotreact";
-  scripts.prepare = "npm run dotreact:runtime";
   scripts["dev:renderer"] = replaceRequired(scripts["dev:renderer"] ?? "", "../../packages/renderer/dist/server.js",
-    "vendor/renderer/dist/server.js", "renderer development path");
-  scripts.generate = replaceRequired(scripts.generate ?? "", "../../dotnet/src/DotReact.TypeGen/DotReact.TypeGen.csproj",
-    "vendor/DotReact.TypeGen/DotReact.TypeGen.csproj", "contract generator path");
-  scripts["check:contracts"] = replaceRequired(scripts["check:contracts"] ?? "", "../../dotnet/src/DotReact.TypeGen/DotReact.TypeGen.csproj",
-    "vendor/DotReact.TypeGen/DotReact.TypeGen.csproj", "contract checker path");
+    "node_modules/@rafagouveia/dotreact-renderer/dist/server.js", "renderer development path");
+  scripts.generate = replaceRequired(scripts.generate ?? "",
+    "dotnet run --project ../../dotnet/src/DotReact.TypeGen/DotReact.TypeGen.csproj --",
+    "dotnet tool run dotreact-typegen --", "contract generator path");
+  scripts["check:contracts"] = replaceRequired(scripts["check:contracts"] ?? "",
+    "dotnet run --project ../../dotnet/src/DotReact.TypeGen/DotReact.TypeGen.csproj --",
+    "dotnet tool run dotreact-typegen --", "contract checker path");
   await writeFile(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`);
+  await mkdir(resolve(target, ".config"), { recursive: true });
+  await writeFile(resolve(target, ".config/dotnet-tools.json"), `${JSON.stringify({
+    version: 1,
+    isRoot: true,
+    tools: { "dotreact.typegen.tool": { version, commands: ["dotreact-typegen"] } }
+  }, null, 2)}\n`);
   const appTsconfigPath = resolve(target, "tsconfig.json");
   const appTsconfig = await readFile(appTsconfigPath, "utf8");
   await writeFile(appTsconfigPath, replaceRequired(appTsconfig, "../../tsconfig.base.json", "./tsconfig.base.json",
@@ -270,7 +301,7 @@ async function applyMinimalTemplate(target: string): Promise<void> {
     }],
     actions: []
   }, null, 2)}\n`);
-  await writeFile(resolve(target, "README.md"), `# DotReact minimal project\n\nASP.NET Core owns HTTP, security and data; React renders on the server and hydrates in the browser. Keep routes, route-private components and Server Actions in \`app/\`; keep Domain, Application, Infrastructure and jobs in \`Server/\`; keep public assets in \`public/\`. Treat \`vendor/\` as managed framework runtime.\n\nThe scaffold is repository-ready but deliberately does not run \`git init\`. Run \`npm install\` and commit the resulting \`package-lock.json\` before relying on the included CI workflow. Repository defaults cover Git, editors, Node/npm, .NET, Docker and dependency updates.\n\n\`\`\`powershell\nnpm install\nnpm exec -- dotreact doctor\nnpm exec -- dotreact dev\n\`\`\`\n\nGenerate application artifacts without overwriting existing files:\n\n\`\`\`powershell\nnpm exec -- dotreact generate page catalog/[slug]\nnpm exec -- dotreact generate layout catalog\nnpm exec -- dotreact generate component CatalogCard --route catalog\nnpm exec -- dotreact generate action SaveCatalog --route catalog\nnpm exec -- dotreact sync\nnpm exec -- dotreact check\n\`\`\`\n\nUse \`npm exec -- dotreact build\`, \`npm exec -- dotreact analyze\` and \`npm exec -- dotreact start\` for the production lifecycle. Run \`npm run verify\` before integration. Set \`OTEL_EXPORTER_OTLP_ENDPOINT\` to export DotReact traces and metrics through OTLP. During the vendored preview, update only through \`dotreact upgrade --from <framework-root>\`.\n`);
+  await writeFile(resolve(target, "README.md"), `# DotReact minimal project\n\nASP.NET Core owns HTTP, security and data; React renders on the server and hydrates in the browser. Keep routes, route-private components and Server Actions in \`app/\`; keep Domain, Application, Infrastructure and jobs in \`Server/\`; keep public assets in \`public/\`. Framework runtime dependencies are pinned npm and NuGet packages; do not copy framework source into the application.\n\nThe scaffold is repository-ready but deliberately does not run \`git init\`. Authenticate npm and NuGet for the private GitHub Packages feeds, run \`npm install\`, and commit the resulting \`package-lock.json\` before relying on the included CI workflow. Repository defaults cover Git, editors, Node/npm, .NET, Docker and dependency updates.\n\n\`\`\`powershell\nnpm install\nnpm exec -- dotreact doctor\nnpm exec -- dotreact dev\n\`\`\`\n\nGenerate application artifacts without overwriting existing files:\n\n\`\`\`powershell\nnpm exec -- dotreact generate page catalog/[slug]\nnpm exec -- dotreact generate layout catalog\nnpm exec -- dotreact generate component CatalogCard --route catalog\nnpm exec -- dotreact generate action SaveCatalog --route catalog\nnpm exec -- dotreact sync\nnpm exec -- dotreact check\n\`\`\`\n\nUse \`npm exec -- dotreact build\`, \`npm exec -- dotreact analyze\` and \`npm exec -- dotreact start\` for the production lifecycle. Run \`npm run verify\` before integration. Set \`OTEL_EXPORTER_OTLP_ENDPOINT\` to export DotReact traces and metrics through OTLP. Update the pinned DotReact package versions together and validate with \`npm run verify\`.\n`);
 }
 
 function run(executable: string, commandArgs: string[], cwd = process.cwd(), env?: NodeJS.ProcessEnv): Promise<void> {
@@ -482,7 +513,11 @@ async function doctor(): Promise<void> {
   await run(process.execPath, ["--version"]);
   await run(dotnetExecutable, ["--version"]);
   const root = await requireProject();
-  const packageJson = JSON.parse(await readFile(resolve(root, "package.json"), "utf8")) as { scripts?: Record<string, string> };
+  const packageJson = JSON.parse(await readFile(resolve(root, "package.json"), "utf8")) as {
+    scripts?: Record<string, string>;
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+  };
   for (const script of [
     "dev", "build", "build:client", "build:ssr", "generate", "typecheck",
     "check:contracts", "verify", "analyze", "audit:dotnet"
@@ -497,7 +532,7 @@ async function doctor(): Promise<void> {
     "scripts/audit-dotnet-packages.mjs",
     "deploy/azure/app-service.bicep",
     "deploy/azure/container-apps.bicep"
-  ]) if (!await exists(resolve(root, path)) && (vendorRuntime || !await exists(resolve(repoRoot, path))))
+  ]) if (!await exists(resolve(root, path)))
     throw new Error(`Required framework-owned project asset is missing: ${path}`);
   if (!await exists(resolve(root, "Dockerfile")) && !await exists(resolve(root, "Dockerfile.scaffold")))
     throw new Error("Required production container definition is missing: Dockerfile.");
@@ -505,7 +540,7 @@ async function doctor(): Promise<void> {
   if (vendorRuntime && legacyRuntime)
     throw new Error("Both vendor/ and legacy framework/ runtimes exist. Keep only the pinned vendor/ runtime.");
   if (legacyRuntime)
-    throw new Error("Legacy framework/ runtime detected. Upgrade the scaffold to the managed vendor/ layout.");
+    throw new Error("Legacy framework/ runtime detected. Recreate the project with published package dependencies.");
   if (vendorRuntime) {
     for (const file of [
       "vendor/README.md",
@@ -525,6 +560,34 @@ async function doctor(): Promise<void> {
     if (runtime.schemaVersion !== 1 || typeof runtime.frameworkVersion !== "string")
       throw new Error("Managed runtime metadata is invalid. Run dotreact upgrade from a valid framework checkout.");
     process.stdout.write(`[dotreact] Managed runtime ${runtime.frameworkVersion}.\n`);
+  } else {
+    const dependencies = { ...packageJson.dependencies, ...packageJson.devDependencies };
+    const dotReactPackages = Object.entries(dependencies)
+      .filter(([name]) => name.startsWith("@rafagouveia/dotreact-"));
+    if (dotReactPackages.length === 0)
+      throw new Error("No DotReact npm packages are declared. Recreate the project or restore package.json.");
+    const invalid = dotReactPackages.find(([, version]) => !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(version));
+    if (invalid !== undefined)
+      throw new Error(`DotReact package ${invalid[0]} must use an exact published version, not '${invalid[1]}'.`);
+    const versions = new Set(dotReactPackages.map(([, version]) => version));
+    if (versions.size !== 1)
+      throw new Error("DotReact npm packages must use one aligned framework version. Run dotreact upgrade <version>.");
+    const frameworkPackageVersion = [...versions][0]!;
+    const projectSource = await readFile(resolve(root, "Server/Server.csproj"), "utf8");
+    for (const packageName of ["DotReact.Hosting", "DotReact.AppGenerator"]) {
+      const reference = new RegExp(`<PackageReference Include="${packageName.replace(".", "\\.")}" Version="([^\"]+)"`, "u")
+        .exec(projectSource);
+      if (reference === null)
+        throw new Error(`Server.csproj is missing the published ${packageName} package reference.`);
+      if (reference[1] !== frameworkPackageVersion)
+        throw new Error(`${packageName} must use DotReact ${frameworkPackageVersion}, not ${reference[1]}.`);
+    }
+    const toolManifest = JSON.parse(await readFile(resolve(root, ".config/dotnet-tools.json"), "utf8")) as {
+      tools?: Record<string, { version?: string }>;
+    };
+    if (toolManifest.tools?.["dotreact.typegen.tool"]?.version !== frameworkPackageVersion)
+      throw new Error("DotReact TypeGen must use the same version as the npm runtime packages.");
+    process.stdout.write(`[dotreact] Published package runtime ${frameworkPackageVersion}.\n`);
   }
   for (const file of ["src/contracts.ts", "src/actions.ts", "src/backend-manifest.json"]) {
     if (!await exists(resolve(root, file))) throw new Error(`Generated boundary artifact is missing: ${file}`);
@@ -536,6 +599,10 @@ async function doctor(): Promise<void> {
 
 async function upgrade(values: string[]): Promise<void> {
   const root = await requireProject();
+  if (!await exists(resolve(root, "vendor"))) {
+    await upgradePackages(root, values);
+    return;
+  }
   const sourceOption = optionValue(values, "--from");
   const allowed = new Set(["--from", "--dry-run"]);
   for (let index = 0; index < values.length; index += 1) {
@@ -596,6 +663,53 @@ async function upgrade(values: string[]): Promise<void> {
   } finally {
     await rm(operationRoot, { recursive: true, force: true });
   }
+}
+
+async function upgradePackages(root: string, values: string[]): Promise<void> {
+  const version = values.find(value => !value.startsWith("--"));
+  if (!version || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(version)
+    || values.some(value => value !== version && value !== "--dry-run"))
+    throw new Error("Use: dotreact upgrade <version> [--dry-run].");
+
+  const packagePath = resolve(root, "package.json");
+  const packageJson = JSON.parse(await readFile(packagePath, "utf8")) as {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+  };
+  let updatedPackages = 0;
+  for (const group of [packageJson.dependencies, packageJson.devDependencies]) {
+    if (group === undefined) continue;
+    for (const dependency of Object.keys(group)) {
+      if (!dependency.startsWith("@rafagouveia/dotreact-")) continue;
+      group[dependency] = version;
+      updatedPackages += 1;
+    }
+  }
+  if (updatedPackages === 0) throw new Error("No DotReact npm packages were found in package.json.");
+
+  const csprojPath = resolve(root, "Server/Server.csproj");
+  const csproj = await readFile(csprojPath, "utf8");
+  const packageReference = /(<PackageReference Include="DotReact\.(?:Hosting|AppGenerator)" Version=")[^"]+("[^>]*>)/gu;
+  if ([...csproj.matchAll(packageReference)].length !== 2)
+    throw new Error("Server.csproj must reference the DotReact.Hosting and DotReact.AppGenerator packages.");
+  const updatedCsproj = csproj.replace(packageReference, `$1${version}$2`);
+
+  const toolPath = resolve(root, ".config/dotnet-tools.json");
+  const toolManifest = JSON.parse(await readFile(toolPath, "utf8")) as {
+    tools?: Record<string, { version?: string }>;
+  };
+  const typeGen = toolManifest.tools?.["dotreact.typegen.tool"];
+  if (typeGen === undefined) throw new Error("The DotReact TypeGen local tool is missing from .config/dotnet-tools.json.");
+  typeGen.version = version;
+
+  if (values.includes("--dry-run")) {
+    process.stdout.write(`Would align ${updatedPackages} npm packages, 2 NuGet references and TypeGen to DotReact ${version}.\nNo files were written.\n`);
+    return;
+  }
+  await writeFile(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`);
+  await writeFile(csprojPath, updatedCsproj);
+  await writeFile(toolPath, `${JSON.stringify(toolManifest, null, 2)}\n`);
+  process.stdout.write(`Aligned npm, NuGet and TypeGen dependencies to DotReact ${version}.\nNext: npm install && npm run verify\n`);
 }
 
 async function workspace(values: string[]): Promise<void> {
@@ -824,7 +938,8 @@ function help(): void {
     "  dotreact health                          Run the complete project release gate",
     "  dotreact start",
     "  dotreact doctor",
-    "  dotreact upgrade --from <framework-root> [--dry-run]  Replace only the managed vendor runtime",
+    "  dotreact upgrade <version> [--dry-run]    Align npm, NuGet and TypeGen packages",
+    "  dotreact upgrade --from <framework-root>  Migrate a legacy vendored preview runtime",
     "  dotreact workspace <focus|reveal|status>  Control advanced infrastructure visibility"
   ].join("\n") + "\n");
 }
