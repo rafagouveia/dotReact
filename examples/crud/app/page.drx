@@ -1,5 +1,5 @@
-import { definePage } from "@blackredsolutionsteam/dotreact-client/router";
-import type { DotReactMetadata } from "@blackredsolutionsteam/dotreact-vite";
+import { definePage } from "@rafagouveia/dotreact-client/router";
+import type { DotReactMetadata } from "@rafagouveia/dotreact-vite";
 import type { DashboardProps } from "../src/contracts";
 import { WorkItemsBoard } from "./_components/work-items/WorkItemsBoard";
 

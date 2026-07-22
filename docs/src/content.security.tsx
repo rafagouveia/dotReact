@@ -51,7 +51,7 @@ export const securityDocs: readonly DocPage[] = [
     body: <>
       <h2>Todo valor renderizado continua sendo dado</h2>
       <p>React escapa texto por padrão e o shell serializa hydration JSON com encoding seguro. Não crie atalhos de HTML bruto. Metadata aceita uma superfície estruturada; URLs e atributos passam por allowlists antes do documento final.</p>
-      <CodeBlock label="Script remoto com integridade" code={'import { script } from "@blackredsolutionsteam/dotreact-script";\n\nexport const metadata = {\n  scripts: [script({\n    src: "https://cdn.example.com/widget.js",\n    integrity: "sha384-BASE64_DIGEST_FROM_RELEASE",\n    strategy: "lazyOnload",\n    referrerPolicy: "no-referrer"\n  })]\n};'} />
+      <CodeBlock label="Script remoto com integridade" code={'import { script } from "@rafagouveia/dotreact-script";\n\nexport const metadata = {\n  scripts: [script({\n    src: "https://cdn.example.com/widget.js",\n    integrity: "sha384-BASE64_DIGEST_FROM_RELEASE",\n    strategy: "lazyOnload",\n    referrerPolicy: "no-referrer"\n  })]\n};'} />
       <ul className="feature-list">
         <li>Prefira scripts locais versionados. HTTPS remoto exige SHA-256/384/512 SRI e CORS anônimo.</li>
         <li>Não adicione <code>*</code>, <code>data:</code>, <code>unsafe-eval</code> ou <code>unsafe-inline</code> à CSP de produção.</li>

@@ -2,7 +2,7 @@ import { mkdir, readdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
-const source = "https://nuget.pkg.github.com/BlackRedSolutionsTeam/index.json";
+const source = "https://nuget.pkg.github.com/rafagouveia/index.json";
 const projects = [
   "dotnet/src/DotReact.AppGenerator/DotReact.AppGenerator.csproj",
   "dotnet/src/DotReact.AspNetCore/DotReact.AspNetCore.csproj",
@@ -27,8 +27,8 @@ if (mode === "pack") {
     if (result.status !== 0) throw new Error(`pack failed for ${project}.`);
   }
 } else {
-  const token = process.env.BLACKRED_PACKAGES_TOKEN;
-  if (!token) throw new Error("BLACKRED_PACKAGES_TOKEN is required to publish private NuGet packages.");
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) throw new Error("GITHUB_TOKEN is required to publish private NuGet packages.");
   const archives = (await readdir(destination))
     .filter(file => file.endsWith(".nupkg") && !file.endsWith(".snupkg"))
     .sort();

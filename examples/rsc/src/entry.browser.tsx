@@ -1,4 +1,4 @@
-import { createFromReadableStream } from "@blackredsolutionsteam/dotreact-rsc/browser";
+import { createFromReadableStream } from "@rafagouveia/dotreact-rsc/browser";
 import { StrictMode, useState } from "react";
 import { hydrateRoot } from "react-dom/client";
 import { rscStream } from "rsc-html-stream/client";

@@ -1,5 +1,5 @@
 {
-  "name": "@blackredsolutionsteam/dotreact-cli",
+  "name": "@rafagouveia/dotreact-cli",
   "version": "0.1.0",
   "description": "Project lifecycle and diagnostics CLI for DotReact.",
   "license": "MPL-2.0",

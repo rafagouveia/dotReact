@@ -102,7 +102,7 @@ function assertionSource(
   if (layouts.length > 0) reactTypes.push("FunctionComponent");
   if (reactTypes.length > 0) lines.push(`import type { ${reactTypes.join(", ")} } from "react";`);
   if (layouts.length > 0)
-    lines.push("import type { DotReactLayoutProps } from \"@blackredsolutionsteam/dotreact-client/router\";");
+    lines.push("import type { DotReactLayoutProps } from \"@rafagouveia/dotreact-client/router\";");
   if (boundaries.some(boundary => boundary.kind !== "loading"))
     lines.push("type DotReactBoundaryProps = { readonly statusCode: number; readonly requestId: string; readonly message?: string };");
   if (manifest !== undefined) {

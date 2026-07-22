@@ -75,8 +75,8 @@ Key files:
 - `public/` is the single source for fonts, icons and public images. The
   framework serves it in development and Vite copies it into production.
 - `app/fonts.ts` is the optional typed declaration point for local fonts through
-  `@blackredsolutionsteam/dotreact-font`; mark non-critical faces with `preload: false` and never duplicate generated CSS.
-- `@blackredsolutionsteam/dotreact-script` declares validated external scripts with `beforeInteractive`,
+  `@rafagouveia/dotreact-font`; mark non-critical faces with `preload: false` and never duplicate generated CSS.
+- `@rafagouveia/dotreact-script` declares validated external scripts with `beforeInteractive`,
   `afterInteractive` or `lazyOnload`; inline JavaScript is intentionally unsupported.
 - `app/page.drx` and `app/page.server.cs` are the React view and C# loader for `/`.
 - `app/products/[id]/` co-locates the dynamic view, loader, props and prerender policy.

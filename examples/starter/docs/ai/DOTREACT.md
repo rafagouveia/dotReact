@@ -64,7 +64,7 @@ public sealed class CustomerPage(ICustomerQueries queries, TimeProvider timeProv
 ```
 
 ```tsx
-import { definePage } from "@blackredsolutionsteam/dotreact-client/router";
+import { definePage } from "@rafagouveia/dotreact-client/router";
 import type { CustomerPageProps } from "../../../src/contracts";
 
 export default definePage<CustomerPageProps>(function CustomerPage(props) {

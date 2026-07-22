@@ -1,5 +1,5 @@
 {
-  "name": "@blackredsolutionsteam/dotreact-protocol",
+  "name": "@rafagouveia/dotreact-protocol",
   "version": "0.1.0",
   "description": "Versioned renderer protocol contracts for DotReact.",
   "license": "MPL-2.0",

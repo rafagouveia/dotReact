@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { BenchmarkInteractivePageProps } from "../../src/contracts";
-import { definePage } from "@blackredsolutionsteam/dotreact-client/router";
+import { definePage } from "@rafagouveia/dotreact-client/router";
 
 export default definePage<BenchmarkInteractivePageProps>(function BenchmarkInteractivePage(Model) {
   const [count, setCount] = useState(0);

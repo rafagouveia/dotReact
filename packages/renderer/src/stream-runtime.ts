@@ -9,7 +9,7 @@ import {
   type RenderStreamErrorFrame,
   type RenderStreamFrame,
   type RenderStreamRequest
-} from "@blackredsolutionsteam/dotreact-protocol";
+} from "@rafagouveia/dotreact-protocol";
 
 interface RenderStreamContext {
   readonly signal: AbortSignal;

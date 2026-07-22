@@ -1,5 +1,5 @@
 {
-  "name": "@blackredsolutionsteam/dotreact-client",
+  "name": "@rafagouveia/dotreact-client",
   "version": "0.1.0",
   "description": "Hydration, navigation and Server Action client runtime for DotReact.",
   "license": "MPL-2.0",

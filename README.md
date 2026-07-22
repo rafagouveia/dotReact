@@ -310,8 +310,8 @@ from SQLite for SSR, TypeGen produces the React contracts, and the hydrated UI
 creates, updates and deletes records through ASP.NET Core endpoints.
 
 ```powershell
-npm run generate -w @blackredsolutionsteam/dotreact-example-crud
-npm run dev -w @blackredsolutionsteam/dotreact-example-crud
+npm run generate -w @rafagouveia/dotreact-example-crud
+npm run dev -w @rafagouveia/dotreact-example-crud
 ```
 
 Open `http://127.0.0.1:5090`. It uses renderer port `5174`, so it can run beside

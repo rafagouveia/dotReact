@@ -1,5 +1,5 @@
 import react from "@vitejs/plugin-react";
-import { dotReactRsc } from "@blackredsolutionsteam/dotreact-rsc";
+import { dotReactRsc } from "@rafagouveia/dotreact-rsc";
 import { defineConfig } from "vite";
 
 export default defineConfig({

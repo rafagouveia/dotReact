@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { createFontPreloadLinks, createFontStyleSheet, type DotReactFont } from "@blackredsolutionsteam/dotreact-font";
+import { createFontPreloadLinks, createFontStyleSheet, type DotReactFont } from "@rafagouveia/dotreact-font";
 import react from "@vitejs/plugin-react";
 import { defineConfig, transformWithOxc, type Plugin, type PluginOption, type ResolvedConfig, type UserConfigExport, type ViteDevServer } from "vite";
 import { isContained, realpathOrResolved, scanDotReactGraph, type DotReactGraph } from "./discovery.js";
@@ -112,7 +112,7 @@ export interface DotReactOptions {
   readonly backendManifest?: string | false;
   /** Global stylesheet imported by the framework-owned client entry. */
   readonly clientStyles?: string | false;
-  /** Self-hosted fonts declared with `localFont` from `@blackredsolutionsteam/dotreact-font`. */
+  /** Self-hosted fonts declared with `localFont` from `@rafagouveia/dotreact-font`. */
   readonly fonts?: readonly DotReactFont[];
   /** Application-wide document metadata used when a page does not override it. */
   readonly defaultMetadata?: DotReactMetadata;
@@ -135,7 +135,7 @@ export function defineDotReactConfig(options: DotReactProjectOptions = {}): User
       react({ include: /\.(?:js|jsx|ts|tsx|drx)$/ }),
       ...plugins
     ],
-    resolve: { dedupe: ["react", "react-dom", "@blackredsolutionsteam/dotreact-client"] },
+    resolve: { dedupe: ["react", "react-dom", "@rafagouveia/dotreact-client"] },
     optimizeDeps: {
       include: ["react", "react/jsx-runtime", "react/jsx-dev-runtime", "react-dom", "react-dom/client"]
     },
@@ -229,13 +229,13 @@ function isFrameworkClientRuntime(file: string): boolean {
   return normalized.includes("/framework/client/")
     || normalized.includes("/vendor/client/")
     || normalized.includes("/packages/client/")
-    || normalized.includes("/node_modules/@blackredsolutionsteam/dotreact-client/");
+    || normalized.includes("/node_modules/@rafagouveia/dotreact-client/");
 }
 
 function virtualModule(graph: DotReactGraph, fonts: readonly DotReactFont[]): string {
   const imports = [
     "import { createElement } from \"react\";",
-    "import { dotReactDefaultBoundaries } from \"@blackredsolutionsteam/dotreact-client/boundaries\";"
+    "import { dotReactDefaultBoundaries } from \"@rafagouveia/dotreact-client/boundaries\";"
   ];
   if (graph.globalError !== undefined)
     imports.push(`import GlobalError from ${JSON.stringify(fsImport(graph.globalError))};`);
@@ -285,7 +285,7 @@ function virtualModule(graph: DotReactGraph, fonts: readonly DotReactFont[]): st
 }
 
 function clientPagesModule(graph: DotReactGraph): string {
-  const imports = ['import { dotReactDefaultBoundaries } from "@blackredsolutionsteam/dotreact-client/boundaries";'];
+  const imports = ['import { dotReactDefaultBoundaries } from "@rafagouveia/dotreact-client/boundaries";'];
   if (graph.globalError !== undefined)
     imports.push(`import GlobalError from ${JSON.stringify(fsImport(graph.globalError))};`);
   const entries = graph.pages.map((page, pageIndex) => {
@@ -339,11 +339,11 @@ export function dotReact(options: DotReactOptions = {}): Plugin {
     const routeStylesImport = config.command === "build" && !config.build.ssr && config.build.cssCodeSplit === false
       ? `import "${publicClientStylesId}";\n`
       : "";
-    return `import { bootstrapDotReactLazyClient } from "@blackredsolutionsteam/dotreact-client/bootstrap";\nimport { globalError, routeLoaders } from "${publicClientPagesId}";\n${fontsImport}${stylesImport}${routeStylesImport}await bootstrapDotReactLazyClient({ routeLoaders, globalError });\n`;
+    return `import { bootstrapDotReactLazyClient } from "@rafagouveia/dotreact-client/bootstrap";\nimport { globalError, routeLoaders } from "${publicClientPagesId}";\n${fontsImport}${stylesImport}${routeStylesImport}await bootstrapDotReactLazyClient({ routeLoaders, globalError });\n`;
   };
 
   const serverEntryModule = (): string => [
-    'import { createDotReactReactRuntime } from "@blackredsolutionsteam/dotreact-renderer/react";',
+    'import { createDotReactReactRuntime } from "@rafagouveia/dotreact-renderer/react";',
     `import { boundaries, fontPreloads, pages, routeLayouts, routeModules } from "${publicVirtualId}";`,
     `const defaultMetadata = Object.freeze(${JSON.stringify(options.defaultMetadata ?? {})});`,
     "const runtime = createDotReactReactRuntime({ pages, routeModules, routeLayouts, boundaries, fontPreloads, defaultMetadata });",

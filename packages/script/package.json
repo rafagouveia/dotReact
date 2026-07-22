@@ -1,5 +1,5 @@
 {
-  "name": "@blackredsolutionsteam/dotreact-script",
+  "name": "@rafagouveia/dotreact-script",
   "version": "0.1.0",
   "description": "Controlled script loading strategies for DotReact.",
   "license": "MPL-2.0",
@@ -15,7 +15,7 @@
     "test": "node --test dist/index.test.js"
   },
   "dependencies": {
-    "@blackredsolutionsteam/dotreact-client": "0.1.0"
+    "@rafagouveia/dotreact-client": "0.1.0"
   },
   "devDependencies": {
     "@types/node": "24.10.1",

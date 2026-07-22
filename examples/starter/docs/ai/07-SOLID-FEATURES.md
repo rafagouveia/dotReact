@@ -93,7 +93,7 @@ when they deserve direct tests.
 
 Import feature CSS from the DRX, layout or component that owns it. Global reset,
 tokens and document defaults belong in `src/styles.css`. Put public assets in
-`public/`; declare local fonts in `app/fonts.ts` with `@blackredsolutionsteam/dotreact-font` so the
+`public/`; declare local fonts in `app/fonts.ts` with `@rafagouveia/dotreact-font` so the
 framework owns `@font-face`, CSS variables and SSR preloads. In
 development DotReact discovers CSS reachable from the current page and layouts
 and places a blocking route stylesheet in the SSR `<head>`; production uses

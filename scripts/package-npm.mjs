@@ -4,16 +4,16 @@ import { spawnSync } from "node:child_process";
 
 const registry = "https://npm.pkg.github.com";
 const packages = [
-  "@blackredsolutionsteam/dotreact-protocol",
-  "@blackredsolutionsteam/dotreact-client",
-  "@blackredsolutionsteam/dotreact-font",
-  "@blackredsolutionsteam/dotreact-image",
-  "@blackredsolutionsteam/dotreact-script",
-  "@blackredsolutionsteam/dotreact-adapter",
-  "@blackredsolutionsteam/dotreact-rsc",
-  "@blackredsolutionsteam/dotreact-vite",
-  "@blackredsolutionsteam/dotreact-renderer",
-  "@blackredsolutionsteam/dotreact-cli"
+  "@rafagouveia/dotreact-protocol",
+  "@rafagouveia/dotreact-client",
+  "@rafagouveia/dotreact-font",
+  "@rafagouveia/dotreact-image",
+  "@rafagouveia/dotreact-script",
+  "@rafagouveia/dotreact-adapter",
+  "@rafagouveia/dotreact-rsc",
+  "@rafagouveia/dotreact-vite",
+  "@rafagouveia/dotreact-renderer",
+  "@rafagouveia/dotreact-cli"
 ];
 const mode = process.argv[2] ?? "pack";
 const npmCli = process.env.npm_execpath;

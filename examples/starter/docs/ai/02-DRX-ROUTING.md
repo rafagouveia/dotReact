@@ -87,7 +87,7 @@ not-found states should use explicit results.
 Use the framework type so optional children/page props remain correct:
 
 ```tsx
-import { defineLayout, type DotReactLayoutProps } from "@blackredsolutionsteam/dotreact-client/router";
+import { defineLayout, type DotReactLayoutProps } from "@rafagouveia/dotreact-client/router";
 
 export default defineLayout(function BillingLayout({ children }: DotReactLayoutProps) {
   return <section className="billing-shell">{children}</section>;

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { StreamingPageProps } from "../../src/contracts";
-import { DotReactLink, definePage } from "@blackredsolutionsteam/dotreact-client/router";
+import { DotReactLink, definePage } from "@rafagouveia/dotreact-client/router";
 
 export const metadata = {
   title: "Streaming e Suspense · DotReact",

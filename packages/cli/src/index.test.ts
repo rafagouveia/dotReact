@@ -268,11 +268,11 @@ test("minimal template is self-contained and omits demo actions and routes", () 
     assert.equal(existsSync(path.join(app, "vendor/vite/dist/check-cli.js")), true,
       "the checker executable must exist before npm links the dotreact-check bin");
     const generatedPackage = JSON.parse(readFileSync(path.join(app, "package.json"), "utf8"));
-    assert.equal(generatedPackage.devDependencies["@blackredsolutionsteam/dotreact-cli"], "file:vendor/cli");
-    assert.equal(generatedPackage.dependencies["@blackredsolutionsteam/dotreact-image"], "file:vendor/image");
-    assert.equal(generatedPackage.dependencies["@blackredsolutionsteam/dotreact-font"], "file:vendor/font");
-    assert.equal(generatedPackage.dependencies["@blackredsolutionsteam/dotreact-script"], "file:vendor/script");
-    assert.equal(generatedPackage.devDependencies["@blackredsolutionsteam/dotreact-adapter"], "file:vendor/adapter");
+    assert.equal(generatedPackage.devDependencies["@rafagouveia/dotreact-cli"], "file:vendor/cli");
+    assert.equal(generatedPackage.dependencies["@rafagouveia/dotreact-image"], "file:vendor/image");
+    assert.equal(generatedPackage.dependencies["@rafagouveia/dotreact-font"], "file:vendor/font");
+    assert.equal(generatedPackage.dependencies["@rafagouveia/dotreact-script"], "file:vendor/script");
+    assert.equal(generatedPackage.devDependencies["@rafagouveia/dotreact-adapter"], "file:vendor/adapter");
     assert.equal(existsSync(path.join(app, "vendor/rsc")), false,
       "unused experimental RSC sources must not be vendored into stable scaffolds");
     assert.equal(existsSync(path.join(app, "vendor/DotReact.Redis/DotReact.Redis.csproj")), true);

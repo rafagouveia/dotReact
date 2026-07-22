@@ -89,7 +89,7 @@ function cspNonce(document: Document): string | undefined {
 
 function frameKind(location: string): DotReactStackFrameKind {
   const value = location.replaceAll("\\", "/").toLowerCase();
-  if (value.includes("/vendor/client/") || value.includes("/@blackredsolutionsteam/dotreact-") || value.includes("/packages/client/"))
+  if (value.includes("/vendor/client/") || value.includes("/@rafagouveia/dotreact-") || value.includes("/packages/client/"))
     return "framework";
   if (value.includes("/node_modules/") || value.includes("/.vite/deps/")) return "dependency";
   if (value.includes("/app/") || value.includes("/src/")) return "app";

@@ -92,7 +92,7 @@ async function addBoundary(
 
 async function addGlobalError(root: string, dryRun: boolean): Promise<string[]> {
   const file = resolve(root, "app", "global-error.drx");
-  return applyPlans([{ path: file, content: `import type { DotReactGlobalErrorProps } from "@blackredsolutionsteam/dotreact-client/errors";
+  return applyPlans([{ path: file, content: `import type { DotReactGlobalErrorProps } from "@rafagouveia/dotreact-client/errors";
 
 export default function GlobalError({ reset }: DotReactGlobalErrorProps) {
   return (

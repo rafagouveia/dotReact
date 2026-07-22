@@ -1,5 +1,5 @@
 {
-  "name": "@blackredsolutionsteam/dotreact-vite",
+  "name": "@rafagouveia/dotreact-vite",
   "version": "0.1.0",
   "description": "Vite plugin, App Router compiler and DRX checker for DotReact.",
   "license": "MPL-2.0",
@@ -18,7 +18,7 @@
     "test": "node --test dist/index.test.js"
   },
   "dependencies": {
-    "@blackredsolutionsteam/dotreact-font": "0.1.0",
+    "@rafagouveia/dotreact-font": "0.1.0",
     "@vitejs/plugin-react": "6.0.3",
     "typescript": "7.0.2",
     "vite": "8.1.5"

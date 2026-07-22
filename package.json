@@ -9,12 +9,12 @@
     "editors/*"
   ],
   "scripts": {
-    "build:tooling": "npm run build -w @blackredsolutionsteam/dotreact-protocol && npm run build -w @blackredsolutionsteam/dotreact-client && npm run build -w @blackredsolutionsteam/dotreact-renderer && npm run build -w @blackredsolutionsteam/dotreact-image && npm run build -w @blackredsolutionsteam/dotreact-font && npm run build -w @blackredsolutionsteam/dotreact-script && npm run build -w @blackredsolutionsteam/dotreact-adapter && npm run build -w @blackredsolutionsteam/dotreact-rsc && npm run build -w @blackredsolutionsteam/dotreact-vite && npm run build -w @blackredsolutionsteam/dotreact-cli && npm run build -w dotreact-vscode",
+    "build:tooling": "npm run build -w @rafagouveia/dotreact-protocol && npm run build -w @rafagouveia/dotreact-client && npm run build -w @rafagouveia/dotreact-renderer && npm run build -w @rafagouveia/dotreact-image && npm run build -w @rafagouveia/dotreact-font && npm run build -w @rafagouveia/dotreact-script && npm run build -w @rafagouveia/dotreact-adapter && npm run build -w @rafagouveia/dotreact-rsc && npm run build -w @rafagouveia/dotreact-vite && npm run build -w @rafagouveia/dotreact-cli && npm run build -w dotreact-vscode",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present && dotnet test dotnet/DotReact.slnx -c Release && dotnet test examples/crud/Server.Tests/Server.Tests.csproj -c Release",
-    "dev": "npm run dev -w @blackredsolutionsteam/dotreact-example-starter",
-    "create": "npm run start -w @blackredsolutionsteam/dotreact-cli --",
+    "dev": "npm run dev -w @rafagouveia/dotreact-example-starter",
+    "create": "npm run start -w @rafagouveia/dotreact-cli --",
     "docs:dev": "npm --prefix docs run dev",
     "docs:build": "npm --prefix docs run build",
     "docs:typecheck": "npm --prefix docs run typecheck",
@@ -31,7 +31,7 @@
     "packages:pack": "npm run packages:pack:npm && npm run packages:pack:nuget",
     "packages:publish:npm": "node scripts/package-npm.mjs publish",
     "packages:publish:nuget": "node scripts/package-nuget.mjs publish",
-    "verify": "npm run build:tooling && npm run check:contracts -w @blackredsolutionsteam/dotreact-example-starter && npm run check:contracts -w @blackredsolutionsteam/dotreact-example-crud && npm run typecheck && npm run docs:build && npm test && npm run build && npm audit --audit-level=high && npm audit --prefix docs --audit-level=high && npm run audit:dotnet"
+    "verify": "npm run build:tooling && npm run check:contracts -w @rafagouveia/dotreact-example-starter && npm run check:contracts -w @rafagouveia/dotreact-example-crud && npm run typecheck && npm run docs:build && npm test && npm run build && npm audit --audit-level=high && npm audit --prefix docs --audit-level=high && npm run audit:dotnet"
   },
   "engines": {
     "node": ">=22.19.0 <25"

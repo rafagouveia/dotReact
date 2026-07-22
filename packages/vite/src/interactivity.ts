@@ -5,9 +5,9 @@ const sourceExtensions = [".drx", ".tsx", ".ts", ".jsx", ".js"] as const;
 const safeBareImports = new Set([
   "react",
   "react/jsx-runtime",
-  "@blackredsolutionsteam/dotreact-client/router",
-  "@blackredsolutionsteam/dotreact-font",
-  "@blackredsolutionsteam/dotreact-image"
+  "@rafagouveia/dotreact-client/router",
+  "@rafagouveia/dotreact-font",
+  "@rafagouveia/dotreact-image"
 ]);
 const clientHooks = new Set([
   "useActionState", "useCallback", "useContext", "useDebugValue", "useDeferredValue",

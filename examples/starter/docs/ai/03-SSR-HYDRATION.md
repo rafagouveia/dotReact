@@ -22,7 +22,7 @@ effect hooks, JSX event handlers, browser globals, a `"use client"` directive, a
 unknown package, or an import it cannot prove safe. Uncertainty always hydrates;
 it never silently removes required client behavior. Development hydrates all
 routes to preserve Fast Refresh. Component-level Server/Client boundaries remain
-experimental under `@blackredsolutionsteam/dotreact-rsc`.
+experimental under `@rafagouveia/dotreact-rsc`.
 
 ## Hydration contract
 

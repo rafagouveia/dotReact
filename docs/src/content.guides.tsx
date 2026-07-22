@@ -21,7 +21,7 @@ public sealed class InvoicePage(IGetInvoice useCase)
     }
 }`;
 
-const pageView = `import { definePage } from "@blackredsolutionsteam/dotreact-client/router";
+const pageView = `import { definePage } from "@rafagouveia/dotreact-client/router";
 import type { InvoicePageProps } from "../../../src/contracts";
 
 export default definePage<InvoicePageProps>(function InvoicePage(props) {

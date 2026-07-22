@@ -6,8 +6,8 @@ import {
   useRef,
   useState
 } from "react";
-import { DotReactActionError } from "@blackredsolutionsteam/dotreact-client";
-import { useDotReactRouter } from "@blackredsolutionsteam/dotreact-client/router";
+import { DotReactActionError } from "@rafagouveia/dotreact-client";
+import { useDotReactRouter } from "@rafagouveia/dotreact-client/router";
 import { workItemsCreate, workItemsDelete, workItemsUpdate } from "../../../src/actions";
 import type {
   CreateWorkItemRequest,
