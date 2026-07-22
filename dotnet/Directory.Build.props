@@ -12,7 +12,7 @@
     <Authors>Black Red Solutions</Authors>
     <Company>Black Red Solutions</Company>
     <Copyright>Copyright © Black Red Solutions</Copyright>
-    <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
+    <PackageLicenseExpression>PolyForm-Noncommercial-1.0.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/rafagouveia/dotReact</PackageProjectUrl>
     <RepositoryUrl>https://github.com/rafagouveia/dotReact.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>

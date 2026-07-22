@@ -2,6 +2,7 @@
   "name": "dotreact-monorepo",
   "version": "0.1.4",
   "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "workspaces": [
     "packages/*",

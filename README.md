@@ -2,7 +2,7 @@
 
 [![Quality](https://github.com/rafagouveia/dotReact/actions/workflows/ci.yml/badge.svg)](https://github.com/rafagouveia/dotReact/actions/workflows/ci.yml)
 [![Documentation](https://github.com/rafagouveia/dotReact/actions/workflows/pages.yml/badge.svg)](https://rafagouveia.github.io/dotReact/)
-[![License: MPL 2.0](https://img.shields.io/badge/license-MPL--2.0-blue.svg)](LICENSE)
+[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-0b1636.svg)](LICENSE)
 
 DotReact is an experimental full-stack framework that keeps ASP.NET Core in
 charge of HTTP, authentication, services, and data while React renders the UI
@@ -13,10 +13,12 @@ reference applications. The runtime boundary and production lifecycle are
 implemented; coordinated private npm and NuGet packages are available at version `0.1.4`.
 Public surfaces follow the repository's [compatibility and deprecation policy](COMPATIBILITY.md).
 
-The source is licensed under [MPL 2.0](LICENSE). Applications may use DotReact,
-including commercially, without opening unrelated application code. When a
-covered framework file is modified and distributed, that file remains available
-under MPL 2.0 with its notices preserved.
+The public source is available under the
+[PolyForm Noncommercial License 1.0.0](LICENSE). It may be studied, modified and
+redistributed for permitted noncommercial purposes; commercial use requires a
+separate license from Black Red Solutions. This is a source-available project,
+not an OSI-approved open-source project. Releases through `0.1.4` remain under
+the MPL 2.0 terms under which they were originally distributed; see [NOTICE](NOTICE).
 
 ## What works now
 
@@ -272,12 +274,11 @@ npm run docs:dev
 Open `http://127.0.0.1:5100`. Validate the production documentation bundle with
 `npm run docs:typecheck` and `npm run docs:build`.
 
-The documentation workflow always builds and validates changes from `main`.
-Publishing is opt-in so a private repository without paid GitHub Pages support
-does not leave CI red: enable Pages with GitHub Actions as its source and create
-the repository variable `DOTREACT_PUBLISH_PAGES=true`. The workflow then obtains
-the repository base path from GitHub, so scripts, CSS and images work both at
-`/` and under `/dotReact/` without hard-coded origins.
+The documentation workflow builds and validates every relevant change. The
+public repository publishes accepted `main` changes through GitHub Pages when
+the repository variable `DOTREACT_PUBLISH_PAGES=true` is enabled. The workflow
+obtains its base path from GitHub, so scripts, CSS and images work both at `/`
+and under `/dotReact/` without hard-coded origins.
 
 ## Contributing
 
@@ -287,10 +288,10 @@ through the private process in [SECURITY.md](SECURITY.md). Pull requests must
 keep the full quality gate green and update Portuguese and English documentation
 together when public behavior changes.
 
-Contributor credit is preserved through Git history, release notes and license
-notices. MPL 2.0 permits commercial use; it is not a non-commercial license. Its
-file-level copyleft protects distributed changes to DotReact itself without
-forcing an entire product built with the framework to adopt the same license.
+Contributor credit is preserved through Git history, release notes and required
+notices. Contributions accepted after the license transition are provided under
+PolyForm Noncommercial 1.0.0. Commercial use, resale and commercial hosted use
+require separate written terms from Black Red Solutions.
 
 Routine CI intentionally validates code, contracts, documentation, dependencies
 and VSIX packaging only. Infrastructure compilation, container builds and full
