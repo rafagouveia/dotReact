@@ -5,16 +5,47 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      react-runtime:
+        patterns:
+          - react
+          - react-dom
+          - react-server-dom-webpack
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: "@types/node"
+        update-types:
+          - version-update:semver-major
+      - dependency-name: concurrently
+        update-types:
+          - version-update:semver-major
   - package-ecosystem: npm
     directory: /docs
     schedule:
       interval: weekly
     open-pull-requests-limit: 3
+    groups:
+      react-documentation:
+        patterns:
+          - react
+          - react-dom
+        update-types:
+          - minor
+          - patch
   - package-ecosystem: nuget
     directory: /dotnet
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      opentelemetry:
+        patterns:
+          - OpenTelemetry.*
+        update-types:
+          - minor
+          - patch
   - package-ecosystem: nuget
     directory: /examples/crud/Server
     schedule:
@@ -25,8 +56,16 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 3
+    groups:
+      official-actions:
+        patterns:
+          - actions/*
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: node
+        update-types:
+          - version-update:semver-major

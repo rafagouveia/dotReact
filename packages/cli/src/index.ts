@@ -561,6 +561,9 @@ async function doctor(): Promise<void> {
     };
     if (runtime.schemaVersion !== 1 || typeof runtime.frameworkVersion !== "string")
       throw new Error("Managed runtime metadata is invalid. Run dotreact upgrade from a valid framework checkout.");
+    const cliVersion = await frameworkVersion();
+    if (runtime.frameworkVersion !== cliVersion)
+      throw new Error(`DotReact CLI ${cliVersion} cannot diagnose managed runtime ${runtime.frameworkVersion}. Use the project-local CLI.`);
     process.stdout.write(`[dotreact] Managed runtime ${runtime.frameworkVersion}.\n`);
   } else {
     const dependencies = { ...packageJson.dependencies, ...packageJson.devDependencies };
@@ -575,6 +578,9 @@ async function doctor(): Promise<void> {
     if (versions.size !== 1)
       throw new Error("DotReact npm packages must use one aligned framework version. Run dotreact upgrade <version>.");
     const frameworkPackageVersion = [...versions][0]!;
+    const cliVersion = await frameworkVersion();
+    if (frameworkPackageVersion !== cliVersion)
+      throw new Error(`DotReact CLI ${cliVersion} does not match project packages ${frameworkPackageVersion}. Run npm install and use the project-local CLI.`);
     const projectSource = await readFile(resolve(root, "Server/Server.csproj"), "utf8");
     for (const packageName of ["DotReact.Hosting", "DotReact.AppGenerator"]) {
       const reference = new RegExp(`<PackageReference Include="${packageName.replace(".", "\\.")}" Version="([^\"]+)"`, "u")
@@ -918,6 +924,7 @@ async function exportStatic(values: string[]): Promise<void> {
 function help(): void {
   process.stdout.write([
     "DotReact CLI",
+    "  dotreact version                         Show the effective CLI version",
     "  dotreact create <name> [--template starter|minimal]",
     "  dotreact templates",
     "  dotreact generate page <route> [--dry-run]",
@@ -947,7 +954,9 @@ function help(): void {
 }
 
 try {
-  if (command === "create") await create(args[0], optionValue(args, "--template"));
+  if (command === "version" || command === "--version" || command === "-v")
+    process.stdout.write(`${await frameworkVersion()}\n`);
+  else if (command === "create") await create(args[0], optionValue(args, "--template"));
   else if (command === "templates") process.stdout.write("Available templates:\n  starter  SSR, hydration, actions, Docker and Azure health checks\n  minimal  One SSR page, hydration, boundaries and production runtime\n");
   else if (command === "generate" || command === "add") await generate(args);
   else if (command === "sync") await sync(args);
