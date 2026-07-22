@@ -11,6 +11,8 @@ updates:
           - react
           - react-dom
           - react-server-dom-webpack
+          - "@types/react"
+          - "@types/react-dom"
         update-types:
           - minor
           - patch
@@ -31,6 +33,8 @@ updates:
         patterns:
           - react
           - react-dom
+          - "@types/react"
+          - "@types/react-dom"
         update-types:
           - minor
           - patch
