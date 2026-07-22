@@ -1,11 +1,12 @@
 {
   "name": "dotreact-vscode",
-  "displayName": "DotReact",
-  "description": "TypeScript React language support for DotReact .drx pages.",
-  "version": "0.1.0",
-  "publisher": "dotreact",
-  "private": true,
-  "license": "MPL-2.0",
+  "displayName": "%extension.displayName%",
+  "description": "%extension.description%",
+  "version": "0.2.0",
+  "publisher": "rafagouveia",
+  "license": "SEE LICENSE IN LICENSE",
+  "icon": "assets/dotreact-extension-icon.png",
+  "pricing": "Free",
   "homepage": "https://github.com/rafagouveia/dotReact#readme",
   "repository": {
     "type": "git",
@@ -17,29 +18,60 @@
   },
   "main": "./extension.cjs",
   "scripts": {
+    "vscode:prepublish": "npm run build && npm test",
     "build": "node --check extension.cjs && node --check core.cjs",
     "typecheck": "node --check extension.cjs && node --check core.cjs",
     "test": "node --test core.test.cjs",
     "test:integration": "node integration/run.cjs",
-    "package:vsix": "vsce package --pre-release --no-dependencies --out dotreact-vscode.vsix"
+    "package:vsix": "vsce package --pre-release --no-dependencies --out dotreact-vscode.vsix",
+    "package:vsix:stable": "vsce package --no-dependencies --out dotreact-vscode.vsix",
+    "publish:pre-release": "vsce publish --azure-credential --pre-release --no-dependencies",
+    "publish:stable": "vsce publish --azure-credential --no-dependencies"
   },
-  "activationEvents": ["onLanguage:typescriptreact", "onCommand:dotreact.checkProject"],
   "engines": {
     "vscode": "^1.96.0"
   },
-  "categories": ["Programming Languages", "Other"],
+  "extensionKind": ["workspace"],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "%capabilities.untrustedWorkspaces%",
+      "restrictedConfigurations": ["dotreact.checkOnSave"]
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "%capabilities.virtualWorkspaces%"
+    }
+  },
+  "categories": ["Programming Languages", "Linters", "Other"],
+  "keywords": ["dotreact", "drx", "react", "csharp", "aspnet", "ssr", "typescript"],
+  "galleryBanner": {
+    "color": "#071a3d",
+    "theme": "dark"
+  },
   "contributes": {
     "commands": [
-      { "command": "dotreact.openBackendLoader", "title": "DotReact: Abrir loader C#" },
-      { "command": "dotreact.checkProject", "title": "DotReact: Verificar projeto" }
+      { "command": "dotreact.openBackendLoader", "title": "%command.openBackendLoader%", "enablement": "resourceExtname == .drx" },
+      { "command": "dotreact.checkProject", "title": "%command.checkProject%" },
+      { "command": "dotreact.showOutput", "title": "%command.showOutput%" },
+      { "command": "dotreact.openDocumentation", "title": "%command.openDocumentation%" }
     ],
     "configuration": {
-      "title": "DotReact",
+      "title": "%configuration.title%",
       "properties": {
         "dotreact.checkOnSave": {
           "type": "boolean",
           "default": true,
-          "description": "Executa o checker semântico DRX ao salvar."
+          "scope": "resource",
+          "description": "%configuration.checkOnSave%"
+        },
+        "dotreact.validation.debounceMs": {
+          "type": "number",
+          "default": 350,
+          "minimum": 100,
+          "maximum": 2000,
+          "scope": "resource",
+          "description": "%configuration.validation.debounceMs%"
         }
       }
     },
@@ -49,7 +81,16 @@
         "extensions": [".drx"],
         "aliases": ["DotReact", "drx"]
       }
-    ]
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "dotreact.checkProject",
+          "when": "resourceExtname == .drx",
+          "group": "navigation@20"
+        }
+      ]
+    }
   },
   "devDependencies": {
     "@vscode/test-electron": "3.0.0",

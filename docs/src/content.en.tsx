@@ -35,6 +35,7 @@ const pages: readonly EnglishPage[] = [
   { id: "static-images", group: "Full-stack", title: "SSG, ISR and images", summary: "Pre-render stable routes, revalidate them safely and optimize image delivery.", tags: ["SSG", "ISR", "images"] },
   { id: "contracts", group: "Full-stack", title: "TypeGen and contracts", summary: "Generate TypeScript types and action clients from the compiled C# application.", tags: ["TypeGen", "contracts", "build"] },
   { id: "cli", group: "Tooling", title: "CLI reference", summary: "Create, inspect, validate and export DotReact applications.", tags: ["CLI", "scaffold", "doctor"] },
+  { id: "vscode-extension", group: "Tooling", title: "VS Code extension", summary: "Edit DRX, navigate to C# loaders and run the official checker without leaving the editor.", tags: ["VS Code", "DRX", "diagnostics"] },
   { id: "options-env", group: "Reference", title: "Options and environment variables", summary: "Reference host, renderer, security, cache and observability configuration.", tags: ["options", "environment", "secrets"] },
   { id: "troubleshooting", group: "Reference", title: "Troubleshooting", summary: "Diagnose renderer connectivity, hydration, routes, contracts and development refresh.", tags: ["diagnostics", "errors", "HMR"] },
   { id: "production", group: "Operations", title: "Security and production", summary: "Harden the public host and isolate the private rendering runtime.", tags: ["security", "deployment", "Azure"] },

@@ -26,7 +26,7 @@ for (const marker of [
 }
 
 const requiredPages = [
-  "overview", "purpose-applications", "beginner-learning-path", "first-project", "project-organization",
+  "overview", "purpose-applications", "beginner-learning-path", "first-project", "project-organization", "vscode-extension",
   "crud-guide", "security-model", "security-sessions", "security-identity-social", "security-tokens",
   "security-production-checklist", "hosting-overview", "production-readiness",
   "deploy-docker", "deploy-azure-app-service", "deploy-azure-container-apps", "domains-reverse-proxy",

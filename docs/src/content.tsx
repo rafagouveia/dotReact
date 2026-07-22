@@ -638,6 +638,38 @@ app.MapDotReactFallback();`} />
     </>
   },
   {
+    id: "vscode-extension", group: "Ferramentas", title: "Extensão do VS Code",
+    summary: "Edite DRX, navegue para loaders C# e execute o checker oficial sem sair do editor.",
+    tags: ["VS Code", "DRX", "diagnósticos"],
+    body: <>
+      <h2>A experiência oficial de edição</h2>
+      <p>A extensão associa <code>.drx</code> ao serviço TypeScript React nativo do VS Code. Syntax highlight, autocomplete, formatação, navegação e ferramentas React continuam funcionando porque DRX é TSX comum; a extensão não mantém um segundo parser nem interpreta C# dentro da view.</p>
+      <div className="cards">
+        <article><b>Diagnósticos confiáveis</b><span>O mesmo checker semântico usado pelo build publica problemas diretamente no editor.</span></article>
+        <article><b>Navegação entre runtimes</b><span>O CodeLens abre o <code>page.server.cs</code> associado à view sem procurar manualmente pelo backend.</span></article>
+        <article><b>Execução controlada</b><span>Salvamentos repetidos são agrupados e existe no máximo um checker ativo por workspace.</span></article>
+      </div>
+      <h3>Instalar durante o pré-release</h3>
+      <CodeBlock label="Terminal" code={'npm ci\nnpm run package:vsix -w dotreact-vscode\ncode --install-extension editors/vscode-dotreact/dotreact-vscode.vsix'} />
+      <p>Quando a publicação no Marketplace estiver ativa, procure por <strong>DotReact — React SSR para .NET</strong> na aba Extensions. Atualizações passam a ser entregues pelo próprio VS Code; o VSIX manual continua disponível como artefato testado do workflow de release.</p>
+      <h3>Comandos e configurações</h3>
+      <ReferenceTable valueHeading="Finalidade" rows={[
+        { name: "DotReact: Verificar projeto", description: "Executa a validação semântica de app/, contratos e manifest do backend." },
+        { name: "DotReact: Abrir loader C#", description: "Abre primeiro o loader colocalizado e mantém fallback para registros explícitos." },
+        { name: "DotReact: Exibir saída da validação", description: "Mostra duração, falhas do processo e detalhes que não cabem no painel Problems." },
+        { name: "dotreact.checkOnSave", defaultValue: "true", description: "Valida depois de salvar um arquivo .drx." },
+        { name: "dotreact.validation.debounceMs", defaultValue: "350", description: "Agrupa rajadas de salvamento entre 100 e 2000 ms." }
+      ]} />
+      <CodeBlock label="settings.json" code={'{\n  "dotreact.checkOnSave": true,\n  "dotreact.validation.debounceMs": 350\n}'} />
+      <h3>Segurança e desempenho</h3>
+      <p>A associação de linguagem permanece disponível em Restricted Mode, mas a extensão não executa o checker instalado pelo projeto enquanto o workspace não for confiável. Workspaces virtuais também não executam o toolchain local. O processo usa <code>execFile</code> sem shell, argumentos fechados, timeout e limite de saída.</p>
+      <p>O checker é resolvido tanto de pacotes publicados em <code>@rafagouveia/dotreact-vite</code> quanto do runtime <code>vendor/vite</code> usado no preview. A validação é coalescida por workspace, preserva diagnósticos de outras raízes e evita varrer o backend quando o loader está junto da rota.</p>
+      <div className="callout"><strong>Autoridade única</strong><span>O editor acelera o feedback, mas <code>dotreact check</code> e o build continuam sendo os gates oficiais. Desabilitar check-on-save não reduz a validação do CI.</span></div>
+      <h3>Publicação e versionamento</h3>
+      <p>Cada release executa teste unitário, inicia um Extension Host real, empacota o VSIX e publica exatamente o artefato testado por um ambiente GitHub protegido. Tags <code>vscode-v*</code> promovem versões estáveis; execuções manuais podem publicar um pré-release. GitHub OIDC e Microsoft Entra ID fornecem uma credencial curta ao job, sem PAT permanente ou secret dentro do pacote.</p>
+    </>
+  },
+  {
     id: "options-env", group: "Referência", title: "Options e variáveis de ambiente",
     summary: "Consulte defaults do host, renderer, actions, segurança e runtime Node.",
     tags: ["DotReactOptions", "env", "limites"],

@@ -57,8 +57,10 @@ under MPL 2.0 with its notices preserved.
   generated from a private production asset manifest.
 - Framework-owned client/SSR entries, route-level JavaScript chunks, critical-face font preloads and validated Script loading strategies.
 - A reusable CLI with templates, generators, `sync`, `analyze` and `benchmark`.
-- VS Code check-on-save diagnostics, project check command and loader CodeLens.
-- Installable pre-release VSIX with a real VS Code extension-host test.
+- VS Code DRX tooling with coalesced check-on-save diagnostics, project health,
+  validation output and direct navigation to colocated C# loaders.
+- Localized, Marketplace-ready VSIX with Workspace Trust boundaries, a dedicated
+  icon and a real VS Code Extension Host test.
 - Renderer health endpoint, correlation IDs, timeouts, and safe production errors.
 - Bounded renderer restart supervision, graceful shutdown, token redaction and metrics.
 - Azure App Service/Container Apps Bicep templates and reproducible CI gates.
@@ -232,7 +234,7 @@ packages/cli                    scaffold and diagnostics CLI
 examples/starter                executable reference application
 examples/crud                   SOLID SQLite CRUD reference application
 examples/rsc                    isolated real RSC/Flight reference application
-editors/vscode-dotreact         VS Code diagnostics and loader CodeLens
+editors/vscode-dotreact         DRX tooling, diagnostics, loader navigation and Marketplace release
 deploy/azure                    App Service and Container Apps infrastructure
 docs/adr                        architectural decisions
 ```
@@ -282,9 +284,10 @@ forcing an entire product built with the framework to adopt the same license.
 Routine CI intentionally validates code, contracts, documentation, dependencies
 and VSIX packaging only. Infrastructure compilation, container builds and full
 browser suites are run when relevant instead of blocking every commit. A manual
-or `vscode-v*` tag workflow creates the tested VSIX artifact; Marketplace
-publication remains an explicit future release step requiring maintainer
-credentials.
+or `vscode-v*` tag workflow creates the tested VSIX artifact. The protected
+release job publishes that exact artifact through short-lived GitHub OIDC and
+Microsoft Entra credentials after the Marketplace publisher identity has been
+authorized.
 
 ## Quality commands
 

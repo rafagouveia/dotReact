@@ -1,7 +1,9 @@
 .vscode/**
+.vscode-test/**
 integration/**
 core.test.cjs
 node_modules/**
 *.vsix
 *.log
-
+.DS_Store
+Thumbs.db
