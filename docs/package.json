@@ -12,7 +12,7 @@
     "typecheck": "npm run validate:content && npm run validate:translations && tsc -b --pretty false"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "6.0.3",
+    "@vitejs/plugin-react": "6.0.4",
     "prism-react-renderer": "2.4.1",
     "prismjs": "1.30.0",
     "react": "19.2.7",
