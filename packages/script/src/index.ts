@@ -1,4 +1,4 @@
-import type { DotReactScriptDescriptor } from "@dotreact/client/router";
+import type { DotReactScriptDescriptor } from "@rafagouveia/dotreact-client/router";
 
 const idPattern = /^[A-Za-z][A-Za-z0-9._:-]{0,127}$/;
 const integrityPattern = /^sha(?:256|384|512)-[A-Za-z0-9+/]+={0,2}(?:\s+sha(?:256|384|512)-[A-Za-z0-9+/]+={0,2})*$/;
@@ -7,6 +7,9 @@ const integrityPattern = /^sha(?:256|384|512)-[A-Za-z0-9+/]+={0,2}(?:\s+sha(?:25
 export function script(descriptor: DotReactScriptDescriptor): Readonly<DotReactScriptDescriptor> {
   if (!isSafeSource(descriptor.src))
     throw new Error("DotReact scripts must use a root-relative public URL or credential-free HTTPS URL.");
+  const remote = isRemoteSource(descriptor.src);
+  if (remote && (descriptor.integrity === undefined || !integrityPattern.test(descriptor.integrity)))
+    throw new Error("Remote DotReact scripts require a valid sha256, sha384 or sha512 integrity token.");
   if (descriptor.id !== undefined && !idPattern.test(descriptor.id))
     throw new Error(`Invalid DotReact script id '${descriptor.id}'.`);
   if (descriptor.integrity !== undefined && !integrityPattern.test(descriptor.integrity))
@@ -15,7 +18,16 @@ export function script(descriptor: DotReactScriptDescriptor): Readonly<DotReactS
     throw new Error("DotReact script type is invalid.");
   if (descriptor.referrerPolicy !== undefined && !/^[a-z-]+$/.test(descriptor.referrerPolicy))
     throw new Error("DotReact script referrerPolicy is invalid.");
-  return Object.freeze({ strategy: "afterInteractive", ...descriptor });
+  return Object.freeze({
+    strategy: "afterInteractive",
+    ...(remote ? { crossOrigin: "anonymous" as const } : {}),
+    ...descriptor
+  });
+}
+
+function isRemoteSource(source: string): boolean {
+  try { return new URL(source).protocol === "https:"; }
+  catch { return false; }
 }
 
 function isSafeSource(source: string): boolean {
@@ -27,4 +39,4 @@ function isSafeSource(source: string): boolean {
   } catch { return false; }
 }
 
-export type { DotReactScriptDescriptor, DotReactScriptStrategy } from "@dotreact/client/router";
+export type { DotReactScriptDescriptor, DotReactScriptStrategy } from "@rafagouveia/dotreact-client/router";

@@ -1,4 +1,5 @@
 using DotReact.AspNetCore;
+using DotReact.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using StackExchange.Redis;
@@ -50,10 +51,19 @@ public static class DotReactRedisServiceCollectionExtensions
             .Validate(value => value.ArtifactRetentionAfterStale >= TimeSpan.Zero
                 && value.ArtifactRetentionAfterStale <= TimeSpan.FromDays(30),
                 "ArtifactRetentionAfterStale must be between zero and 30 days.")
+            .Validate(value => value.StaticArtifactRetention >= TimeSpan.FromDays(1)
+                && value.StaticArtifactRetention <= TimeSpan.FromDays(365),
+                "StaticArtifactRetention must be between one and 365 days.")
+            .Validate(value => value.SessionRevocationRetention >= TimeSpan.FromDays(1)
+                    && value.SessionRevocationRetention <= TimeSpan.FromDays(366),
+                "SessionRevocationRetention must be between 1 and 366 days.")
             .ValidateOnStart();
+
+        services.TryAddSingleton(TimeProvider.System);
 
         services.Replace(ServiceDescriptor.Singleton<IDotReactPrerenderStore, RedisDotReactPrerenderStore>());
         services.Replace(ServiceDescriptor.Singleton<IDotReactActionIdempotencyStore, RedisDotReactActionIdempotencyStore>());
+        services.Replace(ServiceDescriptor.Singleton<IDotReactSessionStore, RedisDotReactSessionStore>());
         services.Replace(ServiceDescriptor.Singleton(
             typeof(DotReactPrerenderCoordinator), typeof(DotReactPrerenderCoordinator)));
         return services;

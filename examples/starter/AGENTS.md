@@ -17,6 +17,7 @@ this order:
 7. `docs/ai/05-CACHING-PRODUCTION.md`
 8. `docs/ai/06-WORKFLOW-RECIPES.md`
 9. `docs/ai/07-SOLID-FEATURES.md`
+10. `docs/ai/08-AUTHENTICATION-SESSIONS.md`
 
 These files are the project-local framework specification. Do not infer
 DotReact behavior from Next.js, Razor, Blazor or a similarly named library. If
@@ -37,35 +38,41 @@ verify the behavior in framework tests before changing application code.
   `src/backend-manifest.json` by hand. Run `npm run generate` after changing a
   public C# loader, action or presentation contract.
 - Keep page modules thin. Put backend loading in C# page loaders and reusable UI
-  behavior under `src/features` or `src/components`.
-- Keep Domain independent from ASP.NET Core, EF Core, React and serialization.
-  Keep endpoints/loaders/actions as adapters around focused application use
-  cases.
-- Do not edit the vendored `vendor/` directory for application features.
-  It is the local framework runtime snapshot and may be replaced by a future
-  DotReact upgrade.
+  behavior under the nearest `app/**/_components` folder.
+- The internal `Server/` folder structure is application-owned. For non-trivial
+  systems, prefer framework-independent business rules and thin transport
+  adapters, but do not assume one mandatory layering or folder scheme.
+- Keep DotReact npm, NuGet and local-tool versions aligned. Framework runtime
+  source does not belong in the application; update it through
+  `dotreact upgrade <version>` and validate the complete project.
 - Treat every Server Action and route as a security boundary. Apply explicit
   authorization policies and validate input in C#. Anonymous access must be a
   deliberate, reviewed decision.
+- Keep browser authentication in an `HttpOnly` cookie. Never place session IDs,
+  access tokens or refresh tokens in DRX props, hydration, Web Storage or logs.
+- Authentication use cases verify identity through application-owned ports;
+  only Presentation maps a successful result to `IDotReactSessionManager`,
+  ASP.NET Core Identity or an external authentication handler.
 - Preserve SSR and hydration equivalence: server and browser must render the
   same route module, layouts, boundaries and initial props.
 - Import modular CSS from its owning DRX/layout/component. Keep only reset,
   tokens and document defaults in `src/styles.css`; declare local fonts in
-  `app/fonts.ts` with `@dotreact/font`. DotReact promotes
+  `app/fonts.ts` with `@rafagouveia/dotreact-font`. DotReact promotes
   route CSS into the SSR head before first paint.
 
 ## File ownership map
 
 - Maintain routes in `app/`: each `page.drx` may have a co-located
-  `page.server.cs`. Keep domain, application, infrastructure and global actions
-  under `Server/`; keep shared React code under `src/features` and
-  `src/components`.
-- Put application fonts, icons and images in `public/`. Do not author assets in
-  `Server/wwwroot`; that is a framework deployment detail.
+  `page.server.cs`. Structure `Server/` according to the application's needs;
+  keep shared React code under `app/_components` and
+  route-private React code under `app/<route>/_components`.
+- Put framework-managed fonts, icons and images in `public/`. `Server/wwwroot`
+  remains available when the application intentionally uses ASP.NET Core's
+  separate static-file pipeline.
 - Treat `src/contracts.ts`, `src/actions.ts` and
   `src/backend-manifest.json` as generated output. Never edit them manually.
-- Treat `vendor/` as an opaque, pinned runtime. It is hidden from normal VS Code
-  browsing and search; application work must never modify it.
+- Treat `node_modules/`, the NuGet global-packages cache and `.config/dotnet-tools.json`
+  as managed dependencies. Never copy framework source into product code.
 - Change root configuration files only when the application runtime, build or
   deployment behavior genuinely changes. Do not place business rules there.
 - The workspace starts in focused mode. Do not reveal or edit hidden

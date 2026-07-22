@@ -90,6 +90,13 @@ operation is public, apply rate limits and test abuse cases.
 Cookie-authenticated mutations require the DotReact CSRF flow. Do not disable it
 or replace same-origin credentials with ad-hoc token handling.
 
+SSR and client navigation do not eagerly create an antiforgery cookie. On the
+first mutation, the generated client requests `/_dotreact/csrf`, keeps the token
+in memory and sends it in `X-DotReact-CSRF`. Read-only pages therefore avoid
+cookie encryption and response overhead without weakening same-origin
+protection. A progressive form without JavaScript must render an explicit
+request-verification token using ASP.NET Core antiforgery/tag-helper facilities.
+
 For a retryable create/payment/import operation, mark/configure idempotency as
 required and send a unique `idempotencyKey`. The same key with the same request
 may replay the stored response; the same key with different input must conflict.
@@ -109,4 +116,3 @@ Handle `DotReactActionError` by status and structured problem fields. Show field
 validation near inputs, 404 as stale-resource UI, 409 as a concurrency/conflict
 flow and unexpected connectivity failures as retryable UI. Do not parse exception
 strings or duplicate C# validation rules as the authority.
-

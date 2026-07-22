@@ -25,9 +25,9 @@ The following are public contracts:
 
 1. Public C# types and members under `DotReact.AspNetCore` and the
    convention-based `DotReact.Hosting` application facade.
-2. Exported TypeScript APIs from `@dotreact/client`, `@dotreact/protocol`,
-   `@dotreact/renderer`, `@dotreact/vite`, `@dotreact/image`, `@dotreact/adapter`
-   and the explicitly experimental `@dotreact/rsc` surface.
+2. Exported TypeScript APIs from `@rafagouveia/dotreact-client`, `@rafagouveia/dotreact-protocol`,
+   `@rafagouveia/dotreact-renderer`, `@rafagouveia/dotreact-vite`, `@rafagouveia/dotreact-image`, `@rafagouveia/dotreact-adapter`
+   and the explicitly experimental `@rafagouveia/dotreact-rsc` surface.
 3. Public C# members in the optional `DotReact.Redis` and `DotReact.Images.SkiaSharp` plugins.
 4. CLI command names, documented options, exit-code semantics and generated
    project layout.

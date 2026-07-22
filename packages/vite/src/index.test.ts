@@ -3,8 +3,8 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { localFont } from "@dotreact/font";
-import { checkDotReactProject, collectDotReactRouteStyles, createDotReactRouteAssetManifest, createDotReactRouteStyleSheet, defineDotReactConfig, dotReact, inferDotReactRoute, resolveDotReactDiagnosticFile, scanDotReactGraph, scanDotReactPages } from "./index.js";
+import { localFont } from "@rafagouveia/dotreact-font";
+import { checkDotReactProject, collectDotReactRouteStyles, createDotReactDevelopmentStyleSheet, createDotReactRouteAssetManifest, createDotReactRouteStyleSheet, defineDotReactConfig, dotReact, inferDotReactRoute, resolveDotReactDiagnosticFile, scanDotReactGraph, scanDotReactPages } from "./index.js";
 
 async function fixture(): Promise<string> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "dotreact-vite-"));
@@ -83,6 +83,15 @@ test("collects modular route CSS in blocking cascade order", async (context) => 
     '@import url("/_dotreact/dev/src/features/panel.css");',
     '@import url("/_dotreact/dev/src/error.css");'
   ].join("\n"));
+
+  const blockingCss = createDotReactDevelopmentStyleSheet(
+    root,
+    "/_dotreact/dev/",
+    styles,
+    '@font-face { font-family: "Example"; src: url("/example.woff2"); }'
+  );
+  assert.ok(blockingCss.indexOf("@import") < blockingCss.indexOf("@font-face"));
+  assert.doesNotMatch(blockingCss, /@font-face[^]*@import/u);
 });
 
 test("rejects a pages directory outside the canonical root", async (context) => {
@@ -209,8 +218,32 @@ test("production route manifest maps pages to their layouts and boundaries", asy
 
   assert.deepEqual(manifest.routes, [{
     moduleId: "dashboard/page",
+    hydrate: false,
     modules: ["app/layout.drx", "app/dashboard/page.drx", "app/dashboard/error.drx"]
   }]);
+});
+
+test("route graph enables hydration only when browser behavior is detected", async (context) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "dotreact-hydration-analysis-"));
+  context.after(() => fs.rm(root, { recursive: true, force: true }));
+  await fs.mkdir(path.join(root, "app/static"), { recursive: true });
+  await fs.mkdir(path.join(root, "app/interactive"), { recursive: true });
+  await fs.mkdir(path.join(root, "app/router"), { recursive: true });
+  await fs.mkdir(path.join(root, "app/_components"), { recursive: true });
+  await fs.writeFile(path.join(root, "app/static/page.drx"),
+    'import { definePage } from "@rafagouveia/dotreact-client/router"; export default definePage(() => <main>Static</main>);');
+  await fs.writeFile(path.join(root, "app/_components/Counter.tsx"),
+    'import { useState } from "react"; export default function Counter() { const [value] = useState(0); return <button>{value}</button>; }');
+  await fs.writeFile(path.join(root, "app/interactive/page.drx"),
+    'import Counter from "../_components/Counter"; export default () => <Counter />;');
+  await fs.writeFile(path.join(root, "app/router/page.drx"),
+    'import { useDotReactRouter } from "@rafagouveia/dotreact-client/router"; export default function Page() { const router = useDotReactRouter(); return <main>{router.url}</main>; }');
+
+  const graph = await scanDotReactGraph(root, "app");
+
+  assert.equal(graph.pages.find(page => page.moduleId === "static/page")?.hydrate, false);
+  assert.equal(graph.pages.find(page => page.moduleId === "interactive/page")?.hydrate, true);
+  assert.equal(graph.pages.find(page => page.moduleId === "router/page")?.hydrate, true);
 });
 
 test("framework virtual server entry owns SSR composition", async (context) => {
@@ -322,7 +355,16 @@ test("semantic checker reports DRX type errors with the original DRX path", asyn
   context.after(() => fs.rm(root, { recursive: true, force: true }));
   await fs.mkdir(path.join(root, "src/pages"), { recursive: true });
   await fs.writeFile(path.join(root, "tsconfig.json"), JSON.stringify({
-    compilerOptions: { target: "ES2023", module: "ESNext", moduleResolution: "Bundler", jsx: "react-jsx", strict: true, noEmit: true },
+    compilerOptions: {
+      target: "ES2023",
+      module: "ESNext",
+      moduleResolution: "Bundler",
+      jsx: "react-jsx",
+      strict: true,
+      noUnusedLocals: true,
+      noUnusedParameters: true,
+      noEmit: true
+    },
     include: ["src/**/*.ts", "src/**/*.tsx"]
   }));
   await fs.writeFile(path.join(root, "src/contracts.ts"), "export interface IndexProps { message: string }\n");
@@ -348,6 +390,8 @@ test("semantic checker reports DRX type errors with the original DRX path", asyn
     diagnostic.file === "src/pages/index.drx" && diagnostic.message.includes("doesNotExist")), true,
     JSON.stringify(result.diagnostics));
   assert.equal(result.diagnostics.some(diagnostic => diagnostic.file?.endsWith(".drx.tsx") === true), false);
+  assert.equal(result.diagnostics.some(diagnostic => diagnostic.code === 6133 || diagnostic.code === 6196), false,
+    JSON.stringify(result.diagnostics));
 });
 
 test("semantic checker rejects JavaScript server actions and server-only imports in hydrated DRX", async (context) => {

@@ -1,12 +1,15 @@
 {
-  "name": "@dotreact/docs",
+  "name": "@rafagouveia/dotreact-docs",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5100",
-    "build": "tsc -b && vite build",
-    "typecheck": "tsc -b --pretty false"
+    "validate:content": "node scripts/validate-content.mjs",
+    "validate:translations": "node scripts/generate-english-catalog.mjs --check",
+    "validate:pages": "node scripts/validate-pages-build.mjs",
+    "build": "npm run validate:content && npm run validate:translations && tsc -b && vite build",
+    "typecheck": "npm run validate:content && npm run validate:translations && tsc -b --pretty false"
   },
   "dependencies": {
     "@vitejs/plugin-react": "6.0.3",

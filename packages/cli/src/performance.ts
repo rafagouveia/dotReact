@@ -10,7 +10,7 @@ export interface BundleBudget {
   cssKb?: number;
 }
 
-export interface BundleMeasurement {
+interface BundleMeasurement {
   rawBytes: number;
   gzipBytes: number;
   files: number;

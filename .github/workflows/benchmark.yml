@@ -1,0 +1,60 @@
+name: Performance benchmark
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dotreact-performance-benchmark
+  cancel-in-progress: false
+
+jobs:
+  fair-comparison:
+    # Public claims require a quiet runner reserved for this suite. Ordinary hosted
+    # PR runners remain useful for regression gates but are not publishable evidence.
+    runs-on: [self-hosted, linux, x64, dotreact-benchmark]
+    timeout-minutes: 45
+    env:
+      DOTREACT_BENCHMARK_DEDICATED: "true"
+      DOTREACT_BENCHMARK_SAMPLE_RESOURCES: "true"
+      DOTREACT_BENCHMARK_RENDERER_WORKERS: "1"
+      DOTREACT_BENCHMARK_REQUESTS: "5000"
+      DOTREACT_BENCHMARK_CONCURRENCY: "64"
+      DOTREACT_BENCHMARK_WARMUP: "1000"
+      DOTREACT_BENCHMARK_ROUNDS: "10"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install deterministically
+        run: npm ci
+
+      - name: Build production artifacts
+        run: npm run build:tooling
+
+      - name: Run comparable throughput and consumption suite
+        run: npm run benchmark:consumption
+
+      - name: Validate publishable snapshot
+        run: node benchmarks/publish-results.mjs
+
+      - name: Upload methodology and raw samples
+        uses: actions/upload-artifact@v5
+        with:
+          name: dotreact-benchmark-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 90
+          path: |
+            benchmarks/results/latest.json
+            benchmarks/published/latest.json

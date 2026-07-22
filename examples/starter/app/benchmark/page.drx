@@ -1,0 +1,19 @@
+import type { BenchmarkPageProps } from "../../src/contracts";
+import { definePage } from "@rafagouveia/dotreact-client/router";
+
+export default definePage<BenchmarkPageProps>(function BenchmarkPage(Model) {
+  return (
+    <main>
+      <h1>{Model.title}</h1>
+      <p>Generated at {Model.generatedAt}</p>
+      <table>
+        <thead><tr><th>ID</th><th>Code</th><th>Amount</th><th>Status</th></tr></thead>
+        <tbody>{Model.rows.map(row => (
+          <tr key={row.id}>
+            <td>{row.id}</td><td>{row.code}</td><td>{row.amount}</td><td>{row.status}</td>
+          </tr>
+        ))}</tbody>
+      </table>
+    </main>
+  );
+});

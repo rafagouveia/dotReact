@@ -1,0 +1,95 @@
+name: VS Code extension release
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the tested VSIX to the Marketplace
+        required: true
+        default: false
+        type: boolean
+      channel:
+        description: Marketplace release channel
+        required: true
+        default: pre-release
+        type: choice
+        options:
+          - pre-release
+          - stable
+  push:
+    tags:
+      - vscode-v*
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vscode-extension-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: Test and package VSIX
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w dotreact-vscode
+      - run: npm test -w dotreact-vscode
+      - run: xvfb-run -a npm run test:integration -w dotreact-vscode
+      - name: Validate release tag
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          expected="${GITHUB_REF_NAME#vscode-v}"
+          actual="$(node -p "require('./editors/vscode-dotreact/package.json').version")"
+          [[ "${expected}" == "${actual}" ]] || {
+            echo "Tag ${GITHUB_REF_NAME} does not match extension version ${actual}." >&2
+            exit 1
+          }
+      - name: Package tested extension
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" || "${{ inputs.channel }}" == "stable" ]]; then
+            npm run package:vsix:stable -w dotreact-vscode
+          else
+            npm run package:vsix -w dotreact-vscode
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dotreact-vscode
+          path: editors/vscode-dotreact/dotreact-vscode.vsix
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish to Marketplace
+    needs: package
+    if: github.ref_type == 'tag' || inputs.publish == true
+    runs-on: ubuntu-latest
+    environment: vscode-marketplace
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2
+        with:
+          client-id: ${{ vars.VSCE_AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.VSCE_AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: dotreact-vscode
+          path: artifacts/vscode
+      - name: Publish exact tested VSIX
+        run: npx --no-install vsce publish --azure-credential --packagePath artifacts/vscode/dotreact-vscode.vsix

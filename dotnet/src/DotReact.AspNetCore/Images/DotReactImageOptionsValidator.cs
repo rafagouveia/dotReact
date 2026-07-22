@@ -28,6 +28,8 @@ internal sealed class DotReactImageOptionsValidator : IValidateOptions<DotReactI
             failures.Add("ClientCacheDuration must be from zero through 365 days.");
         if (options.RemoteRequestTimeout <= TimeSpan.Zero || options.RemoteRequestTimeout > TimeSpan.FromMinutes(1))
             failures.Add("RemoteRequestTimeout must be greater than zero and at most one minute.");
+        if (options.MaxConcurrentTransforms is < 1 or > 256)
+            failures.Add("MaxConcurrentTransforms must be from 1 through 256.");
         foreach (var origin in options.AllowedRemoteOrigins)
         {
             if (!TryNormalizeRemoteOrigin(origin, out _))

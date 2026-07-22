@@ -1,0 +1,17 @@
+@page "/benchmark"
+@model RazorBaseline.Pages.BenchmarkModel
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>@Model.Title</title></head>
+<body><main>
+  <h1>@Model.Title</h1>
+  <p>Generated at @Model.GeneratedAt</p>
+  <table>
+    <thead><tr><th>ID</th><th>Code</th><th>Amount</th><th>Status</th></tr></thead>
+    <tbody>
+    @foreach (var row in RazorBaseline.Pages.BenchmarkModel.Rows)
+    {
+      <tr><td>@row.Id</td><td>@row.Code</td><td>@row.Amount</td><td>@row.Status</td></tr>
+    }
+    </tbody>
+  </table>
+</main></body></html>

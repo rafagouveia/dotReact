@@ -2,7 +2,7 @@
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { resolve } from "node:path";
 import { createServer as createViteServer, type ViteDevServer } from "vite";
-import { PROTOCOL_VERSION, isRenderRequest, type RenderFailure, type RenderResponse } from "@dotreact/protocol";
+import { PROTOCOL_VERSION, isRenderRequest, type RenderFailure, type RenderResponse } from "@rafagouveia/dotreact-protocol";
 import { readIntegerEnvironment } from "./http-runtime.js";
 import { handleRenderStream, type RenderStreamEntry } from "./stream-runtime.js";
 

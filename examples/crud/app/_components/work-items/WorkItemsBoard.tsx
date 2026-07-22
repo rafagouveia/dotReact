@@ -6,9 +6,9 @@ import {
   useRef,
   useState
 } from "react";
-import { DotReactActionError } from "@dotreact/client";
-import { useDotReactRouter } from "@dotreact/client/router";
-import { workItemsCreate, workItemsDelete, workItemsUpdate } from "../../actions";
+import { DotReactActionError } from "@rafagouveia/dotreact-client";
+import { useDotReactRouter } from "@rafagouveia/dotreact-client/router";
+import { workItemsCreate, workItemsDelete, workItemsUpdate } from "../../../src/actions";
 import type {
   CreateWorkItemRequest,
   DashboardProps,
@@ -16,7 +16,7 @@ import type {
   WorkItemDto,
   WorkItemPriority,
   WorkItemStatus
-} from "../../contracts";
+} from "../../../src/contracts";
 
 const statuses: WorkItemStatus[] = ["Backlog", "InProgress", "Done"];
 const priorities: WorkItemPriority[] = ["Low", "Medium", "High"];

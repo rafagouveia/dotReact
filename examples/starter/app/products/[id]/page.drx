@@ -1,6 +1,6 @@
 import type { ProductPageProps } from "../../../src/contracts";
-import type { DotReactMetadataResolver } from "@dotreact/vite";
-import { DotReactLink } from "@dotreact/client/router";
+import type { DotReactMetadataResolver } from "@rafagouveia/dotreact-vite";
+import { DotReactLink } from "@rafagouveia/dotreact-client/router";
 
 export const metadata: DotReactMetadataResolver<ProductPageProps> = props => ({
   title: `${props.name} · DotReact`,

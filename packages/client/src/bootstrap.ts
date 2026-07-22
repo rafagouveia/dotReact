@@ -40,6 +40,7 @@ export interface DotReactClientBootstrapOptions {
   readonly routeLayouts?: NonNullable<DotReactAppProps["routeLayouts"]>;
   readonly boundaries?: NonNullable<DotReactAppProps["boundaries"]>;
   readonly routeLoaders?: NonNullable<DotReactAppProps["routeLoaders"]>;
+  readonly clientCache?: DotReactAppProps["clientCache"];
   /** Optional app/global-error.drx component. It is used only outside development. */
   readonly globalError?: ComponentType<DotReactGlobalErrorProps> | undefined;
   readonly root?: Element | string;
@@ -117,6 +118,7 @@ export function bootstrapDotReactClient(options: DotReactClientBootstrapOptions)
       ...(options.routeLayouts === undefined ? {} : { routeLayouts: options.routeLayouts }),
       ...(options.boundaries === undefined ? {} : { boundaries: options.boundaries }),
       ...(options.routeLoaders === undefined ? {} : { routeLoaders: options.routeLoaders }),
+      ...(options.clientCache === undefined ? {} : { clientCache: options.clientCache }),
       ...(browserWindow === undefined ? {} : { window: browserWindow }),
       document
     };

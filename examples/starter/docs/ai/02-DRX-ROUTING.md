@@ -56,7 +56,7 @@ manifest are the allowlist.
 Route groups such as `(crm)` remain in the module ID but are omitted from the
 URL. Directories beginning with `_` are private and never produce routes. Only
 `page.drx` is routable under `app/`; helper DRX files belong in a private folder
-or under `src/components`.
+or under the nearest `_components` private folder.
 
 ## Route and query values
 
@@ -87,7 +87,7 @@ not-found states should use explicit results.
 Use the framework type so optional children/page props remain correct:
 
 ```tsx
-import { defineLayout, type DotReactLayoutProps } from "@dotreact/client/router";
+import { defineLayout, type DotReactLayoutProps } from "@rafagouveia/dotreact-client/router";
 
 export default defineLayout(function BillingLayout({ children }: DotReactLayoutProps) {
   return <section className="billing-shell">{children}</section>;

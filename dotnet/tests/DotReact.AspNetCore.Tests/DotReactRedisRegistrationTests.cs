@@ -1,4 +1,5 @@
 using DotReact.AspNetCore;
+using DotReact.AspNetCore.Authentication;
 using DotReact.Redis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -64,6 +65,17 @@ public sealed class DotReactRedisRegistrationTests
                 CancellationToken.None);
             Assert.True(conflict.FingerprintConflict);
             Assert.Equal(1, executions);
+
+            var sessions = provider.GetRequiredService<IDotReactSessionStore>();
+            var issuedAt = DateTimeOffset.UtcNow;
+            var registration = new DotReactSessionRegistration(
+                "redis-session", "user-42", issuedAt, issuedAt.AddMinutes(10));
+            await sessions.RegisterAsync(registration, CancellationToken.None);
+            Assert.True(await sessions.IsActiveAsync(
+                registration.SessionId, registration.Subject, registration.IssuedAt, CancellationToken.None));
+            await sessions.RevokeAllAsync(registration.Subject, issuedAt.AddTicks(1), CancellationToken.None);
+            Assert.False(await sessions.IsActiveAsync(
+                registration.SessionId, registration.Subject, registration.IssuedAt, CancellationToken.None));
         }
         finally
         {
@@ -82,6 +94,8 @@ public sealed class DotReactRedisRegistrationTests
             services.Last(descriptor => descriptor.ServiceType == typeof(IDotReactPrerenderStore)).ImplementationType);
         Assert.Equal(typeof(RedisDotReactActionIdempotencyStore),
             services.Last(descriptor => descriptor.ServiceType == typeof(IDotReactActionIdempotencyStore)).ImplementationType);
+        Assert.Equal(typeof(RedisDotReactSessionStore),
+            services.Last(descriptor => descriptor.ServiceType == typeof(IDotReactSessionStore)).ImplementationType);
     }
 
     [Fact]
@@ -92,6 +106,20 @@ public sealed class DotReactRedisRegistrationTests
         services.AddDotReactRedis(
             ConfigurationOptions.Parse("127.0.0.1:6379,abortConnect=false"),
             options => options.KeyPrefix = "unsafe:prefix");
+        using var provider = services.BuildServiceProvider();
+
+        Assert.Throws<OptionsValidationException>(() =>
+            provider.GetRequiredService<IOptions<DotReactRedisOptions>>().Value);
+    }
+
+    [Fact]
+    public void Redis_plugin_rejects_unbounded_static_artifact_retention_before_connecting()
+    {
+        var services = new ServiceCollection();
+        services.AddDotReact();
+        services.AddDotReactRedis(
+            ConfigurationOptions.Parse("127.0.0.1:6379,abortConnect=false"),
+            options => options.StaticArtifactRetention = TimeSpan.FromDays(366));
         using var provider = services.BuildServiceProvider();
 
         Assert.Throws<OptionsValidationException>(() =>

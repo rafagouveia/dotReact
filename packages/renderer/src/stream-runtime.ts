@@ -9,13 +9,13 @@ import {
   type RenderStreamErrorFrame,
   type RenderStreamFrame,
   type RenderStreamRequest
-} from "@dotreact/protocol";
+} from "@rafagouveia/dotreact-protocol";
 
-export interface RenderStreamContext {
+interface RenderStreamContext {
   readonly signal: AbortSignal;
 }
 
-export type RenderStreamSource = AsyncIterable<unknown> | ReadableStream<unknown>;
+type RenderStreamSource = AsyncIterable<unknown> | ReadableStream<unknown>;
 
 export interface RenderStreamEntry {
   renderStream(

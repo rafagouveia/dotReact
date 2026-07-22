@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 using DotReact.AspNetCore;
 using DotReact.Crud;
 using Microsoft.AspNetCore.Hosting;
@@ -17,7 +16,7 @@ using Xunit;
 
 namespace DotReact.Crud.Tests;
 
-public sealed partial class WorkItemsApiTests : IClassFixture<CrudApplicationFactory>
+public sealed class WorkItemsApiTests : IClassFixture<CrudApplicationFactory>
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -182,12 +181,14 @@ public sealed partial class WorkItemsApiTests : IClassFixture<CrudApplicationFac
 
     private async Task<string> GetActionSecurityAsync()
     {
-        using var page = await _client.GetAsync("/");
-        page.EnsureSuccessStatusCode();
-        var html = await page.Content.ReadAsStringAsync();
-        var token = CsrfMetaRegex().Match(html).Groups[1].Value;
-        Assert.NotEmpty(token);
-        return token;
+        // DotReact acquires antiforgery state lazily so read-only SSR requests do not
+        // emit a per-visitor cookie. This mirrors the browser action client.
+        using var response = await _client.GetAsync("/_dotreact/csrf");
+        response.EnsureSuccessStatusCode();
+        using var payload = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var token = payload.RootElement.GetProperty("token").GetString();
+        Assert.False(string.IsNullOrEmpty(token));
+        return token!;
     }
 
     private Task<HttpResponseMessage> SendActionAsync<T>(string id, T body, string csrfToken)
@@ -199,9 +200,6 @@ public sealed partial class WorkItemsApiTests : IClassFixture<CrudApplicationFac
         request.Headers.Add("X-DotReact-CSRF", csrfToken);
         return _client.SendAsync(request);
     }
-
-    [GeneratedRegex("<meta name=\"dotreact-csrf-token\" content=\"([^\"]+)\">")]
-    private static partial Regex CsrfMetaRegex();
 }
 
 public sealed class CrudApplicationFactory : WebApplicationFactory<Program>

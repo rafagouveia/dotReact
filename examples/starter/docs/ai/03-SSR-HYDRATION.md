@@ -8,12 +8,21 @@
 4. ASP.NET sends a versioned render request to the private renderer.
 5. The framework-owned virtual server entry resolves the allowlisted page module and layouts.
 6. React renders HTML with the same `DotReactApp` tree used in the browser.
-7. ASP.NET writes the document, metadata, CSP nonce, CSRF metadata and a JSON
-   bootstrap payload in `#__DOTREACT_DATA__`.
-8. The framework-owned virtual client entry reads that payload, installs the root boundary and calls `hydrateRoot`; projects do not carry this wiring.
+7. The production route manifest says whether the compiled route requires browser behavior.
+8. Interactive routes receive the escaped JSON bootstrap payload and framework-owned `hydrateRoot`; proven server-only routes receive only HTML and blocking CSS.
 
 Do not manually render a second tree in the client entry. SSR and hydration must
 receive the same pages, route modules, layouts, boundaries, module ID and props.
+
+## Automatic route hydration
+
+Do not mark ordinary pages as server-rendered: SSR is the default. The production
+compiler follows local imports and enables hydration when it finds React state or
+effect hooks, JSX event handlers, browser globals, a `"use client"` directive, an
+unknown package, or an import it cannot prove safe. Uncertainty always hydrates;
+it never silently removes required client behavior. Development hydrates all
+routes to preserve Fast Refresh. Component-level Server/Client boundaries remain
+experimental under `@rafagouveia/dotreact-rsc`.
 
 ## Hydration contract
 
@@ -37,7 +46,7 @@ array indexes as keys for mutable server data.
 
 ## Streaming SSR and Suspense
 
-When `EnableStreaming` is true and protocol v2 is negotiated, the renderer uses
+When the page loader has `[DotReactStreaming]`, `EnableStreaming` is true and protocol v2 is negotiated, the renderer uses
 `renderToPipeableStream`. It emits correlated frames:
 
 ```text
@@ -62,8 +71,13 @@ through loaders, use cases, repositories and external calls.
 
 ## Client-side navigation
 
-`DotReactLink` intercepts eligible same-origin links and can prefetch on hover or
-focus. `useDotReactRouter()` exposes:
+`DotReactLink` intercepts eligible same-origin links. It prefetches by user intent
+by default (brief hover or focus), not merely because every sidebar link entered
+the viewport. Use `prefetch="viewport"` only for a small, deliberate set of likely
+destinations, or `prefetch={false}` for expensive routes. Navigation payloads use
+a bounded LRU cache with a server-directed freshness window.
+
+`useDotReactRouter()` exposes:
 
 - `navigate(href, options)`;
 - `prefetch(href)`;
@@ -75,6 +89,10 @@ Navigation requests use a private DotReact media type. The server returns route
 module, props, boundaries and status as JSON; the router updates the React tree
 without replacing the document. A non-DotReact response or incompatible payload
 falls back to full document navigation.
+
+In development, inspect `X-DotReact-Render-Mode` in response headers. Values such
+as `streaming-ssr`, `ssr`, `client-navigation` and `prerender-fresh` make the
+active path explicit. The diagnostic header is omitted in production.
 
 Use `router.refresh()` after external state changes that were not represented by
 an action revalidation header. Do not add a parallel client data router.
@@ -100,8 +118,9 @@ a failed deployment, not a page allowed to paint without CSS.
   state.
 - Editing C#: .NET Hot Reload applies supported deltas. Generated metadata
   increments a same-origin revision and the DotReact router refreshes current
-  server props without replacing the document. Unsupported edits restart the
-  process and trigger a full reload. The scaffold suppresses
+  server props in the background without replacing the document or remounting
+  the current React page. Unsupported edits restart the process and trigger a
+  full reload. The scaffold suppresses
   the separate `dotnet watch` browser-refresh script because it advertises
   machine-local WebSocket ports that cannot work through a public domain.
 - Editing a public loader/action contract: `dotreact sync --watch` regenerates
@@ -109,6 +128,26 @@ a failed deployment, not a page allowed to paint without CSS.
   only outside that development session; TypeScript must never stay stale.
 - Editing entry files or Vite/framework configuration may require a renderer
   restart and should not be expected to preserve state.
+
+Keep awaited work in its own statement. Some .NET runtimes classify a change to
+one complex expression that also contains `await` as `ENC0046`, which requires a
+restart. This shape gives ordinary prop/value edits the smallest possible Hot
+Reload delta:
+
+```csharp
+public async ValueTask<PageProps> LoadAsync(
+    DotReactPageContext context,
+    CancellationToken cancellationToken)
+{
+    var entity = await loadEntity.ExecuteAsync(cancellationToken);
+    return new PageProps(entity.Name, "Value safe to edit with Hot Reload");
+}
+```
+
+Adding/removing fields, changing constructors, generic shapes, dependency
+registration or generated public contracts can still be a rude edit. The
+starter restarts automatically in that case; that reload is intentional because
+the running CLR type graph can no longer be patched safely.
 
 ## Diagnosing hydration errors
 

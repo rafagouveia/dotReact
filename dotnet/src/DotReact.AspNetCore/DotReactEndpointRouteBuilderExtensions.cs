@@ -8,6 +8,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using DotReact.AspNetCore;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
@@ -42,14 +43,15 @@ public static class DotReactEndpointRouteBuilderExtensions
         this IEndpointRouteBuilder endpoints,
         string pattern,
         string moduleId,
-        Func<HttpContext, CancellationToken, ValueTask<TProps>> loader)
+        Func<HttpContext, CancellationToken, ValueTask<TProps>> loader,
+        bool streaming = false)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
         ArgumentException.ThrowIfNullOrWhiteSpace(pattern);
         ArgumentException.ThrowIfNullOrWhiteSpace(moduleId);
         ArgumentNullException.ThrowIfNull(loader);
 
-        return endpoints.MapGet(pattern, context => HandleAsync(context, moduleId, loader));
+        return endpoints.MapGet(pattern, context => HandleAsync(context, moduleId, loader, streaming));
     }
 
     /// <summary>Maps a route using a synchronous props loader.</summary>
@@ -57,9 +59,10 @@ public static class DotReactEndpointRouteBuilderExtensions
         this IEndpointRouteBuilder endpoints,
         string pattern,
         string moduleId,
-        Func<HttpContext, TProps> loader) =>
+        Func<HttpContext, TProps> loader,
+        bool streaming = false) =>
         endpoints.MapDotReactPage(pattern, moduleId,
-            (context, _) => ValueTask.FromResult(loader(context)));
+            (context, _) => ValueTask.FromResult(loader(context)), streaming);
 
     /// <summary>Maps all page types registered through AddDotReactPages.</summary>
     public static IEndpointRouteBuilder MapDotReactPages(this IEndpointRouteBuilder endpoints)
@@ -70,7 +73,7 @@ public static class DotReactEndpointRouteBuilderExtensions
         {
             var mapper = page.ReturnsResult ? MapDiscoveredResultPageMethod : MapDiscoveredPageMethod;
             mapper.MakeGenericMethod(page.ImplementationType, page.PropsType)
-                .Invoke(null, [endpoints, page.Pattern, page.ModuleId, page.Prerender]);
+                .Invoke(null, [endpoints, page.Pattern, page.ModuleId, page.Streaming, page.Prerender]);
         }
         var manifest = endpoints.MapGet("/_dotreact/prerender-manifest", HandlePrerenderManifestAsync);
         ApplyRateLimitIfRegistered(endpoints, manifest);
@@ -119,6 +122,7 @@ public static class DotReactEndpointRouteBuilderExtensions
         IEndpointRouteBuilder endpoints,
         string pattern,
         string moduleId,
+        bool streaming,
         DotReactPrerenderMetadata? prerender)
         where TPage : class, IDotReactPage<TProps>
     {
@@ -137,9 +141,10 @@ public static class DotReactEndpointRouteBuilderExtensions
                 if (cachePolicy is null) return await LoadAsync(cancellationToken).ConfigureAwait(false);
                 return await httpContext.RequestServices.GetRequiredService<IDotReactPageCache>()
                     .GetOrCreateAsync(httpContext.Request.GetEncodedPathAndQuery(),
-                        TimeSpan.FromSeconds(cachePolicy.DurationSeconds), LoadAsync, cancellationToken)
+                        TimeSpan.FromSeconds(cachePolicy.DurationSeconds), cachePolicy.Tags,
+                        LoadAsync, cancellationToken)
                     .ConfigureAwait(false);
-            }, prerender));
+            }, streaming, prerender));
         builder.WithName(PageEndpointName(moduleId));
         ApplyPageAuthorization<TPage>(builder);
     }
@@ -148,6 +153,7 @@ public static class DotReactEndpointRouteBuilderExtensions
         IEndpointRouteBuilder endpoints,
         string pattern,
         string moduleId,
+        bool streaming,
         DotReactPrerenderMetadata? prerender)
         where TPage : class, IDotReactResultPage<TProps>
     {
@@ -165,9 +171,10 @@ public static class DotReactEndpointRouteBuilderExtensions
                 if (cachePolicy is null) return await LoadAsync(cancellationToken).ConfigureAwait(false);
                 return await httpContext.RequestServices.GetRequiredService<IDotReactPageCache>()
                     .GetOrCreateAsync(httpContext.Request.GetEncodedPathAndQuery(),
-                        TimeSpan.FromSeconds(cachePolicy.DurationSeconds), LoadAsync, cancellationToken)
+                        TimeSpan.FromSeconds(cachePolicy.DurationSeconds), cachePolicy.Tags,
+                        LoadAsync, cancellationToken)
                     .ConfigureAwait(false);
-            }, prerender));
+            }, streaming, prerender));
         builder.WithName(PageEndpointName(moduleId));
         ApplyPageAuthorization<TPage>(builder);
     }
@@ -441,7 +448,8 @@ public static class DotReactEndpointRouteBuilderExtensions
         DotReactActionResult<TResponse> result,
         CancellationToken cancellationToken)
     {
-        if (result.Kind != DotReactActionResultKind.Success || result.RevalidatePaths.Count == 0)
+        if (result.Kind != DotReactActionResultKind.Success
+            || result.RevalidatePaths.Count == 0 && result.RevalidateTags.Count == 0)
             return;
         var invalidator = context.RequestServices.GetService<IDotReactCacheInvalidator>();
         if (invalidator is not null)
@@ -449,6 +457,7 @@ public static class DotReactEndpointRouteBuilderExtensions
             try
             {
                 await invalidator.InvalidateAsync(result.RevalidatePaths, cancellationToken).ConfigureAwait(false);
+                await invalidator.InvalidateTagsAsync(result.RevalidateTags, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
@@ -471,6 +480,8 @@ public static class DotReactEndpointRouteBuilderExtensions
                 await prerenderStore.InvalidatePathAsync(
                     new DotReactPrerenderKey(buildId, path), cancellationToken).ConfigureAwait(false);
             }
+            foreach (var tag in result.RevalidateTags)
+                await prerenderStore.InvalidateTagAsync(buildId, tag, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -617,17 +628,19 @@ public static class DotReactEndpointRouteBuilderExtensions
     private static async Task HandleAsync<TProps>(
         HttpContext context,
         string moduleId,
-        Func<HttpContext, CancellationToken, ValueTask<TProps>> loader)
+        Func<HttpContext, CancellationToken, ValueTask<TProps>> loader,
+        bool streaming)
     {
         await HandleResultAsync(context, moduleId, async (httpContext, cancellationToken) =>
             DotReactPageResult<TProps>.Page(
-                await loader(httpContext, cancellationToken).ConfigureAwait(false))).ConfigureAwait(false);
+                await loader(httpContext, cancellationToken).ConfigureAwait(false)), streaming).ConfigureAwait(false);
     }
 
     private static async Task HandleResultAsync<TProps>(
         HttpContext context,
         string moduleId,
         Func<HttpContext, CancellationToken, ValueTask<DotReactPageResult<TProps>>> loader,
+        bool streaming = false,
         DotReactPrerenderMetadata? prerender = null)
     {
         context.Response.Headers.CacheControl = "private,no-store";
@@ -669,10 +682,8 @@ public static class DotReactEndpointRouteBuilderExtensions
                         requestId,
                         message = "The requested page was not found."
                     }, JsonOptions);
-                    var boundaryCsrf = context.RequestServices.GetRequiredService<IAntiforgery>()
-                        .GetAndStoreTokens(context).RequestToken;
                     await WriteNavigationPayloadAsync(context, requestId, moduleId, boundaryProps,
-                        boundaryCsrf, "not-found", StatusCodes.Status404NotFound).ConfigureAwait(false);
+                        null, "not-found", StatusCodes.Status404NotFound).ConfigureAwait(false);
                     return;
                 }
                 var rendered = await TryRenderBoundaryAsync(
@@ -685,34 +696,32 @@ public static class DotReactEndpointRouteBuilderExtensions
             }
 
             var props = outcome.Props;
-            var propsJson = SerializePageProps(props, moduleId, options, context);
+            var propsJson = SerializePageProps(props, moduleId, options, context, out var propsUtf8);
             if (IsClientNavigation(context.Request))
             {
-                var navigationCsrfToken = context.RequestServices.GetRequiredService<IAntiforgery>()
-                    .GetAndStoreTokens(context).RequestToken
-                    ?? throw new InvalidOperationException("The antiforgery service did not issue a request token.");
-                await WriteNavigationPayloadAsync(context, requestId, moduleId, propsJson, navigationCsrfToken,
+                SetDevelopmentRenderMode(context, options, "client-navigation");
+                await WriteNavigationPayloadAsync(context, requestId, moduleId, propsJson, null,
                     null, outcome.StatusCode).ConfigureAwait(false);
                 return;
             }
             if (prerender is not null && !context.Request.QueryString.HasValue)
             {
+                SetDevelopmentRenderMode(context, options, "prerender");
                 await WritePrerenderedDocumentAsync(
                     context, moduleId, propsJson, prerender, options, timeout.Token)
                     .ConfigureAwait(false);
                 return;
             }
-            var csrfToken = context.RequestServices.GetRequiredService<IAntiforgery>()
-                .GetAndStoreTokens(context).RequestToken
-                ?? throw new InvalidOperationException("The antiforgery service did not issue a request token.");
-            if (options.EnableStreaming)
+            if (options.EnableStreaming && streaming)
             {
+                SetDevelopmentRenderMode(context, options, "streaming-ssr");
                 await WriteStreamingDocumentAsync(
-                    context, requestId, moduleId, propsJson, csrfToken, null, outcome.StatusCode,
+                    context, requestId, moduleId, propsJson, null, null, outcome.StatusCode,
                     options, logger, timeout.Token).ConfigureAwait(false);
                 return;
             }
             var renderer = context.RequestServices.GetRequiredService<IDotReactRenderer>();
+            SetDevelopmentRenderMode(context, options, "ssr");
             var renderStarted = Stopwatch.GetTimestamp();
             var result = await renderer.RenderAsync(
                 new DotReactRenderRequest(
@@ -721,17 +730,19 @@ public static class DotReactEndpointRouteBuilderExtensions
                     moduleId,
                     context.Request.GetEncodedPathAndQuery(),
                     propsJson,
-                    "ssr"),
+                    "ssr") { SerializedProps = propsUtf8 },
                 timeout.Token).ConfigureAwait(false);
             AppendServerTiming(context, options, "render", Stopwatch.GetElapsedTime(renderStarted));
 
-            var hydration = JsonSerializer.Serialize(new HydrationPayload(
-                1, requestId, moduleId, propsJson, csrfToken, null), JsonOptions);
+            var hydration = ShouldHydrate(options, moduleId)
+                ? JsonSerializer.Serialize(new HydrationPayload(
+                    1, requestId, moduleId, propsJson, null, null), JsonOptions)
+                : null;
 
             context.Response.StatusCode = outcome.StatusCode;
             context.Response.ContentType = "text/html; charset=utf-8";
             await context.Response.WriteAsync(BuildShell(
-                    result, moduleId, hydration, csrfToken, options, DotReactSecurityNonce.Get(context)), context.RequestAborted)
+                    result, moduleId, hydration, null, options, nonce: null), context.RequestAborted)
                 .ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!context.RequestAborted.IsCancellationRequested)
@@ -748,6 +759,18 @@ public static class DotReactEndpointRouteBuilderExtensions
                 options,
                 requestId,
                 "The rendering service is restarting. Please refresh in a moment.",
+                StatusCodes.Status503ServiceUnavailable).ConfigureAwait(false);
+        }
+        catch (DotReactRendererCapacityException exception) when (!context.RequestAborted.IsCancellationRequested)
+        {
+            logger.LogWarning(exception, "DotReact renderer capacity rejected request {RequestId}.", requestId);
+            context.Response.Headers.RetryAfter = Math.Ceiling(options.RendererOverloadRetryAfter.TotalSeconds)
+                .ToString(System.Globalization.CultureInfo.InvariantCulture);
+            await WriteErrorAsync(
+                context,
+                options,
+                requestId,
+                "The server is temporarily busy. Please retry shortly.",
                 StatusCodes.Status503ServiceUnavailable).ConfigureAwait(false);
         }
         catch (Exception exception) when (!context.RequestAborted.IsCancellationRequested)
@@ -811,14 +834,16 @@ public static class DotReactEndpointRouteBuilderExtensions
             var result = await renderer.RenderAsync(new DotReactRenderRequest(
                 1, requestId, sourceModuleId, context.Request.GetEncodedPathAndQuery(), propsJson, "ssr", boundaryKind),
                 cancellationToken).ConfigureAwait(false);
-            var hydration = JsonSerializer.Serialize(new HydrationPayload(
-                1, requestId, sourceModuleId, propsJson, null, boundaryKind), JsonOptions);
+            var hydration = ShouldHydrate(options, sourceModuleId)
+                ? JsonSerializer.Serialize(new HydrationPayload(
+                    1, requestId, sourceModuleId, propsJson, null, boundaryKind), JsonOptions)
+                : null;
             context.Response.Clear();
             context.Response.Headers.CacheControl = "private,no-store";
             context.Response.StatusCode = statusCode;
             context.Response.ContentType = "text/html; charset=utf-8";
             await context.Response.WriteAsync(BuildShell(
-                    result, sourceModuleId, hydration, null, options, DotReactSecurityNonce.Get(context)), context.RequestAborted)
+                    result, sourceModuleId, hydration, null, options, nonce: null), context.RequestAborted)
                 .ConfigureAwait(false);
             return true;
         }
@@ -833,31 +858,39 @@ public static class DotReactEndpointRouteBuilderExtensions
     private static string BuildShell(
         DotReactRenderResponse render,
         string moduleId,
-        string hydrationJson,
+        string? hydrationJson,
         string? csrfToken,
         DotReactOptions options,
         string? nonce)
     {
         var rootId = HtmlEncoder.Default.Encode(options.RootElementId);
         var scriptSrc = HtmlEncoder.Default.Encode(options.ClientScriptSrc);
-        var builder = new StringBuilder(512 + render.Html.Length + hydrationJson.Length);
-        builder.Append("<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">");
-        AppendBrowserVitalsMeta(builder, options);
+        var documentLanguage = HtmlEncoder.Default.Encode(options.DocumentLanguage);
+        var builder = new StringBuilder(512 + render.Html.Length + (hydrationJson?.Length ?? 0));
+        builder.Append("<!doctype html><html lang=\"").Append(documentLanguage)
+            .Append("\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">");
+        var hydrate = hydrationJson is not null;
+        if (hydrate) AppendBrowserVitalsMeta(builder, options);
         if (csrfToken is not null)
             builder.Append("<meta name=\"dotreact-csrf-token\" content=\"")
                 .Append(HtmlEncoder.Default.Encode(csrfToken)).Append("\">");
         AppendHead(builder, render.Head);
-        AppendClientModulePreloads(builder, options, moduleId);
+        if (hydrate) AppendClientModulePreloads(builder, options, moduleId);
         AppendClientStyles(builder, options, moduleId);
         builder.Append("</head><body><div id=\"").Append(rootId).Append("\">");
         builder.Append(render.Html);
-        builder.Append("</div><script id=\"__DOTREACT_DATA__\" type=\"application/json\">");
-        builder.Append(hydrationJson);
-        builder.Append("</script>");
-        AppendReactRefreshPreamble(builder, options, nonce);
-        builder.Append("<script type=\"module\"");
-        AppendNonceAttribute(builder, nonce);
-        builder.Append(" src=\"").Append(scriptSrc).Append("\"></script></body></html>");
+        builder.Append("</div>");
+        if (hydrate)
+        {
+            builder.Append("<script id=\"__DOTREACT_DATA__\" type=\"application/json\">");
+            builder.Append(hydrationJson);
+            builder.Append("</script>");
+            AppendReactRefreshPreamble(builder, options, nonce);
+            builder.Append("<script type=\"module\"");
+            AppendNonceAttribute(builder, nonce);
+            builder.Append(" src=\"").Append(scriptSrc).Append("\"></script>");
+        }
+        builder.Append("</body></html>");
         return builder.ToString();
     }
 
@@ -886,8 +919,10 @@ public static class DotReactEndpointRouteBuilderExtensions
             ["html-stream"],
             boundaryKind,
             nonce);
-        var hydration = JsonSerializer.Serialize(new HydrationPayload(
-            1, requestId, moduleId, props, csrfToken, boundaryKind), JsonOptions);
+        var hydration = ShouldHydrate(options, moduleId)
+            ? JsonSerializer.Serialize(new HydrationPayload(
+                1, requestId, moduleId, props, csrfToken, boundaryKind), JsonOptions)
+            : null;
         var started = false;
         await foreach (var frame in renderer.RenderStreamAsync(request, cancellationToken).ConfigureAwait(false))
         {
@@ -899,13 +934,15 @@ public static class DotReactEndpointRouteBuilderExtensions
                         context.Response.StatusCode = statusCode;
                         context.Response.ContentType = "text/html; charset=utf-8";
                         var head = new StringBuilder(512);
-                        head.Append("<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">");
-                        AppendBrowserVitalsMeta(head, options);
+                        head.Append("<!doctype html><html lang=\"")
+                            .Append(HtmlEncoder.Default.Encode(options.DocumentLanguage))
+                            .Append("\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">");
+                        if (hydration is not null) AppendBrowserVitalsMeta(head, options);
                         if (csrfToken is not null)
                             head.Append("<meta name=\"dotreact-csrf-token\" content=\"")
                                 .Append(HtmlEncoder.Default.Encode(csrfToken)).Append("\">");
                         AppendHead(head, start.Head);
-                        AppendClientModulePreloads(head, options, moduleId);
+                        if (hydration is not null) AppendClientModulePreloads(head, options, moduleId);
                         AppendClientStyles(head, options, moduleId);
                         head.Append("</head><body><div id=\"")
                             .Append(HtmlEncoder.Default.Encode(options.RootElementId)).Append("\">");
@@ -922,14 +959,19 @@ public static class DotReactEndpointRouteBuilderExtensions
                         "Renderer emitted Flight data although this document negotiated HTML streaming only.");
                 case DotReactRenderStreamCompleteFrame:
                     {
-                        var tail = new StringBuilder(384 + hydration.Length);
-                        tail.Append("</div><script id=\"__DOTREACT_DATA__\" type=\"application/json\">")
-                            .Append(hydration).Append("</script>");
-                        AppendReactRefreshPreamble(tail, options, nonce);
-                        tail.Append("<script type=\"module\"");
-                        AppendNonceAttribute(tail, nonce);
-                        tail.Append(" src=\"").Append(HtmlEncoder.Default.Encode(options.ClientScriptSrc))
-                            .Append("\"></script></body></html>");
+                        var tail = new StringBuilder(384 + (hydration?.Length ?? 0));
+                        tail.Append("</div>");
+                        if (hydration is not null)
+                        {
+                            tail.Append("<script id=\"__DOTREACT_DATA__\" type=\"application/json\">")
+                                .Append(hydration).Append("</script>");
+                            AppendReactRefreshPreamble(tail, options, nonce);
+                            tail.Append("<script type=\"module\"");
+                            AppendNonceAttribute(tail, nonce);
+                            tail.Append(" src=\"").Append(HtmlEncoder.Default.Encode(options.ClientScriptSrc))
+                                .Append("\"></script>");
+                        }
+                        tail.Append("</body></html>");
                         await context.Response.WriteAsync(tail.ToString(), context.RequestAborted).ConfigureAwait(false);
                         await context.Response.Body.FlushAsync(context.RequestAborted).ConfigureAwait(false);
                         return;
@@ -994,19 +1036,32 @@ public static class DotReactEndpointRouteBuilderExtensions
         DotReactPrerenderArtifact artifact,
         DotReactPrerenderResolution resolution)
     {
-        var etag = $"\"{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(artifact.Html))).ToLowerInvariant()}\"";
-        context.Response.Headers.CacheControl = "public,max-age=0,must-revalidate";
-        context.Response.Headers.ETag = etag;
+        var now = context.RequestServices.GetRequiredService<TimeProvider>().GetUtcNow();
+        var maxAge = artifact.FreshUntil == DateTimeOffset.MaxValue
+            ? TimeSpan.FromDays(365)
+            : artifact.FreshUntil - now;
+        var stale = artifact.StaleUntil == DateTimeOffset.MaxValue || artifact.FreshUntil == DateTimeOffset.MaxValue
+            ? TimeSpan.Zero
+            : artifact.StaleUntil - artifact.FreshUntil;
+        var maxAgeSeconds = Math.Max(0, (long)Math.Floor(maxAge.TotalSeconds));
+        var staleSeconds = Math.Max(0, (long)Math.Floor(stale.TotalSeconds));
+        context.Response.Headers.CacheControl = staleSeconds > 0
+            ? $"public,max-age={maxAgeSeconds},stale-while-revalidate={staleSeconds}"
+            : $"public,max-age={maxAgeSeconds}";
+        context.Response.Headers.ETag = artifact.ETag;
         context.Response.Headers["X-DotReact-Prerender"] = resolution.ToString();
+        var options = context.RequestServices.GetRequiredService<IOptions<DotReactOptions>>().Value;
+        SetDevelopmentRenderMode(context, options, $"prerender-{resolution.ToString().ToLowerInvariant()}");
         if (context.Request.Headers.IfNoneMatch.Any(value =>
-                value is not null && value.Split(',').Any(candidate => candidate.Trim() == etag)))
+                value is not null && value.Split(',').Any(candidate => candidate.Trim() == artifact.ETag)))
         {
             context.Response.StatusCode = StatusCodes.Status304NotModified;
             return;
         }
         context.Response.StatusCode = StatusCodes.Status200OK;
         context.Response.ContentType = "text/html; charset=utf-8";
-        await context.Response.WriteAsync(artifact.Html, context.RequestAborted).ConfigureAwait(false);
+        context.Response.ContentLength = artifact.Utf8Html.Length;
+        await context.Response.Body.WriteAsync(artifact.Utf8Html, context.RequestAborted).ConfigureAwait(false);
     }
 
     private static async ValueTask<DotReactPrerenderArtifact> GeneratePrerenderArtifactAsync(
@@ -1025,8 +1080,10 @@ public static class DotReactEndpointRouteBuilderExtensions
         var requestId = CreatePrerenderRequestId(key);
         var result = await renderer.RenderAsync(new DotReactRenderRequest(
             1, requestId, moduleId, key.Path, props, "ssr"), timeout.Token).ConfigureAwait(false);
-        var hydration = JsonSerializer.Serialize(new StaticHydrationPayload(
-            1, requestId, moduleId, props, null), JsonOptions);
+        var hydration = ShouldHydrate(options, moduleId)
+            ? JsonSerializer.Serialize(new StaticHydrationPayload(
+                1, requestId, moduleId, props, null), JsonOptions)
+            : null;
         var html = BuildShell(result, moduleId, hydration, null, options, null);
         var generatedAt = scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow();
         return DotReactPrerenderArtifact.Create(
@@ -1044,6 +1101,11 @@ public static class DotReactEndpointRouteBuilderExtensions
         return "prerender-" + Convert.ToHexString(SHA256.HashData(input)).ToLowerInvariant();
     }
 
+    private static bool ShouldHydrate(DotReactOptions options, string moduleId) =>
+        options.Development
+        || !options.ClientRouteAssets.TryGetValue(moduleId, out var assets)
+        || assets.Hydrate;
+
     private static bool IsClientNavigation(HttpRequest request) =>
         HttpMethods.IsGet(request.Method)
         && string.Equals(request.Headers["X-DotReact-Navigation"].ToString(), "1", StringComparison.Ordinal)
@@ -1054,9 +1116,10 @@ public static class DotReactEndpointRouteBuilderExtensions
         TProps props,
         string moduleId,
         DotReactOptions options,
-        HttpContext context)
+        HttpContext context,
+        out byte[] utf8)
     {
-        var utf8 = JsonSerializer.SerializeToUtf8Bytes(props, JsonOptions);
+        utf8 = JsonSerializer.SerializeToUtf8Bytes(props, JsonOptions);
         DotReactTelemetry.PagePropsSize.Record(utf8.LongLength,
             new KeyValuePair<string, object?>("dotreact.module_id", moduleId));
         if (options.Development)
@@ -1080,6 +1143,15 @@ public static class DotReactEndpointRouteBuilderExtensions
             $"dotreact-{metric};dur={duration.TotalMilliseconds.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)}");
     }
 
+    private static void SetDevelopmentRenderMode(
+        HttpContext context,
+        DotReactOptions options,
+        string mode)
+    {
+        if (!options.Development || context.Response.HasStarted) return;
+        context.Response.Headers["X-DotReact-Render-Mode"] = mode;
+    }
+
     private static async Task WriteNavigationPayloadAsync(
         HttpContext context,
         string requestId,
@@ -1090,6 +1162,9 @@ public static class DotReactEndpointRouteBuilderExtensions
         int statusCode)
     {
         context.Response.StatusCode = statusCode;
+        var options = context.RequestServices.GetRequiredService<IOptions<DotReactOptions>>().Value;
+        SetDevelopmentRenderMode(context, options, "client-navigation");
+        var navigationCacheDuration = options.ClientNavigationCacheDuration;
         await context.Response.WriteAsJsonAsync(new NavigationPayload(
             1,
             requestId,
@@ -1098,7 +1173,8 @@ public static class DotReactEndpointRouteBuilderExtensions
             props,
             csrfToken,
             boundaryKind,
-            statusCode), JsonOptions,
+            statusCode,
+            checked((int)navigationCacheDuration.TotalMilliseconds)), JsonOptions,
             contentType: "application/vnd.dotreact.navigation+json; charset=utf-8",
             cancellationToken: context.RequestAborted).ConfigureAwait(false);
     }
@@ -1122,14 +1198,20 @@ public static class DotReactEndpointRouteBuilderExtensions
         if (!string.IsNullOrWhiteSpace(options.DevelopmentRuntimeProbePath))
         {
             var runtimeProbe = JsonSerializer.Serialize(options.DevelopmentRuntimeProbePath, JsonOptions);
-            builder.Append("let __dotReactRuntimeInstance;let __dotReactRuntimeRevision;")
-                .Append("const __dotReactPollRuntime=async()=>{try{const response=await fetch(")
+            builder.Append("let __dotReactRuntimeInstance;let __dotReactRuntimeRevision;let __dotReactRuntimeSocket;let __dotReactRuntimeTimer;")
+                .Append("const __dotReactConnectRuntime=()=>{if(document.visibilityState==='hidden'||__dotReactRuntimeSocket)return;")
+                .Append("const url=new URL(")
                 .Append(runtimeProbe)
-                .Append(",{cache:'no-store'});if(response.ok){const payload=await response.json();")
+                .Append(",location.origin);url.protocol=location.protocol==='https:'?'wss:':'ws:';const socket=new WebSocket(url);__dotReactRuntimeSocket=socket;")
+                .Append("socket.onmessage=event=>{try{const payload=JSON.parse(event.data);")
                 .Append("if(__dotReactRuntimeInstance&&payload.instanceId!==__dotReactRuntimeInstance){location.reload();return;}")
                 .Append("if(__dotReactRuntimeRevision!==undefined&&payload.revision!==__dotReactRuntimeRevision){window.dispatchEvent(new CustomEvent('dotreact:revalidate',{detail:[location.pathname+location.search]}));}")
-                .Append("__dotReactRuntimeInstance=payload.instanceId;__dotReactRuntimeRevision=payload.revision;}}catch{}setTimeout(__dotReactPollRuntime,250);};")
-                .Append("__dotReactPollRuntime();");
+                .Append("__dotReactRuntimeInstance=payload.instanceId;__dotReactRuntimeRevision=payload.revision;}catch{}};")
+                .Append("socket.onerror=()=>socket.close();socket.onclose=()=>{if(__dotReactRuntimeSocket===socket)__dotReactRuntimeSocket=undefined;")
+                .Append("if(document.visibilityState!=='hidden')__dotReactRuntimeTimer=setTimeout(__dotReactConnectRuntime,1000);};};")
+                .Append("document.addEventListener('visibilitychange',()=>{clearTimeout(__dotReactRuntimeTimer);if(document.visibilityState==='hidden'){")
+                .Append("__dotReactRuntimeSocket?.close();}else __dotReactConnectRuntime();});")
+                .Append("window.addEventListener('pagehide',()=>__dotReactRuntimeSocket?.close(),{once:true});__dotReactConnectRuntime();");
         }
         builder.Append("</script>");
     }
@@ -1240,7 +1322,8 @@ public static class DotReactEndpointRouteBuilderExtensions
         StringBuilder builder,
         IReadOnlyDictionary<string, string>? attributes)
     {
-        if (attributes is null || !attributes.TryGetValue("src", out var source) || !IsSafeScriptSource(source))
+        if (attributes is null || !attributes.TryGetValue("src", out var source) || !IsSafeScriptSource(source)
+            || (IsRemoteScriptSource(source) && !HasValidScriptIntegrity(attributes)))
             return;
         builder.Append("<script");
         foreach (var (name, value) in attributes)
@@ -1250,6 +1333,9 @@ public static class DotReactEndpointRouteBuilderExtensions
             builder.Append(' ').Append(normalizedName).Append("=\"")
                 .Append(HtmlEncoder.Default.Encode(value)).Append('"');
         }
+        if (IsRemoteScriptSource(source) && !attributes.Keys.Any(static name =>
+                name.Equals("crossorigin", StringComparison.OrdinalIgnoreCase)))
+            builder.Append(" crossorigin=\"anonymous\"");
         builder.Append("></script>");
     }
 
@@ -1264,6 +1350,19 @@ public static class DotReactEndpointRouteBuilderExtensions
         return Uri.TryCreate(source, UriKind.Absolute, out var uri)
             && uri.Scheme == Uri.UriSchemeHttps
             && string.IsNullOrEmpty(uri.UserInfo);
+    }
+
+    private static bool IsRemoteScriptSource(string source) =>
+        Uri.TryCreate(source, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;
+
+    private static bool HasValidScriptIntegrity(IReadOnlyDictionary<string, string> attributes)
+    {
+        var integrity = attributes.FirstOrDefault(static pair =>
+            pair.Key.Equals("integrity", StringComparison.OrdinalIgnoreCase)).Value;
+        return integrity is not null && Regex.IsMatch(integrity,
+            "^sha(?:256|384|512)-[A-Za-z0-9+/]+={0,2}(?:\\s+sha(?:256|384|512)-[A-Za-z0-9+/]+={0,2})*$",
+            RegexOptions.CultureInvariant,
+            TimeSpan.FromMilliseconds(100));
     }
 
     private static async Task WriteErrorAsync(
@@ -1341,7 +1440,8 @@ public static class DotReactEndpointRouteBuilderExtensions
         JsonElement Props,
         string? CsrfToken,
         string? BoundaryKind,
-        int StatusCode);
+        int StatusCode,
+        int StaleTimeMs);
 
     private sealed record PrerenderManifest(
         int Version,

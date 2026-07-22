@@ -1,0 +1,13 @@
+{
+  "extension.displayName": "DotReact — React SSR for .NET",
+  "extension.description": "DRX language support, C# loader navigation and project diagnostics for DotReact.",
+  "capabilities.untrustedWorkspaces": "Syntax support remains available, but project validation is disabled until the workspace is trusted.",
+  "capabilities.virtualWorkspaces": "Project validation requires a local DotReact toolchain and file system.",
+  "command.openBackendLoader": "DotReact: Open C# Loader",
+  "command.checkProject": "DotReact: Check Project",
+  "command.showOutput": "DotReact: Show Validation Output",
+  "command.openDocumentation": "DotReact: Open Documentation",
+  "configuration.title": "DotReact",
+  "configuration.checkOnSave": "Runs semantic DRX validation after a .drx file is saved.",
+  "configuration.validation.debounceMs": "Delay used to coalesce repeated save events before project validation."
+}

@@ -7,7 +7,7 @@ import {
   STREAM_PROTOCOL_HEADER,
   STREAM_PROTOCOL_VERSION,
   type RenderStreamRequest
-} from "@dotreact/protocol";
+} from "@rafagouveia/dotreact-protocol";
 import {
   handleRenderStream,
   RenderStreamEncoder,

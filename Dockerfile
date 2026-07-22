@@ -7,12 +7,12 @@ COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages ./packages
 COPY examples/starter ./examples/starter
 RUN npm ci
-RUN npm run build -w @dotreact/protocol \
-    && npm run build -w @dotreact/client \
-    && npm run build -w @dotreact/vite \
-    && npm run build -w @dotreact/renderer \
-    && npm run build:client -w @dotreact/example-starter \
-    && npm run build:ssr -w @dotreact/example-starter
+RUN npm run build -w @rafagouveia/dotreact-protocol \
+    && npm run build -w @rafagouveia/dotreact-client \
+    && npm run build -w @rafagouveia/dotreact-vite \
+    && npm run build -w @rafagouveia/dotreact-renderer \
+    && npm run build:client -w @rafagouveia/dotreact-example-starter \
+    && npm run build:ssr -w @rafagouveia/dotreact-example-starter
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0-bookworm-slim AS dotnet-build
 WORKDIR /src
@@ -28,7 +28,7 @@ COPY --from=dotnet-build /publish ./
 COPY --from=frontend-build /src/examples/starter/dist/client ./wwwroot
 COPY --from=frontend-build /src/examples/starter/dist/server ./frontend/server
 COPY --from=frontend-build /src/packages/renderer/dist ./renderer
-COPY --from=frontend-build /src/packages/protocol ./node_modules/@dotreact/protocol
+COPY --from=frontend-build /src/packages/protocol ./node_modules/@rafagouveia/dotreact-protocol
 COPY --from=frontend-build /src/node_modules/react ./node_modules/react
 COPY --from=frontend-build /src/node_modules/react-dom ./node_modules/react-dom
 COPY --from=frontend-build /src/node_modules/scheduler ./node_modules/scheduler

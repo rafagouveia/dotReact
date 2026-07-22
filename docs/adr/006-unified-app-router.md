@@ -41,14 +41,17 @@ app/
   ancestry, including route groups;
 - `[DotReactPage]` remains an explicit escape hatch for constrained or externally
   defined ASP.NET patterns;
-- shared UI remains under `src/features` or `src/components`; Domain,
-  Application and Infrastructure remain in the C# backend.
+- shared application UI lives under `app/_components`; route-private UI lives
+  under the nearest `app/**/_components`; Server Actions follow the equivalent
+  `_actions/*.server.cs` convention. Domain, Application, Infrastructure and
+  background jobs remain in the C# backend.
 
 ## Development updates
 
 DRX/TSX/CSS changes use Vite Fast Refresh. Successful .NET Hot Reload updates
-increment a generated application revision. The browser polls that revision on
-the same origin and asks the DotReact router to refresh current server props;
+increment a generated application revision. The browser receives revision
+updates on the same origin through one framework-owned WebSocket and asks the DotReact
+router to refresh current server props in the background;
 process restarts still cause a full document reload. No public HTML or script
 depends on a localhost renderer or dotnet-watch WebSocket.
 

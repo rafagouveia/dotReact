@@ -3,8 +3,8 @@
 ## Working surface
 
 The default editor view is intentionally smaller than the repository on disk.
-Application developers normally work in `app/`, `Server/`, `src/features`,
-`src/components`, `package.json` and the server project file. Generated contract
+Application developers normally work in `app/`, `Server/`, `public/`,
+`package.json` and the server project file. Generated contract
 artifacts, framework-owned frontend entrypoints, compiler configuration, deployment assets and
 the pinned runtime are framework-owned and hidden by focus mode.
 
@@ -50,9 +50,10 @@ In development, Vite serves the client entry and React Refresh. `dotnet watch`
 runs the ASP.NET host. In production, ASP.NET supervises the private renderer,
 serves built client assets and exposes health endpoints.
 
-## Application layers
+## Optional application layers
 
-For non-trivial products, organize C# by dependency direction:
+DotReact does not prescribe the internal layout of `Server/`. For non-trivial
+products, the following dependency direction is a recommended SOLID option:
 
 ```text
 Presentation -> Application -> Domain
@@ -73,19 +74,34 @@ become broad services containing business rules.
 
 ## Repository ownership
 
-- `app/`: file-routed DRX views and co-located server-only C# page loaders.
-- `Server/`: domain, application, infrastructure, global actions and host code.
-- `src/features/`: reusable product UI and browser interaction.
-- `src/components/`: domain-neutral UI building blocks.
+Next.js permits either `app/` or optional `src/app/`. DotReact deliberately uses
+root `app/` only; `src/` is reserved for generated C# ↔ TypeScript boundary
+artifacts. This keeps the C# source generator, Vite, SSR and hydration on one
+canonical module tree.
+
+- `app/`: file-routed DRX views, co-located server-only C# page loaders,
+  `_components` presentation and `_actions/*.server.cs` Server Actions.
+- `Server/`: application-owned C# structure and host code. DotReact does not
+  require Domain/Application/Infrastructure folders.
+- `app/_components/`: shared application UI and domain-neutral primitives.
+- `app/<route>/_components/`: route-private UI and browser interaction.
+- `app/_actions/` or `app/<route>/_actions/`: thin C# Server Action adapters.
 - `src/contracts.ts`, `src/actions.ts`, `src/backend-manifest.json`: generated.
-- `vendor/`: vendored DotReact runtime snapshot. Application work must not
-  modify it.
+- `package.json`, `Server/Server.csproj` and `.config/dotnet-tools.json`: exact,
+  aligned DotReact runtime versions. Framework source is never copied here.
 - `deploy/azure/`: deployment infrastructure.
 - `docs/ai/`: mandatory context for coding agents.
 
+Run `dotreact architecture` after reorganizing files. Strict mode enforces the
+`app/` presentation contract and rejects React UI in `src/features` or
+`src/components`. Server Actions and ASP.NET static assets may use an
+application-owned `Server/` layout; the CLI reports convention advice without
+failing the build.
+
 If a framework bug is discovered in a generated application, reproduce and fix
-it in the DotReact framework repository, then upgrade the vendored snapshot.
-Do not hide framework forks inside product code.
+it in the DotReact framework repository, publish a coordinated package version,
+then run `dotreact upgrade <version>`. Do not hide framework forks inside product
+code.
 
 ## Startup order
 

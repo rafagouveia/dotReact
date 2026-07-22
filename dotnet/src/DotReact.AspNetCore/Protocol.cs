@@ -11,7 +11,12 @@ public sealed record DotReactRenderRequest(
     [property: JsonPropertyName("url")] string Url,
     [property: JsonPropertyName("props")] JsonElement Props,
     [property: JsonPropertyName("renderMode")] string RenderMode,
-    [property: JsonPropertyName("boundaryKind")] string? BoundaryKind = null);
+    [property: JsonPropertyName("boundaryKind")] string? BoundaryKind = null)
+{
+    /// <summary>Framework-owned UTF-8 props reused by hashing and the managed binary transport.</summary>
+    [JsonIgnore]
+    internal ReadOnlyMemory<byte> SerializedProps { get; init; }
+}
 
 /// <summary>A structured, safely serialized element for the document head.</summary>
 public sealed record DotReactHeadElement

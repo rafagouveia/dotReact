@@ -1,4 +1,4 @@
-import { renderToReadableStream } from "@dotreact/rsc/rsc";
+import { renderToReadableStream } from "@rafagouveia/dotreact-rsc/rsc";
 import type { ReactNode } from "react";
 import { Root, type DotNetModel } from "./root.js";
 

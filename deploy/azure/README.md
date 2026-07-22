@@ -5,6 +5,12 @@ DotReact uses one externally visible container. ASP.NET Core listens on port
 The renderer token is generated in memory and is not an Azure application
 secret.
 
+Operationally this is one ASP.NET Core web app, just like a containerized Razor
+or Blazor application: the same Azure resource owns ingress, TLS, identity,
+health, logs and scale. DotReact additionally carries a private Node renderer,
+so its minimum memory is normally higher than an equivalent Razor-only app.
+It does not require a second public App Service or Container App.
+
 Build the repository image from the repository root:
 
 ```powershell
@@ -79,6 +85,22 @@ migration and rollback to a named previous image revision.
 The Container Apps template defaults to exactly one replica. Raise
 `maxReplicas` only after mutable data has moved to a scale-safe external
 database. The template rejects `maxReplicas` lower than `minReplicas`.
+
+## Cost model
+
+App Service dedicated tiers bill the allocated plan instances, regardless of
+request volume. Several applications can share a plan when its CPU and memory
+headroom are sufficient. Container Apps Consumption meters active/idle compute
+and requests and can scale to zero; use `minReplicas=1` when cold-start latency
+is unacceptable. DotReact's supervised Node heap must be included when sizing
+either platform. Use the repository comparison benchmark plus production memory
+telemetry rather than inferring cost from framework names.
+
+Razor usually has the smallest runtime baseline. DotReact trades extra renderer
+memory for React SSR, hydration and client navigation without keeping an
+application connection open after hydration. Interactive Blazor Server normally
+keeps SignalR circuits and per-user server state, so its cost must be compared at
+the expected concurrent-session count rather than request throughput alone.
 
 ## SQLite
 

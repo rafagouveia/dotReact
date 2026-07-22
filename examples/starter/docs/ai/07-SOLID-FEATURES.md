@@ -1,11 +1,12 @@
 +# SOLID, use cases and feature organization
 
-## Dependency rule
+## Recommended dependency rule
 
-Application code follows one inward dependency direction:
+DotReact does not enforce this folder tree. For products that choose layered
+architecture, the recommended dependency direction is:
 
 ```text
-app/page.server.cs or Server/Actions
+app/page.server.cs or app/**/_actions/*.server.cs
                  |
                  v
        Server/<Feature>/Application
@@ -85,14 +86,14 @@ model.
 
 ## React responsibilities and CSS
 
-Put reusable product UI in `src/features/<feature>` and neutral primitives in
-`src/components`. Keep state local and lift it only when two consumers need
+Put reusable application UI in `app/_components`, and route-private UI in the
+nearest `app/<route>/_components`. Keep state local and lift it only when two consumers need
 the same owner. Separate data-independent formatting functions from components
 when they deserve direct tests.
 
 Import feature CSS from the DRX, layout or component that owns it. Global reset,
 tokens and document defaults belong in `src/styles.css`. Put public assets in
-`public/`; declare local fonts in `app/fonts.ts` with `@dotreact/font` so the
+`public/`; declare local fonts in `app/fonts.ts` with `@rafagouveia/dotreact-font` so the
 framework owns `@font-face`, CSS variables and SSR preloads. In
 development DotReact discovers CSS reachable from the current page and layouts
 and places a blocking route stylesheet in the SSR `<head>`; production uses

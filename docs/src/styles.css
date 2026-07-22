@@ -14,7 +14,7 @@
   --dr-radius-control: 8px;
   --dr-radius-panel: 12px;
   --dr-shadow-panel: 0 12px 32px rgba(15, 23, 42, .055);
-  --dr-header-height: 3.5rem;
+  --dr-header-height: 4rem;
   --dr-layer-sidebar: 30;
   --dr-layer-overlay: 40;
   --dr-layer-header: 60;
@@ -32,58 +32,59 @@
 }
 
 @theme {
-  --font-sans: Inter, "Segoe UI", Roboto, Helvetica, Arial, ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter Variable", Inter, Aptos, "Segoe UI Variable", "Segoe UI", Roboto, Helvetica, Arial, ui-sans-serif, system-ui, sans-serif;
   --font-mono: "DM Mono", "SFMono-Regular", Consolas, ui-monospace, monospace;
 }
 
 @layer base {
   html { @apply scroll-smooth scroll-pt-24; }
-  body { @apply m-0 min-w-80 font-sans antialiased; background: var(--dr-canvas); color: var(--dr-ink); }
+  body { @apply m-0 min-w-80 font-sans text-base antialiased; background: var(--dr-canvas); color: var(--dr-ink); text-rendering: optimizeLegibility; }
   button { @apply cursor-pointer; }
   :focus-visible { @apply outline-2 outline-offset-2 outline-blue-500/60; }
 
-  .article h2 { @apply mt-14 mb-4 scroll-mt-24 border-t border-slate-200 pt-8 text-[26px] leading-tight font-semibold tracking-[-.03em] text-slate-950 dark:border-slate-800 dark:text-white; }
+  .article h2 { @apply mt-16 mb-5 scroll-mt-24 border-t border-slate-200 pt-10 text-[28px] leading-tight font-semibold tracking-[-.03em] text-slate-950 dark:border-slate-800 dark:text-white; }
   .article h2:first-child { @apply mt-0 border-t-0 pt-0; }
-  .article h3 { @apply mt-9 mb-3 scroll-mt-24 text-[17px] font-semibold tracking-[-.015em] text-slate-900 dark:text-slate-100; }
-  .article p { @apply my-3 text-[15px] leading-8 text-slate-600 dark:text-slate-400; }
-  .article ul { @apply my-5 pl-5 text-[15px] text-slate-600 dark:text-slate-400; }
-  .article li { @apply my-2 leading-7; }
-  .article code:not(pre code) { @apply rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-blue-800 dark:border-slate-700 dark:bg-slate-900 dark:text-blue-300; }
+  .article h3 { @apply mt-10 mb-3 scroll-mt-24 text-xl font-semibold tracking-[-.015em] text-slate-900 dark:text-slate-100; }
+  .article p { @apply my-4 text-base leading-8 text-slate-600 dark:text-slate-300; }
+  .article ul { @apply my-6 pl-5 text-base text-slate-600 dark:text-slate-300; }
+  .article li { @apply my-2.5 leading-7; }
+  .article code:not(pre code) { @apply rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono text-[13px] text-blue-800 dark:border-slate-700 dark:bg-slate-900 dark:text-blue-300; }
 }
 
 @layer components {
   .callout, .warning { @apply relative my-6 grid grid-cols-[auto_1fr] items-start gap-x-3 gap-y-1 rounded-lg border border-blue-200 bg-blue-50/70 py-4 pr-5 pl-12 dark:border-blue-900 dark:bg-blue-950/30; }
   .callout::before, .warning::before { @apply absolute top-4 left-4 grid size-5 place-items-center rounded bg-blue-700 font-mono text-[10px] font-bold text-white; content: "i"; }
-  .callout strong, .warning strong { @apply text-xs font-semibold text-slate-950 dark:text-white; }
-  .callout span, .warning span { @apply col-span-2 text-xs leading-6 text-slate-600 dark:text-slate-400; }
+  .callout strong, .warning strong { @apply text-sm font-semibold text-slate-950 dark:text-white; }
+  .callout span, .warning span { @apply col-span-2 text-sm leading-6 text-slate-600 dark:text-slate-300; }
   .warning { @apply border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20; }
   .warning::before { @apply bg-amber-500; content: "!"; }
 
   .flow { @apply my-8 grid grid-cols-5 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950; }
-  .flow button { @apply border-0 border-t-[3px] border-slate-200 bg-transparent px-1 py-3 text-left text-[10px] text-slate-500 transition hover:text-slate-950 dark:border-white/10 dark:text-slate-400 dark:hover:text-white; }
+  .flow button { @apply border-0 border-t-[3px] border-slate-200 bg-transparent px-2 py-3 text-left text-[13px] font-medium text-slate-500 transition hover:text-slate-950 dark:border-white/10 dark:text-slate-400 dark:hover:text-white; }
   .flow button.active { @apply border-blue-600 text-blue-700 dark:border-blue-500 dark:text-blue-400; }
-  .flow button small { @apply mb-1 block font-mono text-[8px] text-blue-700 dark:text-blue-400; }
-  .flow p { @apply col-span-full m-0 mt-2 min-h-16 rounded-xl bg-slate-100 p-4 text-xs text-slate-700 dark:bg-white/5 dark:text-slate-300; }
+  .flow button small { @apply mb-1 block font-mono text-[10px] text-blue-700 dark:text-blue-400; }
+  .flow p { @apply col-span-full m-0 mt-2 min-h-16 rounded-lg bg-slate-100 p-4 text-sm leading-6 text-slate-700 dark:bg-white/5 dark:text-slate-300; }
 
   .tabs { @apply mt-7 flex gap-1.5; }
-  .tabs button { @apply rounded-t-lg border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400; }
+  .tabs button { @apply rounded-t-lg border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400; }
   .tabs button[aria-selected="true"] { @apply border-slate-900 bg-slate-900 text-white dark:border-slate-100 dark:bg-slate-100 dark:text-slate-950; }
   .code-card { @apply mb-6 overflow-hidden rounded-b-2xl rounded-tr-2xl border border-[#292d4a] bg-[#0d1020] text-slate-200 shadow-[0_18px_44px_rgba(17,20,38,.12)]; }
   .article > .code-card, .lab .code-card { @apply rounded-2xl; }
-  .code-head { @apply flex items-center justify-between border-b border-white/10 bg-white/[.035] px-4 py-3 font-mono text-[9px] text-slate-400; }
+  .code-head { @apply flex items-center justify-between border-b border-white/10 bg-white/[.035] px-4 py-3 font-mono text-xs text-slate-400; }
   .code-head span { @apply relative pl-4 before:absolute before:top-1/2 before:left-0 before:size-1.5 before:-translate-y-1/2 before:rounded-full before:bg-blue-400; }
-  .code-head button { @apply border-0 bg-transparent text-[9px] text-blue-300 hover:text-white; }
-  .code-card pre { @apply m-0 overflow-auto p-5 font-mono text-[11px] leading-[1.75]; }
-  .syntax-code { @apply m-0 overflow-auto font-mono text-[11px] leading-[1.75] text-slate-200; tab-size: 2; }
-  .syntax-code.compact { @apply text-[9px] leading-[1.8]; }
+  .code-head button { @apply rounded border-0 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-blue-200 transition hover:bg-white/10 hover:text-white; }
+  .code-card pre { @apply m-0 overflow-auto p-5 font-mono text-[13px] leading-[1.75]; }
+  .syntax-code { @apply m-0 overflow-auto font-mono text-[13px] leading-[1.75] text-slate-200; tab-size: 2; }
+  .syntax-code > code { @apply table min-w-full; }
+  .syntax-code.compact { @apply text-[11px] leading-[1.8]; }
   .syntax-line { @apply table-row; }
   .syntax-line-number { @apply table-cell w-8 pr-4 text-right text-slate-600 select-none; }
   .syntax-line-content { @apply table-cell; }
 
   .lab { @apply my-5 rounded-lg border border-blue-100 bg-blue-50/35 p-5 shadow-[0_12px_35px_rgba(15,23,42,.04)] dark:border-slate-800 dark:bg-slate-950; }
-  .lab label { @apply block text-[11px] font-semibold text-slate-700 dark:text-slate-300; }
-  .lab input, .lab select { @apply mt-2 mb-4 block w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-900 dark:text-white; }
-  .result { @apply flex justify-between gap-3 rounded-xl p-3.5 text-[10px]; }
+  .lab label { @apply block text-sm font-semibold text-slate-700 dark:text-slate-300; }
+  .lab input, .lab select { @apply mt-2 mb-4 block w-full rounded-md border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-900 dark:text-white; }
+  .result { @apply flex justify-between gap-3 rounded-lg p-4 text-xs; }
   .result.ok { @apply bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300; }
   .result.bad { @apply bg-rose-50 text-rose-700 dark:bg-rose-400/10 dark:text-rose-300; }
   .result strong { @apply font-mono; }
@@ -93,23 +94,23 @@
   .cards, .status-grid { @apply my-6 grid grid-cols-3 gap-3; }
   .cards article, .status-grid article, .meter { @apply relative overflow-hidden rounded-lg border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950; }
   .cards b, .cards span, .status-grid b { @apply block; }
-  .cards b { @apply text-xs font-semibold text-slate-950 dark:text-white; }
-  .cards span { @apply mt-2 text-[11px] leading-5 text-slate-500 dark:text-slate-400; }
-  .status-grid article p { @apply mt-2 text-[10px] leading-5; }
+  .cards b { @apply text-sm font-semibold text-slate-950 dark:text-white; }
+  .cards span { @apply mt-2 text-[13px] leading-6 text-slate-500 dark:text-slate-400; }
+  .status-grid article p { @apply mt-2 text-[13px] leading-6; }
   .done { @apply text-emerald-600 dark:text-emerald-400; }
   .later { @apply text-amber-600 dark:text-amber-400; }
   .external { @apply text-rose-600 dark:text-rose-400; }
   .meter { @apply my-2 grid grid-cols-[1fr_auto] items-center; }
-  .meter span, .meter small { @apply text-[9px] text-slate-500 dark:text-slate-400; }
+  .meter span, .meter small { @apply text-xs text-slate-500 dark:text-slate-400; }
   .meter small { @apply col-span-full mt-1; }
-  .meter strong { @apply font-mono text-[11px] text-blue-700 dark:text-blue-400; }
+  .meter strong { @apply font-mono text-[13px] text-blue-700 dark:text-blue-400; }
   .command-list { @apply grid grid-cols-2 gap-2; }
   .command-list code { @apply p-3!; }
 
   .reference-table-wrap { @apply my-6 overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950; }
-  .reference-table { @apply w-full min-w-[620px] border-collapse text-[10px]; }
+  .reference-table { @apply w-full min-w-[620px] border-collapse text-[13px]; }
   .reference-table th, .reference-table td { @apply border-b border-slate-200 px-4 py-3.5 text-left align-top dark:border-white/10; }
-  .reference-table th { @apply bg-slate-50 text-[8px] font-extrabold tracking-widest text-slate-400 uppercase dark:bg-white/[.03]; }
+  .reference-table th { @apply bg-slate-50 text-[10px] font-bold tracking-wider text-slate-500 uppercase dark:bg-white/[.03]; }
   .reference-table tr:last-child td { @apply border-b-0; }
   .reference-table tbody tr { @apply transition hover:bg-slate-50 dark:hover:bg-slate-900; }
   .reference-table td:last-child { @apply leading-5 text-slate-500 dark:text-slate-400; }
@@ -117,31 +118,31 @@
   .steps { @apply my-7 list-none p-0; counter-reset: steps; }
   .steps li { @apply relative ml-5 border-l border-slate-200 pb-8 pl-12 dark:border-white/10; counter-increment: steps; }
   .steps li:last-child { @apply border-l-transparent; }
-  .steps li::before { @apply absolute -top-1 -left-[17px] grid size-8 place-items-center rounded-full border-4 border-white bg-blue-700 font-mono text-[9px] text-white shadow-[0_0_0_1px_#e2e8f0] dark:border-slate-950 dark:shadow-[0_0_0_1px_rgba(255,255,255,.1)]; content: counter(steps); }
-  .steps li > strong { @apply block text-[13px] font-semibold text-slate-950 dark:text-white; }
+  .steps li::before { @apply absolute -top-1 -left-[17px] grid size-8 place-items-center rounded-full border-4 border-white bg-blue-700 font-mono text-[11px] text-white shadow-[0_0_0_1px_#e2e8f0] dark:border-slate-950 dark:shadow-[0_0_0_1px_rgba(255,255,255,.1)]; content: counter(steps); }
+  .steps li > strong { @apply block text-[15px] font-semibold text-slate-950 dark:text-white; }
   .steps li p { @apply my-1.5; }
   .troubleshooting, .feature-list { @apply my-5 grid gap-2.5 p-0; }
-  .troubleshooting article, .feature-list article, .feature-list > li { @apply relative m-0 list-none rounded-md border border-slate-200 bg-white p-4 text-[12px] leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400; }
+  .troubleshooting article, .feature-list article, .feature-list > li { @apply relative m-0 list-none rounded-lg border border-slate-200 bg-white p-5 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300; }
   .feature-list > li { @apply pl-11 before:absolute before:top-4 before:left-4 before:text-sm before:font-extrabold before:text-emerald-500; }
   .feature-list > li::before { content: "✓"; }
   .troubleshooting article b, .feature-list article b { @apply block text-slate-950 dark:text-white; }
-  .troubleshooting article p, .feature-list article p { @apply mt-1 mb-0 text-[10px] leading-5; }
+  .troubleshooting article p, .feature-list article p { @apply mt-1.5 mb-0 text-[13px] leading-6; }
 
   .journey-grid { @apply my-6 grid gap-3 sm:grid-cols-2; }
   .journey-grid a { @apply relative rounded-lg border border-slate-200 bg-white p-5 no-underline transition hover:border-blue-400 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-blue-700; }
-  .journey-grid span { @apply font-mono text-[8px] text-blue-700 dark:text-blue-400; }
-  .journey-grid b { @apply mt-5 block text-xs font-semibold text-slate-950 dark:text-white; }
-  .journey-grid small { @apply mt-2 block text-[10px] leading-5 text-slate-500 dark:text-slate-400; }
+  .journey-grid span { @apply font-mono text-[10px] text-blue-700 dark:text-blue-400; }
+  .journey-grid b { @apply mt-5 block text-sm font-semibold text-slate-950 dark:text-white; }
+  .journey-grid small { @apply mt-2 block text-[13px] leading-6 text-slate-500 dark:text-slate-400; }
   .decision-grid { @apply my-6 grid gap-3 md:grid-cols-3; }
   .decision-grid article { @apply rounded-lg border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950; }
-  .decision-grid span { @apply font-mono text-[8px] text-blue-700 dark:text-blue-400; }
-  .decision-grid b { @apply mt-6 block text-xs font-semibold text-slate-950 dark:text-white; }
-  .decision-grid p { @apply mt-2 text-[10px] leading-5; }
+  .decision-grid span { @apply font-mono text-[10px] text-blue-700 dark:text-blue-400; }
+  .decision-grid b { @apply mt-6 block text-sm font-semibold text-slate-950 dark:text-white; }
+  .decision-grid p { @apply mt-2 text-[13px] leading-6; }
   .guard-flow { @apply my-7 grid items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] dark:border-slate-800 dark:bg-slate-900/40; }
   .guard-flow > span { @apply grid min-h-24 content-center rounded-md border border-slate-200 bg-white p-3 text-center dark:border-slate-800 dark:bg-slate-950; }
-  .guard-flow i { @apply mx-auto mb-2 grid size-5 place-items-center rounded bg-blue-100 font-mono text-[8px] text-blue-700 not-italic dark:bg-blue-950 dark:text-blue-400; }
-  .guard-flow b { @apply text-[10px] text-slate-950 dark:text-white; }
-  .guard-flow small { @apply mt-1 text-[8px] leading-4 text-slate-400; }
+  .guard-flow i { @apply mx-auto mb-2 grid size-6 place-items-center rounded bg-blue-100 font-mono text-[10px] text-blue-700 not-italic dark:bg-blue-950 dark:text-blue-400; }
+  .guard-flow b { @apply text-xs text-slate-950 dark:text-white; }
+  .guard-flow small { @apply mt-1.5 text-[11px] leading-4 text-slate-500 dark:text-slate-400; }
   .guard-flow em { @apply hidden text-center text-slate-400 not-italic sm:block; }
 }
 

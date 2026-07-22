@@ -47,18 +47,18 @@ public sealed class DotReactPrerenderCoordinator
         var stored = await _store.GetAsync(key, cancellationToken).ConfigureAwait(false);
         var now = _timeProvider.GetUtcNow();
         if (stored is not null && now < stored.FreshUntil)
-            return new DotReactPrerenderResult(stored, DotReactPrerenderResolution.Fresh);
+            return Result(stored, DotReactPrerenderResolution.Fresh);
 
         if (stored is not null && now < stored.StaleUntil)
         {
             _ = ObserveBackgroundAsync(GetOrStartRefresh(key, factory));
-            return new DotReactPrerenderResult(stored, DotReactPrerenderResolution.StaleWhileRevalidate);
+            return Result(stored, DotReactPrerenderResolution.StaleWhileRevalidate);
         }
 
         try
         {
             var generated = await GetOrStartRefresh(key, factory).WaitAsync(cancellationToken).ConfigureAwait(false);
-            return new DotReactPrerenderResult(generated, DotReactPrerenderResolution.Generated);
+            return Result(generated, DotReactPrerenderResolution.Generated);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -66,8 +66,16 @@ public sealed class DotReactPrerenderCoordinator
         }
         catch (Exception) when (stored is not null)
         {
-            return new DotReactPrerenderResult(stored, DotReactPrerenderResolution.StaleOnError);
+            return Result(stored, DotReactPrerenderResolution.StaleOnError);
         }
+    }
+
+    private static DotReactPrerenderResult Result(
+        DotReactPrerenderArtifact artifact,
+        DotReactPrerenderResolution resolution)
+    {
+        DotReactTelemetry.RecordPrerenderResolution(resolution);
+        return new DotReactPrerenderResult(artifact, resolution);
     }
 
     private Task<DotReactPrerenderArtifact> GetOrStartRefresh(

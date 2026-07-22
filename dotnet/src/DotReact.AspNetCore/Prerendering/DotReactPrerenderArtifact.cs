@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace DotReact.AspNetCore;
@@ -44,11 +45,14 @@ public sealed class DotReactPrerenderArtifact
     {
         Key = key;
         Html = html;
+        var utf8Html = Encoding.UTF8.GetBytes(html);
+        Utf8Html = utf8Html;
+        ETag = $"\"{Convert.ToHexString(SHA256.HashData(utf8Html)).ToLowerInvariant()}\"";
         GeneratedAt = generatedAt;
         FreshUntil = freshUntil;
         StaleUntil = staleUntil;
         Tags = tags;
-        SizeBytes = Encoding.UTF8.GetByteCount(html) + Encoding.UTF8.GetByteCount(key.BuildId) +
+        SizeBytes = utf8Html.LongLength + Encoding.UTF8.GetByteCount(key.BuildId) +
             Encoding.UTF8.GetByteCount(key.Path) + tags.Sum(Encoding.UTF8.GetByteCount);
     }
 
@@ -57,6 +61,12 @@ public sealed class DotReactPrerenderArtifact
 
     /// <summary>Complete UTF-8 HTML document without request-specific antiforgery data.</summary>
     public string Html { get; }
+
+    /// <summary>Pre-encoded response body, reused for every cache hit.</summary>
+    public ReadOnlyMemory<byte> Utf8Html { get; }
+
+    /// <summary>Strong content validator computed once when the artifact is created.</summary>
+    public string ETag { get; }
 
     /// <summary>Generation timestamp.</summary>
     public DateTimeOffset GeneratedAt { get; }

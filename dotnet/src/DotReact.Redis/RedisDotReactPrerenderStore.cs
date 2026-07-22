@@ -118,7 +118,7 @@ public sealed class RedisDotReactPrerenderStore : IDotReactPrerenderStore
 
     private TimeSpan? Expiry(DotReactPrerenderArtifact artifact)
     {
-        if (artifact.StaleUntil == DateTimeOffset.MaxValue) return null;
+        if (artifact.StaleUntil == DateTimeOffset.MaxValue) return _options.StaticArtifactRetention;
         var remaining = artifact.StaleUntil - _timeProvider.GetUtcNow() + _options.ArtifactRetentionAfterStale;
         return remaining > TimeSpan.Zero ? remaining : TimeSpan.FromSeconds(1);
     }

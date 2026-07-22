@@ -1,0 +1,25 @@
+@page "/benchmark"
+@inject TimeProvider TimeProvider
+
+<main>
+  <h1>@Title</h1>
+  <p>Generated at @TimeProvider.GetUtcNow()</p>
+  <table>
+    <thead><tr><th>ID</th><th>Code</th><th>Amount</th><th>Status</th></tr></thead>
+    <tbody>
+      @foreach (var row in Rows)
+      {
+        <tr><td>@row.Id</td><td>@row.Code</td><td>@row.Amount</td><td>@row.Status</td></tr>
+      }
+    </tbody>
+  </table>
+</main>
+
+@code {
+  private const string Title = "Accounting reconciliation benchmark";
+  private static readonly IReadOnlyList<Row> Rows = Enumerable.Range(1, 20)
+    .Select(index => new Row(index, $"DOC-{index:0000}", index * 137.42m,
+      index % 3 == 0 ? "Pending" : "Reconciled"))
+    .ToArray();
+  private sealed record Row(int Id, string Code, decimal Amount, string Status);
+}

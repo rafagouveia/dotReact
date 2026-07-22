@@ -8,7 +8,8 @@ namespace DotReact.AspNetCore;
 
 internal sealed class DotReactRendererClient(
     HttpClient httpClient,
-    IOptions<DotReactOptions> options) : IDotReactRenderer
+    IOptions<DotReactOptions> options,
+    DotReactFramedRendererConnectionPool framedRenderer) : IDotReactRenderer
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly DotReactOptions _options = options.Value;
@@ -35,6 +36,12 @@ internal sealed class DotReactRendererClient(
         DotReactRenderRequest request,
         CancellationToken cancellationToken)
     {
+        if (_options.UseFramedRendererTransport)
+            return await framedRenderer.RenderAsync(request, cancellationToken).ConfigureAwait(false);
+
+        if (_options.UseBinaryRendererTransport)
+            return await RenderBinaryAsync(request, cancellationToken).ConfigureAwait(false);
+
         using var response = await DotReactRendererTransport.SendAsync(
             httpClient,
             () => CreateRenderRequest(request),
@@ -73,12 +80,49 @@ internal sealed class DotReactRendererClient(
         }
     }
 
+    private async Task<DotReactRenderResponse> RenderBinaryAsync(
+        DotReactRenderRequest request,
+        CancellationToken cancellationToken)
+    {
+        using var response = await DotReactRendererTransport.SendAsync(
+            httpClient,
+            () => CreateBinaryRenderRequest(request),
+            HttpCompletionOption.ResponseHeadersRead,
+            _options,
+            cancellationToken).ConfigureAwait(false);
+        const int maximumResponseBytes = 32 * 1024 * 1024;
+        if (response.Content.Headers.ContentLength is > maximumResponseBytes)
+            throw new DotReactRendererException("Renderer response exceeds the supported length.");
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var content = new MemoryStream(response.Content.Headers.ContentLength is > 0 and <= maximumResponseBytes
+            ? (int)response.Content.Headers.ContentLength.Value : 16 * 1024);
+        var buffer = new byte[16 * 1024];
+        while (true)
+        {
+            var read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+            if (read == 0) break;
+            if (content.Length + read > maximumResponseBytes)
+                throw new DotReactRendererException("Renderer response exceeds the supported length.");
+            content.Write(buffer, 0, read);
+        }
+        return DotReactBinaryRendererCodec.DecodeResponse(content.GetBuffer().AsSpan(0, checked((int)content.Length)), request.RequestId, JsonOptions);
+    }
+
     private HttpRequestMessage CreateRenderRequest(DotReactRenderRequest request)
     {
         var message = new HttpRequestMessage(HttpMethod.Post, "__dotreact/render")
         {
             Content = JsonContent.Create(request, options: JsonOptions)
         };
+        AddAuthorization(message);
+        return message;
+    }
+
+    private HttpRequestMessage CreateBinaryRenderRequest(DotReactRenderRequest request)
+    {
+        var content = new ByteArrayContent(DotReactBinaryRendererCodec.EncodeRequest(request, JsonOptions));
+        content.Headers.ContentType = MediaTypeHeaderValue.Parse(DotReactBinaryRendererCodec.MediaType);
+        var message = new HttpRequestMessage(HttpMethod.Post, "__dotreact/render-v2") { Content = content };
         AddAuthorization(message);
         return message;
     }

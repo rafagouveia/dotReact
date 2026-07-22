@@ -1,6 +1,6 @@
 {
   "name": "dotreact-monorepo",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -9,22 +9,41 @@
     "editors/*"
   ],
   "scripts": {
-    "build:tooling": "npm run build -w @dotreact/protocol && npm run build -w @dotreact/client && npm run build -w @dotreact/renderer && npm run build -w @dotreact/image && npm run build -w @dotreact/font && npm run build -w @dotreact/script && npm run build -w @dotreact/adapter && npm run build -w @dotreact/rsc && npm run build -w @dotreact/vite && npm run build -w @dotreact/cli && npm run build -w dotreact-vscode",
+    "build:tooling": "npm run build -w @rafagouveia/dotreact-protocol && npm run build -w @rafagouveia/dotreact-client && npm run build -w @rafagouveia/dotreact-renderer && npm run build -w @rafagouveia/dotreact-image && npm run build -w @rafagouveia/dotreact-font && npm run build -w @rafagouveia/dotreact-script && npm run build -w @rafagouveia/dotreact-adapter && npm run build -w @rafagouveia/dotreact-rsc && npm run build -w @rafagouveia/dotreact-vite && npm run build -w @rafagouveia/dotreact-cli && npm run build -w dotreact-vscode",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present && dotnet test dotnet/DotReact.slnx -c Release && dotnet test examples/crud/Server.Tests/Server.Tests.csproj -c Release",
-    "dev": "npm run dev -w @dotreact/example-starter",
-    "create": "npm run start -w @dotreact/cli --",
+    "dev": "npm run dev -w @rafagouveia/dotreact-example-starter",
+    "create": "npm run start -w @rafagouveia/dotreact-cli --",
     "docs:dev": "npm --prefix docs run dev",
     "docs:build": "npm --prefix docs run build",
     "docs:typecheck": "npm --prefix docs run typecheck",
+    "benchmark:setup": "npm ci --prefix benchmarks/NextBaseline",
+    "prebenchmark:compare": "npm run benchmark:setup",
+    "benchmark:compare": "node benchmarks/run-comparison.mjs",
+    "prebenchmark:consumption": "npm run benchmark:setup",
+    "benchmark:consumption": "node benchmarks/run-consumption.mjs",
+    "benchmark:publish-local": "node benchmarks/publish-results.mjs --allow-local",
     "test:e2e": "playwright test",
-    "verify": "npm run build:tooling && npm run check:contracts -w @dotreact/example-starter && npm run check:contracts -w @dotreact/example-crud && npm run typecheck && npm run docs:build && npm test && npm run build && npm audit --audit-level=high && npm audit --prefix docs --audit-level=high"
+    "audit:dotnet": "node scripts/audit-dotnet-packages.mjs",
+    "packages:pack:npm": "npm run build:tooling && node scripts/package-npm.mjs pack",
+    "packages:pack:nuget": "node scripts/package-nuget.mjs pack",
+    "packages:pack": "npm run packages:pack:npm && npm run packages:pack:nuget",
+    "packages:publish:npm": "node scripts/package-npm.mjs publish",
+    "packages:publish:nuget": "node scripts/package-nuget.mjs publish",
+    "verify": "npm run build:tooling && npm run check:contracts -w @rafagouveia/dotreact-example-starter && npm run check:contracts -w @rafagouveia/dotreact-example-crud && npm run typecheck && npm run docs:build && npm test && npm run build && npm audit --audit-level=high && npm audit --prefix docs --audit-level=high && npm run audit:dotnet"
   },
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=22.19.0 <25"
   },
   "devDependencies": {
     "@playwright/test": "1.61.1"
+  },
+  "overrides": {
+    "fast-uri": "3.1.4",
+    "postcss": "8.5.21"
+  },
+  "dependencies": {
+    "@rafagouveia/dotreact-cli": "0.1.1"
   }
 }

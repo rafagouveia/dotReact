@@ -26,7 +26,7 @@ export default defineConfig({
     screenshot: "only-on-failure"
   },
   webServer: {
-    command: "npm run dev:e2e -w @dotreact/example-starter",
+    command: "npm run dev:e2e -w @rafagouveia/dotreact-example-starter",
     url: "http://127.0.0.1:5080/_health/ready",
     reuseExistingServer: !isCI,
     timeout: 120_000,

@@ -1,4 +1,4 @@
-import { createFromReadableStream } from "@dotreact/rsc/ssr";
+import { createFromReadableStream } from "@rafagouveia/dotreact-rsc/ssr";
 import { use } from "react";
 import { renderToReadableStream } from "react-dom/server.edge";
 import { injectRSCPayload } from "rsc-html-stream/server";

@@ -14,7 +14,7 @@ async function run() {
     await vscode.window.showTextDocument(document);
 
     assert.equal(document.languageId, "typescriptreact");
-    const extension = vscode.extensions.getExtension("dotreact.dotreact-vscode");
+    const extension = vscode.extensions.getExtension("rafagouveia.dotreact-vscode");
     assert.ok(extension, "DotReact extension was not installed in the extension host");
     await extension.activate();
     assert.equal(extension.isActive, true);
@@ -22,10 +22,11 @@ async function run() {
     const commands = await vscode.commands.getCommands(true);
     assert.ok(commands.includes("dotreact.checkProject"));
     assert.ok(commands.includes("dotreact.openBackendLoader"));
+    assert.ok(commands.includes("dotreact.showOutput"));
+    assert.ok(commands.includes("dotreact.openDocumentation"));
   } finally {
     await vscode.workspace.fs.delete(root, { recursive: true, useTrash: false });
   }
 }
 
 module.exports = { run };
-

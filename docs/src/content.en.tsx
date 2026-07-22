@@ -1,4 +1,8 @@
-import type { DocPage } from "./types";
+import { Children, cloneElement, isValidElement, type ReactElement, type ReactNode } from "react";
+import { CodeBlock, PairedCode, ReferenceTable } from "./components";
+import { docs as docsPt } from "./content";
+import { englishText } from "./content.en.catalog";
+import type { DocPage, ReferenceRow } from "./types";
 
 interface EnglishPage {
   readonly id: string;
@@ -6,53 +10,161 @@ interface EnglishPage {
   readonly title: string;
   readonly summary: string;
   readonly tags: readonly string[];
-  readonly heading: string;
-  readonly paragraphs: readonly string[];
-  readonly points: readonly string[];
 }
 
 const pages: readonly EnglishPage[] = [
-  { id: "overview", group: "Getting started", title: "Overview", summary: "ASP.NET Core remains the authority while React renders on the server and hydrates in the browser.", tags: ["architecture", "SSR", "hydration"], heading: "One product, two clearly defined runtimes", paragraphs: ["DotReact is for teams that want React pages, streaming SSR and client navigation without moving their backend away from .NET.", "ASP.NET Core owns HTTP, authentication, authorization, dependency injection and data. The private Node renderer receives only a versioned JSON contract and returns markup."], points: ["C# loaders provide typed props to .drx pages.", "Server Actions expose explicit, protected mutations.", "The same component tree and props are used for SSR and hydration.", "The renderer never accesses the database or becomes a second backend."] },
-  { id: "installation", group: "Getting started", title: "Installation and requirements", summary: "Prepare the supported .NET, Node.js, React and Vite toolchain.", tags: ["Node.js", ".NET", "setup"], heading: "Supported toolchain", paragraphs: ["The preview targets .NET 10, Node.js 24 for production, React 19.2 and Vite 8. Packages remain vendored until the public release workflow is enabled.", "Generated projects include repository hygiene files but do not create a .git directory or run git init."], points: ["Run npm install and npm run build in the framework workspace.", "Create an app with the DotReact CLI starter template.", "Run dotreact doctor before the first development session.", "Treat vendor/ as an opaque managed runtime and keep routes in app/, backend layers in Server/ and shared React code in src/."] },
-  { id: "first-project", group: "Getting started", title: "Your first project", summary: "Create, run and understand a DotReact application from the first request to hydration.", tags: ["tutorial", "CLI", "HMR"], heading: "From scaffold to a rendered page", paragraphs: ["The starter includes an ASP.NET host, a React renderer and a unified app/ route tree. Each page.drx can sit beside its server-only page.server.cs loader.", "DRX edits use React Fast Refresh. Supported C# edits use .NET Hot Reload and refresh current server props through the same-origin DotReact router."], points: ["Generate the starter with dotreact create.", "Install dependencies and run the development command.", "Open the ASP.NET URL, not the private renderer URL.", "Use the generated contracts instead of duplicating DTO types."] },
-  { id: "configuration", group: "Getting started", title: "Host configuration", summary: "Keep the ASP.NET host small while the framework owns renderer and production defaults.", tags: ["configuration", "DI", "host"], heading: "A small composition root", paragraphs: ["AddDotReactApplication and MapDotReactApplication form the convention-based hosting facade. The project keeps explicit extension points for its own services, authentication and middleware.", "Renderer supervision, discovery, Redis opt-in, images, security, observability and health probes are framework-owned defaults."], points: ["Keep application services around the hosting facade.", "Development assets and Fast Refresh stay same-origin under /_dotreact/dev/ so HTTPS domains and reverse proxies do not expose the private Vite port.", "Load secrets from configuration providers, never source files.", "Use advanced hosting options instead of copying runtime bootstrap code.", "Place authentication and authorization before DotReact endpoint mapping."] },
-  { id: "rendering-model", group: "Fundamentals", title: "Server, universal and client-only", summary: "Choose the execution model that matches data access, interactivity and bundle cost.", tags: ["SSR", "client", "boundaries"], heading: "Render only where the work belongs", paragraphs: ["Pages are universal by default: they render on the server and hydrate in the browser. C# loaders always execute on the backend.", "Client-only boundaries are appropriate for browser APIs, but they trade away server markup for that subtree."], points: ["Prefer server data loading for secrets and protected resources.", "Use universal components for most interactive UI.", "Isolate browser-only libraries behind a client boundary.", "Measure bundle impact before moving work to the browser."] },
-  { id: "fonts-assets", group: "Fundamentals", title: "Fonts, scripts and public assets", summary: "Use public/ as the single asset root and let DotReact optimize fonts and external scripts.", tags: ["@dotreact/font", "@dotreact/script", "preload"], heading: "One public directory, explicit loading strategies", paragraphs: ["Put fonts, icons, scripts and application images in public/. ASP.NET serves it during development and Vite copies it into the production client bundle.", "Declare local fonts with localFont and preload only above-the-fold faces. Declare external scripts with beforeInteractive, afterInteractive or lazyOnload; inline JavaScript is intentionally unsupported."], points: ["Do not author application assets in Server/wwwroot.", "Use root-relative URLs for local assets.", "Set preload: false on non-critical font weights.", "Use credential-free HTTPS plus SRI for third-party scripts."] },
-  { id: "next-equivalents", group: "Migrating from Next.js", title: "Start here", summary: "Map familiar Next.js concepts to their explicit DotReact equivalents.", tags: ["Next.js", "migration", "mental model"], heading: "Familiar ergonomics, a .NET authority", paragraphs: ["DotReact mirrors file-based pages, nested layouts, metadata, loading and error boundaries, partial navigation and Server Actions.", "Migrate by route: move data and mutations into C# loaders, actions or ASP.NET endpoints, then move the visual route tree to DRX and verify SSR, hydration, authorization and cache behavior."], points: ["page.tsx maps to page.drx plus a C# page loader.", "layout.tsx maps to layout.drx.", "Server Actions map to attributed C# action classes.", "generateStaticParams maps to typed static path providers.", "next/image maps to the DotReact image endpoint and component."] },
-  { id: "next-middleware", group: "Migrating from Next.js", title: "Middleware, Proxy and pipeline", summary: "Translate proxy.ts or middleware.ts into the explicit ASP.NET Core request pipeline.", tags: ["Next.js 16", "Proxy", "middleware", "ASP.NET Core"], heading: "The public request pipeline belongs to ASP.NET Core", paragraphs: ["Next.js 16 renamed middleware.ts to proxy.ts. In DotReact, redirects, rewrites, headers, tenancy and optimistic checks run in ASP.NET middleware before framework endpoints are mapped.", "Use the narrowest mechanism: middleware for cross-cutting behavior, UseWhen for path branches, policies for authorization, endpoint filters for endpoint families and Minimal APIs or Controllers for direct HTTP responses."], points: ["Authentication runs before authorization and both run before DotReact endpoints.", "A cookie redirect never replaces loader or action authorization.", "Do not perform slow universal page queries in middleware.", "Use RequestAborted and propagate correlation context.", "Keep personalized responses out of shared caches."] },
-  { id: "next-feature-status", group: "Migrating from Next.js", title: "Parity and roadmap", summary: "See which Next.js capabilities are stable, native to ASP.NET, experimental, planned or deliberately out of scope.", tags: ["support matrix", "roadmap", "App Router"], heading: "Equivalent capability does not require an identical runtime", paragraphs: ["Pages, layouts, route boundaries, streaming SSR, hydration, client navigation, actions, SSG/ISR, metadata, images, local fonts and Script loading strategies are supported by the stable framework track. Proxy, Route Handlers, authentication, cookies, redirects, environment configuration and instrumentation use native ASP.NET Core facilities.", "RSC and partial prerendering remain experimental. Parallel and intercepting routes, an official MDX plugin, automatic remote-font download and metric adjustment, and arbitrary function caching are roadmap items. A JavaScript Edge API runtime is deliberately outside the architecture."], points: ["Stable claims require tests across direct SSR and client navigation.", "Native ASP.NET equivalents are first-class supported solutions.", "Experimental packages do not define stable DRX API.", "Roadmap entries need a use case, public contract and test plan.", "Unsupported features are documented instead of silently approximated."] },
-  { id: "pages-loaders", group: "Pages", title: "Loaders and page.drx", summary: "Co-locate a React route module with a typed C# page loader.", tags: ["pages", "loaders", "props"], heading: "One route directory, one typed boundary", paragraphs: ["Under app/, page.drx is the universal React view and page.server.cs is the server-only C# loader. A source generator derives registration from their physical path.", "Generated TypeScript contracts make mismatches fail at build time instead of at runtime."], points: ["Keep loaders thin and delegate business rules to use cases.", "Import feature CSS from its owning route, layout, or component; DotReact puts reachable route CSS in a blocking SSR head stylesheet.", "Use route groups for organization and underscore folders for private code.", "Never embed or evaluate C# inside .drx.", "Treat props as a public, versioned boundary."] },
-  { id: "layouts", group: "Pages", title: "Nested layouts", summary: "Compose stable shells around pages without moving backend work into presentation.", tags: ["layouts", "composition", "routing"], heading: "Presentation composition with persistent state", paragraphs: ["layout.drx files wrap descendant routes and can read typed page props. Parent layouts persist during compatible client navigation.", "Layouts are presentation modules; authorization and data loading still belong to C#."], points: ["Keep global chrome in the root layout.", "Place section navigation in nested layouts.", "Avoid fetching protected data directly from layout components.", "Use layout boundaries to control remounting intentionally."] },
-  { id: "boundaries-metadata", group: "Pages", title: "Boundaries and metadata", summary: "Override framework loading, not-found and error fallbacks only where the application needs custom UI.", tags: ["metadata", "errors", "loading"], heading: "Safe defaults live in the framework", paragraphs: ["DotReact supplies route and root fallbacks from its core runtime. Optional loading.drx, not-found.drx, error.drx and app/global-error.drx files override the matching convention without application bootstrap wiring.", "The development diagnostics overlay is always framework-owned. Production errors should expose a request identifier, not internal exception details."], points: ["Create a boundary file only for intentional custom UI.", "Use explicit not-found results from loaders.", "Keep metadata deterministic for SSR and navigation.", "Log the full exception on the server with correlation data."] },
-  { id: "routing", group: "Pages", title: "File and manual routing", summary: "Use conventional files for most routes and explicit registration for advanced modules.", tags: ["routing", "parameters", "discovery"], heading: "Predictable routes with controlled discovery", paragraphs: ["Folders map to URL segments and bracket names define typed parameters. Discovery stays under canonical roots and registered assemblies.", "Manual registration supports packages and modules that need explicit ownership."], points: ["Use static segments before dynamic ones.", "Validate route values in the loader boundary.", "Do not construct module paths from request input.", "Use catch-all routes only when the domain requires them."] },
-  { id: "navigation-streaming", group: "Pages", title: "Navigation, loading and streaming", summary: "Deliver partial client navigation while preserving SSR and progressive rendering.", tags: ["router", "Suspense", "streaming"], heading: "Fast transitions without a second application model", paragraphs: ["DotReact links prefetch route data and update history without replacing the full document. Direct requests still receive complete SSR output.", "Streaming flushes the shell early and resolves Suspense segments as data becomes available."], points: ["Use framework links for internal navigation.", "Keep loading boundaries close to slow content.", "Propagate request cancellation through C# and the renderer.", "Verify that streamed HTML and hydration use the same build."] },
-  { id: "auth-guards", group: "Full-stack", title: "Authentication and protected routes", summary: "Protect pages and actions with ASP.NET authentication, policies and resource authorization.", tags: ["authentication", "authorization", "policies"], heading: "Authorization happens before protected rendering", paragraphs: ["Authentication identifies the caller; policies decide whether a page loader or action may run. React visibility is only a UX choice, never the security boundary.", "Resource authorization handles decisions that depend on the loaded entity or tenant."], points: ["Register authentication and authorization middleware in the correct order.", "Apply Authorize policies to page loaders and actions.", "Re-check authorization on every mutation.", "Mark personalized output private and keep it out of shared caches."] },
-  { id: "server-actions", group: "Full-stack", title: "Server Actions", summary: "Call typed C# mutations from React without creating an ad-hoc JavaScript backend.", tags: ["actions", "mutations", "type safety"], heading: "Explicit mutations through generated clients", paragraphs: ["Attributed C# action classes receive validated request contracts and return a closed result type. Type generation produces the React caller.", "The framework applies authentication, authorization and antiforgery before the use case executes."], points: ["Use one cohesive action per operation.", "Return validation errors as data, not exceptions.", "Propagate cancellation and correlation identifiers.", "Declare affected paths for cache invalidation."] },
-  { id: "actions-reliability", group: "Full-stack", title: "Idempotency and revalidation", summary: "Make mutations retry-safe and invalidate stale data automatically.", tags: ["idempotency", "cache", "revalidation"], heading: "Reliable writes under retries and concurrency", paragraphs: ["Idempotency keys prevent duplicate effects when clients retry. Successful actions publish revalidation paths to local or distributed cache infrastructure.", "The action result tells the client which active routes may need fresh data."], points: ["Use stable, client-generated idempotency keys.", "Store completed results for the declared idempotency window.", "Invalidate tags or paths only after a committed mutation.", "Use Redis when multiple application instances share cached output."] },
-  { id: "static-images", group: "Full-stack", title: "SSG, ISR and images", summary: "Pre-render stable routes, revalidate them safely and optimize image delivery.", tags: ["SSG", "ISR", "images"], heading: "Choose the cheapest correct delivery mode", paragraphs: ["Static generation renders known paths during the build. ISR serves cached output and regenerates it after the freshness window.", "The image pipeline validates sources, dimensions and formats before processing or caching variants."], points: ["Keep personalized pages out of shared static output.", "Version cache keys by build identifier.", "Use distributed locking for multi-instance ISR.", "Constrain remote image hosts and resource limits."] },
-  { id: "contracts", group: "Full-stack", title: "TypeGen and contracts", summary: "Generate TypeScript types and action clients from the compiled C# application.", tags: ["TypeGen", "contracts", "build"], heading: "One source of truth at the runtime boundary", paragraphs: ["TypeGen reads explicit public DTOs and emits deterministic TypeScript. Contract checks fail CI when generated files drift.", "Only serializable boundary models should cross into the renderer or browser."], points: ["Keep domain entities private to .NET.", "Prefer closed result unions for predictable clients.", "Review nullability and enum serialization.", "Run contract checks after C# model changes."] },
-  { id: "cli", group: "Tooling", title: "CLI reference", summary: "Create, inspect, validate and export DotReact applications.", tags: ["CLI", "scaffold", "doctor"], heading: "A repeatable project workflow", paragraphs: ["The CLI owns templates and framework-specific diagnostics. Native npm and dotnet commands remain visible and usable.", "Workspace focus mode hides managed build and deployment infrastructure without deleting it; workspace reveal exposes it for advanced changes."], points: ["create scaffolds a configured application.", "doctor reports actionable environment failures.", "check validates routes and contracts.", "workspace focus keeps the daily editor surface application-only."] },
-  { id: "options-env", group: "Reference", title: "Options and environment variables", summary: "Reference host, renderer, security, cache and observability configuration.", tags: ["options", "environment", "secrets"], heading: "Configuration that is explicit and deployable", paragraphs: ["Typed .NET options are the primary configuration surface. Environment variables override deployment-specific values.", "Secret values must come from an approved provider such as Azure Key Vault or container secrets."], points: ["Validate required options at startup.", "Use separate public and private origins.", "Keep renderer tokens out of client bundles.", "Document defaults and breaking changes."] },
-  { id: "troubleshooting", group: "Reference", title: "Troubleshooting", summary: "Diagnose renderer connectivity, hydration, routes, contracts and development refresh.", tags: ["diagnostics", "errors", "HMR"], heading: "Start at the failing boundary", paragraphs: ["Use health endpoints and dotreact doctor before changing application code. Correlation identifiers connect ASP.NET and renderer logs.", "Hydration warnings usually indicate different builds, props or environment-dependent rendering."], points: ["Confirm the ASP.NET and renderer processes are healthy.", "Verify protocol and build identifiers.", "Regenerate contracts and manifests.", "Check browser console and correlated server traces together."] },
-  { id: "production", group: "Operations", title: "Security and production", summary: "Harden the public host and isolate the private rendering runtime.", tags: ["security", "deployment", "Azure"], heading: "ASP.NET Core is the only public edge", paragraphs: ["Production deployments expose the .NET host and keep the Node renderer private. A shared token authenticates renderer requests in addition to network isolation.", "Security headers, antiforgery, request limits and trusted proxy settings are deployment requirements."], points: ["Use HTTPS and secure cookies.", "Apply a CSP nonce to streamed scripts.", "Set request, response and image processing limits.", "Run readiness and liveness probes independently."] },
-  { id: "observability-performance", group: "Operations", title: "Observability and performance", summary: "Measure the complete request across ASP.NET, renderer, cache and browser delivery.", tags: ["OpenTelemetry", "metrics", "budgets"], heading: "Performance is a cross-runtime property", paragraphs: ["OpenTelemetry propagates trace context across the renderer protocol and the framework-owned browser CLS, INP, LCP and TTFB collector. Metrics distinguish loader, render, actions and browser delivery without high-cardinality URLs or request IDs.", "The production route manifest injects fingerprinted CSS and initial module preloads before SSR HTML; bundle budgets prevent gradual regressions."], points: ["Export traces, metrics and structured logs.", "Record cache status and renderer saturation.", "Avoid high-cardinality route labels.", "Test cold starts and degraded renderer behavior."] },
-  { id: "examples", group: "Project", title: "Official examples", summary: "Explore focused projects for the starter, CRUD, streaming and React Server Components research.", tags: ["examples", "CRUD", "RSC"], heading: "Examples are executable specifications", paragraphs: ["Each example isolates a framework capability and includes commands, expected behavior and production caveats.", "The starter is the recommended baseline; experimental examples do not define stable API."], points: ["Starter: routing, hydration and deployment baseline.", "CRUD: SQLite, validation and Server Actions.", "Streaming: Suspense and progressive delivery.", "RSC: isolated research track with explicit limitations."] },
-  { id: "architecture-protocol", group: "Project", title: "Architecture and protocol", summary: "Understand ownership, trust boundaries and the versioned renderer contract.", tags: ["architecture", "protocol", "SOLID"], heading: "A protocol boundary instead of runtime coupling", paragraphs: ["ASP.NET selects the route and creates props; the renderer imports a validated module and produces a stream. Neither side reaches into the other runtime.", "Protocol versions and capabilities are negotiated so deployments fail clearly when incompatible."], points: ["Domain and application layers stay framework-independent.", "Organize C# by feature, keep one public use case per file, and define narrow Application-owned ports for volatile effects.", "Loaders, actions, APIs, and controllers are thin Presentation adapters.", "Infrastructure implements Application ports and Composition selects adapters.", "Cancellation and trace context cross every call."] },
-  { id: "compatibility", group: "Project", title: "Compatibility and deprecation", summary: "Follow the public API, versioning and deprecation policy.", tags: ["SemVer", "compatibility", "API"], heading: "Predictable evolution before and after 1.0", paragraphs: ["The compatibility document defines stable surfaces, preview namespaces and supported dependency ranges. Breaking changes require migration notes.", "Deprecated APIs remain documented for a stated window and emit actionable diagnostics."], points: ["Pin preview dependencies exactly.", "Treat protocol changes independently from package versions.", "Test supported .NET and Node combinations in CI.", "Publish deprecation rationale and replacement guidance."] },
-  { id: "roadmap", group: "Project", title: "Limitations and roadmap", summary: "See what is stable, experimental or intentionally outside the current framework scope.", tags: ["roadmap", "status", "limitations"], heading: "Status without marketing ambiguity", paragraphs: ["The roadmap separates implemented capabilities from experiments and external release work. Stability claims require automated tests and production evidence.", "Package publication remains deferred while the API is validated through real applications."], points: ["Core SSR, hydration, actions and contracts are the primary track.", "RSC remains experimental until its protocol and tooling stabilize.", "VS Code packaging is validated separately from language semantics.", "Public npm and NuGet releases follow the compatibility gate."] }
+  { id: "overview", group: "Getting started", title: "Overview", summary: "ASP.NET Core remains the authority while React renders on the server and hydrates in the browser.", tags: ["architecture", "SSR", "hydration"] },
+  { id: "purpose-applications", group: "Getting started", title: "Purpose and use cases", summary: "Understand the problem DotReact solves and identify applications that fit its architecture.", tags: ["purpose", "use cases", "decision"] },
+  { id: "beginner-learning-path", group: "Getting started", title: "Beginner learning path", summary: "Follow a short sequence from the first command to a secure production deployment.", tags: ["beginner", "learning path", "glossary"] },
+  { id: "installation", group: "Getting started", title: "Installation and requirements", summary: "Prepare the supported .NET, Node.js, React and Vite toolchain.", tags: ["Node.js", ".NET", "setup"] },
+  { id: "first-project", group: "Getting started", title: "Your first project", summary: "Create, run and understand a DotReact application from the first request to hydration.", tags: ["tutorial", "CLI", "HMR"] },
+  { id: "configuration", group: "Getting started", title: "Host configuration", summary: "Keep the ASP.NET host small while the framework owns renderer and production defaults.", tags: ["configuration", "DI", "host"] },
+  { id: "rendering-model", group: "Fundamentals", title: "Server, universal and client-only", summary: "Choose the execution model that matches data access, interactivity and bundle cost.", tags: ["SSR", "client", "boundaries"] },
+  { id: "fonts-assets", group: "Fundamentals", title: "Fonts, scripts and public assets", summary: "Use public/ as the single asset root and let DotReact optimize fonts and external scripts.", tags: ["@rafagouveia/dotreact-font", "@rafagouveia/dotreact-script", "preload"] },
+  { id: "next-equivalents", group: "Migrating from Next.js", title: "Start here", summary: "Map familiar Next.js concepts to their explicit DotReact equivalents.", tags: ["Next.js", "migration", "mental model"] },
+  { id: "next-middleware", group: "Migrating from Next.js", title: "Middleware, Proxy and pipeline", summary: "Translate proxy.ts or middleware.ts into the explicit ASP.NET Core request pipeline.", tags: ["Next.js 16", "Proxy", "middleware", "ASP.NET Core"] },
+  { id: "next-feature-status", group: "Migrating from Next.js", title: "Parity and roadmap", summary: "See which Next.js capabilities are stable, native to ASP.NET, experimental, planned or deliberately out of scope.", tags: ["support matrix", "roadmap", "App Router"] },
+  { id: "pages-loaders", group: "Pages", title: "Loaders and page.drx", summary: "Co-locate a React route module with a typed C# page loader.", tags: ["pages", "loaders", "props"] },
+  { id: "layouts", group: "Pages", title: "Nested layouts", summary: "Compose stable shells around pages without moving backend work into presentation.", tags: ["layouts", "composition", "routing"] },
+  { id: "boundaries-metadata", group: "Pages", title: "Boundaries and metadata", summary: "Override framework loading, not-found and error fallbacks only where the application needs custom UI.", tags: ["metadata", "errors", "loading"] },
+  { id: "routing", group: "Pages", title: "File and manual routing", summary: "Use conventional files for most routes and explicit registration for advanced modules.", tags: ["routing", "parameters", "discovery"] },
+  { id: "navigation-streaming", group: "Pages", title: "Navigation, loading and streaming", summary: "Deliver partial client navigation while preserving SSR and progressive rendering.", tags: ["router", "Suspense", "streaming"] },
+  { id: "auth-guards", group: "Full-stack", title: "Authentication and protected routes", summary: "Protect pages and actions with ASP.NET authentication, policies and resource authorization.", tags: ["authentication", "authorization", "policies"] },
+  { id: "server-actions", group: "Full-stack", title: "Server Actions", summary: "Call typed C# mutations from React without creating an ad-hoc JavaScript backend.", tags: ["actions", "mutations", "type safety"] },
+  { id: "actions-reliability", group: "Full-stack", title: "Idempotency and revalidation", summary: "Make mutations retry-safe and invalidate stale data automatically.", tags: ["idempotency", "cache", "revalidation"] },
+  { id: "static-images", group: "Full-stack", title: "SSG, ISR and images", summary: "Pre-render stable routes, revalidate them safely and optimize image delivery.", tags: ["SSG", "ISR", "images"] },
+  { id: "contracts", group: "Full-stack", title: "TypeGen and contracts", summary: "Generate TypeScript types and action clients from the compiled C# application.", tags: ["TypeGen", "contracts", "build"] },
+  { id: "cli", group: "Tooling", title: "CLI reference", summary: "Create, inspect, validate and export DotReact applications.", tags: ["CLI", "scaffold", "doctor"] },
+  { id: "vscode-extension", group: "Tooling", title: "VS Code extension", summary: "Edit DRX, navigate to C# loaders and run the official checker without leaving the editor.", tags: ["VS Code", "DRX", "diagnostics"] },
+  { id: "options-env", group: "Reference", title: "Options and environment variables", summary: "Reference host, renderer, security, cache and observability configuration.", tags: ["options", "environment", "secrets"] },
+  { id: "troubleshooting", group: "Reference", title: "Troubleshooting", summary: "Diagnose renderer connectivity, hydration, routes, contracts and development refresh.", tags: ["diagnostics", "errors", "HMR"] },
+  { id: "production", group: "Operations", title: "Security and production", summary: "Harden the public host and isolate the private rendering runtime.", tags: ["security", "deployment", "Azure"] },
+  { id: "observability-performance", group: "Operations", title: "Observability and performance", summary: "Measure the complete request across ASP.NET, renderer, cache and browser delivery.", tags: ["OpenTelemetry", "metrics", "budgets"] },
+  { id: "examples", group: "Project", title: "Official examples", summary: "Explore focused projects for the starter, CRUD, streaming and React Server Components research.", tags: ["examples", "CRUD", "RSC"] },
+  { id: "architecture-protocol", group: "Project", title: "Architecture and protocol", summary: "Understand ownership, trust boundaries and the versioned renderer contract.", tags: ["architecture", "protocol", "SOLID"] },
+  { id: "compatibility", group: "Project", title: "Compatibility and deprecation", summary: "Follow the public API, versioning and deprecation policy.", tags: ["SemVer", "compatibility", "API"] },
+  { id: "roadmap", group: "Project", title: "Limitations and roadmap", summary: "See what is stable, experimental or intentionally outside the current framework scope.", tags: ["roadmap", "status", "limitations"] },
+  { id: "project-lifecycle", group: "Guides", title: "From zero to the first feature", summary: "Create a project, validate the environment and deliver one complete route without editing managed runtime files.", tags: ["tutorial", "CLI", "feature"] },
+  { id: "project-organization", group: "Guides", title: "Organization and SOLID", summary: "Keep routes, domain rules, use cases and infrastructure predictable as the product grows.", tags: ["SOLID", "architecture", "folders"] },
+  { id: "crud-guide", group: "Guides", title: "Database integration and complete CRUD", summary: "Connect EF Core, choose SQLite, PostgreSQL or SQL Server, and deliver a persisted CRUD through Server Actions.", tags: ["database", "EF Core", "CRUD"] },
+  { id: "testing-workflow", group: "Guides", title: "Testing and quality", summary: "Use fast feature checks and a complete release gate before integration.", tags: ["testing", "CI", "contracts"] },
+  { id: "templates-starter", group: "Guides", title: "Templates and runtime updates", summary: "Choose a scaffold and keep npm, NuGet and TypeGen on the same framework version.", tags: ["starter", "minimal", "upgrade"] },
+  { id: "security-model", group: "Security", title: "Security model", summary: "Understand assets, trust boundaries and DotReact's secure-by-default behavior.", tags: ["threat model", "defense in depth", "ASP.NET"] },
+  { id: "security-pages-actions", group: "Security", title: "Pages, actions and authorization", summary: "Protect reads and writes with policies, resource authorization, antiforgery and server-side validation.", tags: ["authorization", "CSRF", "policies"] },
+  { id: "security-rendering", group: "Security", title: "SSR, XSS, scripts and secrets", summary: "Prevent props, metadata, remote dependencies or the renderer from becoming execution and disclosure channels.", tags: ["XSS", "CSP", "SRI"] },
+  { id: "security-sessions", group: "Security", title: "Cookie sessions", summary: "Create, renew and revoke sessions without exposing identifiers to JavaScript.", tags: ["sessions", "cookies", "logout"] },
+  { id: "security-identity-social", group: "Security", title: "Identity and social login", summary: "Integrate local accounts, Google, Microsoft or another provider without moving OAuth into React.", tags: ["Identity", "OAuth", "OpenID Connect"] },
+  { id: "security-tokens", group: "Security", title: "Tokens and APIs", summary: "Choose cookies for browsers and bearer tokens only for clients and APIs that actually need them.", tags: ["bearer", "JWT", "API"] },
+  { id: "security-data-cache", group: "Security", title: "Data, cache and isolation", summary: "Prevent data leakage across callers, tenants, builds and replicas.", tags: ["cache", "tenant", "Data Protection"] },
+  { id: "security-production-checklist", group: "Security", title: "Production security checklist", summary: "Review application, infrastructure, supply chain and incident response before accepting traffic.", tags: ["production", "hardening", "checklist"] },
+  { id: "hosting-overview", group: "Hosting and deployment", title: "Where to host", summary: "Compare deployment targets and understand the single-container production topology.", tags: ["hosting", "Docker", "Azure"] },
+  { id: "production-readiness", group: "Hosting and deployment", title: "Prepare for production", summary: "Turn a local project into a reproducible release before choosing a platform.", tags: ["production", "configuration", "release"] },
+  { id: "deploy-docker", group: "Hosting and deployment", title: "Deploy with Docker", summary: "Build, run and validate the OCI image produced by the starter.", tags: ["Docker", "container", "OCI"] },
+  { id: "deploy-azure-app-service", group: "Hosting and deployment", title: "Azure App Service", summary: "Deploy the container with managed identity, health checks and a staging-slot strategy.", tags: ["Azure", "App Service", "Bicep"] },
+  { id: "deploy-azure-container-apps", group: "Hosting and deployment", title: "Azure Container Apps", summary: "Use revisions, probes and progressive traffic without exposing the renderer.", tags: ["Azure", "Container Apps", "canary"] },
+  { id: "domains-reverse-proxy", group: "Hosting and deployment", title: "Domains, HTTPS and reverse proxies", summary: "Publish the correct origin without breaking CSS, scripts, refresh or security.", tags: ["domain", "HTTPS", "proxy"] },
+  { id: "deployment-pipeline", group: "Hosting and deployment", title: "CI/CD and releases", summary: "Turn local gates into an auditable, reproducible promotion pipeline.", tags: ["CI/CD", "GitHub Actions", "supply chain"] },
+  { id: "deployment-operations", group: "Hosting and deployment", title: "Operate, observe and roll back", summary: "Define health signals, smoke tests, alerts and an executable rollback.", tags: ["operations", "observability", "rollback"] }
 ];
 
-function Body({ page }: { readonly page: EnglishPage }) {
-  return <>
-    <h2>{page.heading}</h2>
-    {page.paragraphs.map(paragraph => <p key={paragraph}>{paragraph}</p>)}
-    <h3>Key points</h3>
-    <ul className="feature-list">{page.points.map(point => <li key={point}>{point}</li>)}</ul>
-    <div className="callout"><strong>Design rule</strong><span>Keep protected data and business decisions in C#. React owns presentation and browser interaction through generated, explicit contracts.</span></div>
-  </>;
+function englishCode(code: string): string {
+  const replacements: readonly (readonly [string, string])[] = [
+    ["# 1. Valide o projeto antes de empacotar", "# 1. Validate the project before packaging"],
+    ["# 2. Gere uma imagem imutável", "# 2. Build an immutable image"],
+    ["# 3. Teste a imagem pelo mesmo endpoint usado em produção", "# 3. Test the image through the same endpoint used in production"],
+    ["# Escolha o provider usado pelo ambiente", "# Choose the provider used by this environment"],
+    ["# Base do tutorial e migrations", "# Tutorial baseline and migrations"],
+    ["# Para testar a troca de provider, instale também os adapters de produção", "# To test provider switching, also install the production adapters"],
+    ["# Produção: instale um destes no lugar do provider SQLite", "# Production: install one of these instead of the SQLite provider"],
+    ["# produção: a plataforma fornece como secret", "# production: the platform supplies this as a secret"],
+    ["# execute a aplicação e confirme SSR + persistência", "# run the application and verify SSR plus persistence"],
+    ["# crie um item, atualize a página e confirme que ele continua no banco", "# create an item, refresh the page, and verify that it remains in the database"],
+    ["# fornecer pelo secret store, nunca pelo Git", "# provide through the secret store, never through Git"],
+    ["# não deve encontrar origem privada no HTML", "# must not find a private origin in the HTML"],
+    ["# depois do deploy", "# after deployment"],
+    ["Credenciais inválidas.", "Invalid credentials."],
+    ["C:/caminho/dotreact", "C:/path/to/dotreact"],
+    ["# descobre as rotas no manifest C#", "# discover routes from the C# manifest"],
+    ["# --routes continua disponível como override explícito", "# --routes remains available as an explicit override"],
+    ["# repita --assembly para cada DLL adicional", "# repeat --assembly for every additional DLL"],
+    ["// Executa somente após autenticação + policy.", "// Runs only after authentication and policy evaluation."],
+    ["// CanPublish veio da decisão feita no C#; não substitui a policy da action.", "// CanPublish came from the C# decision; it does not replace the action policy."],
+    ["// O runtime valida auth + antiforgery antes de ExecuteAsync.", "// The runtime validates auth and antiforgery before ExecuteAsync."],
+    ["// ExecuteAsync roda somente depois da autorização do recurso.", "// ExecuteAsync runs only after resource authorization."],
+    ["// AddDotReactApplication usa public/ por convenção.", "// AddDotReactApplication uses public/ by convention."],
+    ["// Configure apenas origens remotas adicionais quando necessário.", "// Configure additional remote origins only when required."],
+    ["Produto 42", "Product 42"],
+    ["Catálogo carregado pelo C#", "Catalog loaded by C#"],
+    ["Não encontrado", "Not found"],
+    [" · Loja", " · Store"],
+    ["Produto ${props.id}", "Product ${props.id}"],
+    ["\"name\": \"Produto\"", "\"name\": \"Product\""],
+    ["único processo público", "only public process"],
+    ["token efêmero", "ephemeral token"],
+    ["privado, sem banco ou secrets", "private, without database access or secrets"],
+    ["assets relativos em", "relative assets at"],
+    ["// somente proxies confiáveis", "// trusted proxies only"],
+    ["// webhooks, uploads e APIs", "// webhooks, uploads, and APIs"],
+    ["Carregando catálogo…", "Loading catalog…"],
+    ["alt=\"Produto\"", "alt=\"Product\""],
+    ["<commit-ou-revisao>", "<commit-or-revision>"],
+    ["<endpoint-do-coletor>", "<collector-endpoint>"]
+  ];
+  return replacements.reduce((result, [source, replacement]) => result.replaceAll(source, replacement), code);
 }
 
-export const docsEn: readonly DocPage[] = pages.map(page => ({
-  ...page,
-  body: <Body page={page} />
-}));
+function localizeNode(node: ReactNode): ReactNode {
+  if (typeof node === "string") return translateText(node);
+  if (!isValidElement(node)) return node;
+
+  const element = node as ReactElement<Record<string, unknown>>;
+  if (element.type === CodeBlock) {
+    const props = element.props as { readonly code: string; readonly label: string };
+    return <CodeBlock code={englishCode(props.code)} label={translateText(props.label).trim()} />;
+  }
+  if (element.type === PairedCode) {
+    const props = element.props as {
+      readonly csharp: string;
+      readonly react: string;
+      readonly csharpLabel: string;
+      readonly reactLabel: string;
+    };
+    return <PairedCode {...props} csharp={englishCode(props.csharp)} react={englishCode(props.react)} csharpLabel={translateText(props.csharpLabel).trim()} reactLabel={translateText(props.reactLabel).trim()} />;
+  }
+  if (element.type === ReferenceTable) {
+    const props = element.props as { readonly rows: readonly ReferenceRow[]; readonly valueHeading?: string };
+    return <ReferenceTable
+      valueHeading={props.valueHeading ? translateText(props.valueHeading).trim() : undefined}
+      rows={props.rows.map(row => ({
+        name: translateText(row.name).trim(),
+        defaultValue: row.defaultValue ? translateText(row.defaultValue).trim() : undefined,
+        description: translateText(row.description).trim()
+      }))}
+    />;
+  }
+
+  if (element.type === "code") return element;
+  const props = element.props;
+  const localizedProps: Record<string, unknown> = {};
+  if (Object.hasOwn(props, "children"))
+    localizedProps.children = Children.map(props.children as ReactNode, localizeNode);
+  if (typeof props.title === "string") localizedProps.title = translateText(props.title).trim();
+  if (typeof props["aria-label"] === "string") localizedProps["aria-label"] = translateText(props["aria-label"]).trim();
+  return cloneElement(element, localizedProps);
+}
+
+function translateText(value: string): string {
+  const normalized = value.trim();
+  if (!normalized) return value;
+  const translated = englishText[normalized];
+  if (!translated) throw new Error(`Missing English translation: ${normalized}`);
+  const leading = value.match(/^\s*/u)?.[0] ?? "";
+  const trailing = value.match(/\s*$/u)?.[0] ?? "";
+  return `${leading}${translated}${trailing}`;
+}
+
+export const docsEn: readonly DocPage[] = pages.map(page => {
+  const portuguesePage = docsPt.find(candidate => candidate.id === page.id);
+  if (!portuguesePage) throw new Error(`Missing Portuguese source page: ${page.id}`);
+  return { ...page, body: localizeNode(portuguesePage.body) };
+});

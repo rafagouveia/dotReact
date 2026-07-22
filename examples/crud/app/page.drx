@@ -1,7 +1,7 @@
-import { definePage } from "@dotreact/client/router";
-import type { DotReactMetadata } from "@dotreact/vite";
+import { definePage } from "@rafagouveia/dotreact-client/router";
+import type { DotReactMetadata } from "@rafagouveia/dotreact-vite";
 import type { DashboardProps } from "../src/contracts";
-import { WorkItemsBoard } from "../src/features/work-items/WorkItemsBoard";
+import { WorkItemsBoard } from "./_components/work-items/WorkItemsBoard";
 
 export const metadata: DotReactMetadata = {
   title: "Workboard · DotReact",

@@ -20,16 +20,26 @@ public static class DotReactSecurityHeadersServiceCollectionExtensions
                 && IsSafe(value.ReferrerPolicy)
                 && IsSafe(value.PermissionsPolicy)
                 && IsSafe(value.CrossOriginOpenerPolicy)
-                && value.AdditionalScriptSources.All(IsSafeSource)
-                && value.AdditionalStyleSources.All(IsSafeSource)
-                && value.AdditionalConnectSources.All(IsSafeSource),
-            "DotReact security header values are invalid or contain control characters.")
+                && value.AdditionalScriptSources.All(static source => IsExactOrigin(source, allowWebSocket: false))
+                && value.AdditionalStyleSources.All(static source => IsExactOrigin(source, allowWebSocket: false))
+                && value.AdditionalConnectSources.All(static source => IsExactOrigin(source, allowWebSocket: true)),
+            "DotReact security headers must be free of control characters and additional sources must be exact HTTPS/WSS origins.")
             .ValidateOnStart();
         return services;
     }
 
     private static bool IsSafe(string? value) => value is null || !value.ContainsAny('\r', '\n');
 
-    private static bool IsSafeSource(string value) =>
-        !string.IsNullOrWhiteSpace(value) && value.IndexOfAny(['\r', '\n', ';', ' ', '\t']) < 0;
+    private static bool IsExactOrigin(string value, bool allowWebSocket)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)
+            || string.IsNullOrWhiteSpace(uri.Host)
+            || !string.IsNullOrEmpty(uri.UserInfo)
+            || uri.AbsolutePath != "/"
+            || !string.IsNullOrEmpty(uri.Query)
+            || !string.IsNullOrEmpty(uri.Fragment))
+            return false;
+        return uri.Scheme == Uri.UriSchemeHttps
+            || (allowWebSocket && uri.Scheme.Equals("wss", StringComparison.OrdinalIgnoreCase));
+    }
 }

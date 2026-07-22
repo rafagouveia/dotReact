@@ -36,12 +36,23 @@ public sealed class DotReactSecurityObservabilityTests
         Assert.Contains("default-src 'self'", csp);
         Assert.Contains("object-src 'none'", csp);
         Assert.Contains("frame-ancestors 'none'", csp);
-        Assert.Matches("script-src[^;]*'nonce-[A-Za-z0-9+/]{32}'", csp);
+        Assert.DoesNotMatch("script-src[^;]*'nonce-", csp);
         Assert.Matches("style-src 'self';", csp);
         Assert.Contains("style-src-attr 'unsafe-inline'", csp);
         Assert.DoesNotMatch("script-src[^;]*'unsafe-inline'", csp);
         Assert.DoesNotContain("127.0.0.1:5173", csp);
         Assert.DoesNotContain("blob:", csp);
+    }
+
+    [Fact]
+    public async Task Csp_nonce_is_created_only_when_a_streaming_response_requests_it()
+    {
+        await using var app = await BuildHeaderAppAsync(development: false);
+
+        using var response = await app.GetTestClient().GetAsync("/nonce");
+
+        Assert.Matches("script-src[^;]*'nonce-[A-Za-z0-9+/]{32}'",
+            Header(response, "Content-Security-Policy"));
     }
 
     [Fact]
@@ -71,6 +82,36 @@ public sealed class DotReactSecurityObservabilityTests
 
         Assert.Throws<OptionsValidationException>(() =>
             provider.GetRequiredService<IOptions<DotReactSecurityHeadersOptions>>().Value);
+    }
+
+    [Theory]
+    [InlineData("*")]
+    [InlineData("'unsafe-inline'")]
+    [InlineData("data:")]
+    [InlineData("https:")]
+    [InlineData("https://cdn.example.test/assets/")]
+    public void Broad_or_unsafe_additional_csp_sources_are_rejected(string source)
+    {
+        var services = new ServiceCollection();
+        services.AddDotReactSecurityHeaders(options => options.AdditionalScriptSources.Add(source));
+        using var provider = services.BuildServiceProvider();
+
+        Assert.Throws<OptionsValidationException>(() =>
+            provider.GetRequiredService<IOptions<DotReactSecurityHeadersOptions>>().Value);
+    }
+
+    [Fact]
+    public void Exact_https_and_wss_csp_origins_are_accepted()
+    {
+        var services = new ServiceCollection();
+        services.AddDotReactSecurityHeaders(options =>
+        {
+            options.AdditionalScriptSources.Add("https://cdn.example.test");
+            options.AdditionalConnectSources.Add("wss://events.example.test:443");
+        });
+        using var provider = services.BuildServiceProvider();
+
+        _ = provider.GetRequiredService<IOptions<DotReactSecurityHeadersOptions>>().Value;
     }
 
     [Fact]
@@ -265,6 +306,8 @@ public sealed class DotReactSecurityObservabilityTests
         var app = builder.Build();
         app.UseDotReactSecurityHeaders();
         app.MapGet("/", () => Results.Ok());
+        app.MapGet("/nonce", (HttpContext context) =>
+            Results.Text(DotReactSecurityNonce.Get(context) ?? "missing"));
         await app.StartAsync();
         return app;
     }

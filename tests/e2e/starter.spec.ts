@@ -159,3 +159,19 @@ test("preserves browser and React state during DRX Fast Refresh", async ({ page 
     await expect(page.locator(".eyebrow")).toHaveText(originalEyebrow);
   }
 });
+
+test("revalidates C# props without remounting the React page", async ({ page }) => {
+  await page.goto("/");
+  const actionButton = page.getByRole("button", { name: "Server Action C#: 0" });
+  await actionButton.click();
+  await expect(page.getByRole("button", { name: "Server Action C#: 1" })).toBeVisible();
+  const generated = page.getByText(/^Gerado em /);
+  const before = await generated.textContent();
+
+  await page.waitForTimeout(25);
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent("dotreact:revalidate", { detail: ["/"] })));
+
+  await expect(generated).not.toHaveText(before ?? "");
+  await expect(page.getByRole("button", { name: "Server Action C#: 1" })).toBeVisible();
+  expect(await page.evaluate(() => performance.getEntriesByType("navigation").length)).toBe(1);
+});

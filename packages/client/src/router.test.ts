@@ -16,7 +16,8 @@ test("navigation requests use the private media type and validate payloads", asy
       moduleId: "products/[id]/page",
       url: "/products/42",
       props: { id: 42 },
-      statusCode: 200
+      statusCode: 200,
+      staleTimeMs: 15_000
     }), { headers: { "content-type": `${DOTREACT_NAVIGATION_MEDIA_TYPE}; charset=utf-8` } });
   });
 
@@ -24,6 +25,7 @@ test("navigation requests use the private media type and validate payloads", asy
   assert.equal(observedHeaders?.get("Accept"), DOTREACT_NAVIGATION_MEDIA_TYPE);
   assert.equal(payload.moduleId, "products/[id]/page");
   assert.deepEqual(payload.props, { id: 42 });
+  assert.equal(payload.staleTimeMs, 15_000);
 });
 
 test("non-DotReact responses fall back to a full document navigation", async () => {

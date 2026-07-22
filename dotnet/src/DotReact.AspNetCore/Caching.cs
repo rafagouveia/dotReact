@@ -24,15 +24,23 @@ public sealed class DotReactCacheAttribute : Attribute
 
     /// <summary>Absolute distributed-cache lifetime in seconds.</summary>
     public int DurationSeconds { get; }
+
+    /// <summary>Optional bounded tags used for on-demand invalidation after successful mutations.</summary>
+    public string[] Tags { get; init; } = [];
 }
 
 /// <summary>Controls DotReact distributed page-cache keys and payload limits.</summary>
 public sealed class DotReactDistributedCacheOptions
 {
     /// <summary>Application-specific key prefix. Change it when deploying an incompatible cache schema.</summary>
-    public string KeyPrefix { get; set; } = "dotreact:pages:v1:";
+    public string KeyPrefix { get; set; } = "dotreact:pages:v2:";
     /// <summary>Largest serialized loader result stored in the distributed cache.</summary>
     public int MaxEntryBytes { get; set; } = 1024 * 1024;
+    /// <summary>
+    /// Retention for invalidation version tokens. It must outlive the longest supported page-cache entry
+    /// so an old payload can never become reachable again after a token expires.
+    /// </summary>
+    public TimeSpan InvalidationTokenLifetime { get; set; } = TimeSpan.FromHours(25);
 }
 
 /// <summary>Invalidates distributed page-loader results by exact local path.</summary>
@@ -42,6 +50,11 @@ public interface IDotReactCacheInvalidator
     ValueTask InvalidateAsync(
         IEnumerable<string> paths,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Invalidates every page-loader result associated with any supplied tag.</summary>
+    ValueTask InvalidateTagsAsync(
+        IEnumerable<string> tags,
+        CancellationToken cancellationToken = default);
 }
 
 internal interface IDotReactPageCache
@@ -49,6 +62,7 @@ internal interface IDotReactPageCache
     ValueTask<DotReactPageResult<TProps>> GetOrCreateAsync<TProps>(
         string path,
         TimeSpan lifetime,
+        IReadOnlyList<string> tags,
         Func<CancellationToken, ValueTask<DotReactPageResult<TProps>>> factory,
         CancellationToken cancellationToken);
 }
@@ -64,15 +78,23 @@ internal sealed class DistributedDotReactPageCache(
     public async ValueTask<DotReactPageResult<TProps>> GetOrCreateAsync<TProps>(
         string path,
         TimeSpan lifetime,
+        IReadOnlyList<string> tags,
         Func<CancellationToken, ValueTask<DotReactPageResult<TProps>>> factory,
         CancellationToken cancellationToken)
     {
         ValidatePath(path);
+        tags = DotReactPrerenderValidation.NormalizeTags(tags);
+        if (tags.Count > 16)
+            throw new ArgumentException("At most 16 page-cache tags are supported.", nameof(tags));
         ArgumentNullException.ThrowIfNull(factory);
-        var key = CreateKey(path);
+        var key = await CreateVersionedKeyAsync(path, tags, cancellationToken).ConfigureAwait(false);
         var cached = await ReadAsync<TProps>(key, cancellationToken).ConfigureAwait(false);
         if (cached is not null)
+        {
+            DotReactTelemetry.RecordCacheOperation("page-props", "hit");
             return DotReactPageResult<TProps>.Page(cached.Props, cached.StatusCode);
+        }
+        DotReactTelemetry.RecordCacheOperation("page-props", "miss");
 
         var gate = _locks.GetOrAdd(key, static _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -80,7 +102,10 @@ internal sealed class DistributedDotReactPageCache(
         {
             cached = await ReadAsync<TProps>(key, cancellationToken).ConfigureAwait(false);
             if (cached is not null)
+            {
+                DotReactTelemetry.RecordCacheOperation("page-props", "hit-after-wait");
                 return DotReactPageResult<TProps>.Page(cached.Props, cached.StatusCode);
+            }
 
             var result = await factory(cancellationToken).ConfigureAwait(false);
             if (result.Kind != DotReactPageResultKind.Page)
@@ -94,7 +119,9 @@ internal sealed class DistributedDotReactPageCache(
                 {
                     AbsoluteExpirationRelativeToNow = lifetime
                 }, cancellationToken).ConfigureAwait(false);
+                DotReactTelemetry.RecordCacheOperation("page-props", "write");
             }
+            else DotReactTelemetry.RecordCacheOperation("page-props", "skip-oversize");
             return result;
         }
         finally
@@ -113,7 +140,20 @@ internal sealed class DistributedDotReactPageCache(
         foreach (var path in paths.Distinct(StringComparer.Ordinal))
         {
             ValidatePath(path);
-            await cache.RemoveAsync(CreateKey(path), cancellationToken).ConfigureAwait(false);
+            await RotateVersionAsync(CreatePathVersionKey(path), cancellationToken).ConfigureAwait(false);
+            DotReactTelemetry.RecordCacheOperation("page-props", "invalidate-path");
+        }
+    }
+
+    public async ValueTask InvalidateTagsAsync(
+        IEnumerable<string> tags,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(tags);
+        foreach (var tag in DotReactPrerenderValidation.NormalizeTags(tags))
+        {
+            await RotateVersionAsync(CreateTagVersionKey(tag), cancellationToken).ConfigureAwait(false);
+            DotReactTelemetry.RecordCacheOperation("page-props", "invalidate-tag");
         }
     }
 
@@ -126,6 +166,7 @@ internal sealed class DistributedDotReactPageCache(
         if (payload.Length > _options.MaxEntryBytes)
         {
             await cache.RemoveAsync(key, cancellationToken).ConfigureAwait(false);
+            DotReactTelemetry.RecordCacheOperation("page-props", "remove-oversize");
             return null;
         }
         try
@@ -135,15 +176,45 @@ internal sealed class DistributedDotReactPageCache(
         catch (JsonException)
         {
             await cache.RemoveAsync(key, cancellationToken).ConfigureAwait(false);
+            DotReactTelemetry.RecordCacheOperation("page-props", "remove-invalid");
             return null;
         }
     }
 
-    private string CreateKey(string path)
+    private async ValueTask<string> CreateVersionedKeyAsync(
+        string path,
+        IReadOnlyList<string> tags,
+        CancellationToken cancellationToken)
     {
-        var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(path)));
+        var versions = new StringBuilder(path).Append('\n')
+            .Append(await ReadVersionAsync(CreatePathVersionKey(path), cancellationToken).ConfigureAwait(false));
+        foreach (var tag in tags)
+        {
+            versions.Append('\n').Append(tag).Append('=')
+                .Append(await ReadVersionAsync(CreateTagVersionKey(tag), cancellationToken).ConfigureAwait(false));
+        }
+        var digest = Digest(versions.ToString());
         return _options.KeyPrefix + digest;
     }
+
+    private async ValueTask<string> ReadVersionAsync(string key, CancellationToken cancellationToken)
+    {
+        var value = await cache.GetAsync(key, cancellationToken).ConfigureAwait(false);
+        return value is null ? "0" : Convert.ToHexString(value);
+    }
+
+    private ValueTask RotateVersionAsync(string key, CancellationToken cancellationToken) =>
+        new(cache.SetAsync(key, RandomNumberGenerator.GetBytes(16), new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = _options.InvalidationTokenLifetime
+        }, cancellationToken));
+
+    private string CreatePathVersionKey(string path) => _options.KeyPrefix + "path-version:" + Digest(path);
+
+    private string CreateTagVersionKey(string tag) => _options.KeyPrefix + "tag-version:" + Digest(tag);
+
+    private static string Digest(string value) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
 
     private static void ValidatePath(string path)
     {
@@ -176,6 +247,9 @@ public static class DotReactDistributedCachingExtensions
                 && options.KeyPrefix.Length <= 128, "KeyPrefix must contain 1-128 characters.")
             .Validate(options => options.MaxEntryBytes is >= 1024 and <= 16 * 1024 * 1024,
                 "MaxEntryBytes must be between 1 KiB and 16 MiB.")
+            .Validate(options => options.InvalidationTokenLifetime > TimeSpan.FromHours(24)
+                && options.InvalidationTokenLifetime <= TimeSpan.FromDays(30),
+                "InvalidationTokenLifetime must be greater than 24 hours and at most 30 days.")
             .ValidateOnStart();
         if (configure is not null) builder.Configure(configure);
         services.TryAddSingleton<DistributedDotReactPageCache>();

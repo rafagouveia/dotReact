@@ -8,6 +8,7 @@ internal sealed record DotReactPageDescriptor(
     string Pattern,
     string ModuleId,
     bool ReturnsResult,
+    bool Streaming,
     DotReactPrerenderMetadata? Prerender);
 
 internal sealed record DotReactActionDescriptor(

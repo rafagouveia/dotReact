@@ -17,3 +17,10 @@ public sealed class DotReactRendererUnavailableException : DotReactRendererExcep
     public DotReactRendererUnavailableException(string message, Exception innerException)
         : base(message, innerException) { }
 }
+
+/// <summary>Represents deliberate overload protection after renderer capacity and its queue are full.</summary>
+public sealed class DotReactRendererCapacityException : DotReactRendererException
+{
+    /// <summary>Creates a capacity exception without exposing request or application data.</summary>
+    public DotReactRendererCapacityException(string message) : base(message) { }
+}

@@ -13,7 +13,10 @@ public sealed class DotReactImageOptions
     public ISet<string> AllowedRemoteOrigins { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Permitted output widths. Requests must match one of these values.</summary>
-    public ISet<int> AllowedWidths { get; } = new HashSet<int> { 320, 640, 960, 1280, 1920 };
+    public ISet<int> AllowedWidths { get; } = new HashSet<int>
+    {
+        32, 48, 64, 96, 128, 256, 320, 640, 960, 1280, 1920
+    };
 
     /// <summary>Permitted encoded output formats.</summary>
     public ISet<DotReactImageFormat> AllowedFormats { get; } = new HashSet<DotReactImageFormat>
@@ -37,6 +40,8 @@ public sealed class DotReactImageOptions
     public TimeSpan ClientCacheDuration { get; set; } = TimeSpan.FromHours(1);
     /// <summary>End-to-end timeout for a remote source request.</summary>
     public TimeSpan RemoteRequestTimeout { get; set; } = TimeSpan.FromSeconds(10);
+    /// <summary>Maximum image decodes or transforms executing concurrently in this process.</summary>
+    public int MaxConcurrentTransforms { get; set; } = 4;
 }
 
 /// <summary>Supported browser-safe output encodings.</summary>

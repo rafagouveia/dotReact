@@ -1,5 +1,5 @@
 {
-  "name": "@dotreact/example-crud",
+  "name": "@rafagouveia/dotreact-example-crud",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,19 +13,20 @@
     "build:client": "vite build",
     "build:ssr": "vite build --ssr",
     "typecheck": "tsc -p tsconfig.json --noEmit && dotreact-check --project tsconfig.json --pages app --manifest src/backend-manifest.json --contracts src/contracts.ts",
-    "build": "npm run generate && npm run build:client && npm run build:ssr && dotnet build Server/Server.csproj -c Release"
+    "build": "dotreact build"
   },
   "dependencies": {
-    "@dotreact/client": "0.1.0",
-    "@dotreact/font": "0.1.0",
-    "@dotreact/script": "0.1.0",
-    "@dotreact/protocol": "0.1.0",
-    "@dotreact/renderer": "0.1.0",
+    "@rafagouveia/dotreact-client": "0.1.1",
+    "@rafagouveia/dotreact-font": "0.1.1",
+    "@rafagouveia/dotreact-script": "0.1.1",
+    "@rafagouveia/dotreact-protocol": "0.1.1",
+    "@rafagouveia/dotreact-renderer": "0.1.1",
     "react": "19.2.7",
     "react-dom": "19.2.7"
   },
   "devDependencies": {
-    "@dotreact/vite": "0.1.0",
+    "@rafagouveia/dotreact-cli": "0.1.1",
+    "@rafagouveia/dotreact-vite": "0.1.1",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "concurrently": "9.2.4",

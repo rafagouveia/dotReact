@@ -1,4 +1,4 @@
-# `@dotreact/adapter`
+# `@rafagouveia/dotreact-adapter`
 
 Versioned deployment adapter contracts for DotReact. The current API version is
 `dotreact.deployment-adapter/v1`.
@@ -9,7 +9,7 @@ requirements, and environment variable declarations. Environment values are
 execution-only and are never emitted.
 
 ```ts
-import { createAzureDeploymentAdapter } from "@dotreact/adapter/azure";
+import { createAzureDeploymentAdapter } from "@rafagouveia/dotreact-adapter/azure";
 
 const adapter = createAzureDeploymentAdapter({
   target: "container-apps",

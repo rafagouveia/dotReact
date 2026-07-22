@@ -1,4 +1,4 @@
-import { defineLayout, type DotReactLayoutProps } from "@dotreact/client/router";
+import { defineLayout, type DotReactLayoutProps } from "@rafagouveia/dotreact-client/router";
 
 export default defineLayout(function WorkboardLayout({ children }: DotReactLayoutProps) {
   return <div data-workboard-layout>{children}</div>;

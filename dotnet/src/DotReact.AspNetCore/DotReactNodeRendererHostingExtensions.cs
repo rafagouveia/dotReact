@@ -19,16 +19,30 @@ public static class DotReactNodeRendererHostingExtensions
         services.AddOptions<DotReactNodeRendererOptions>()
             .Configure(configure)
             .Validate(value => value.Port is > 0 and <= 65_535, "Node renderer port is invalid.")
+            .Validate(value => !value.UseInterprocessSocket
+                    || DotReactRendererInterprocessEndpoint.IsValid(value.SocketPath),
+                "Node renderer endpoint must be a valid Windows named pipe or absolute Unix socket path.")
+            .Validate(value => !value.UseFramedTransport
+                    || DotReactRendererInterprocessEndpoint.IsValid(value.FrameSocketPath),
+                "Node framed renderer endpoint must be a valid Windows named pipe or absolute Unix socket path.")
+            .Validate(value => !value.UseFramedTransport || value.UseBinaryTransport,
+                "Framed renderer transport requires the binary renderer protocol.")
             .Validate(value => !string.IsNullOrWhiteSpace(value.ExecutablePath), "Node executable path is required.")
             .Validate(value => !string.IsNullOrWhiteSpace(value.ScriptPath), "Node renderer script path is required.")
             .Validate(value => !string.IsNullOrWhiteSpace(value.ServerEntryPath), "SSR server entry path is required.")
             .Validate(value => value.StartupTimeout > TimeSpan.Zero && value.ShutdownTimeout > TimeSpan.Zero,
                 "Node renderer lifecycle timeouts must be positive.")
             .Validate(value => value.NodeMemoryMb is >= 64 and <= 16_384, "Node memory limit is invalid.")
+            .Validate(value => value.WorkerCount is >= 1 and <= 32, "Node renderer worker count is invalid.")
+            .Validate(value => value.MaxConcurrencyPerWorker is >= 1 and <= 1_024,
+                "Node renderer per-worker concurrency limit is invalid.")
             .Validate(value => value.MaxRestarts is >= 0 and <= 100, "Node renderer restart limit is invalid.")
             .Validate(value => value.RestartWindow > TimeSpan.Zero, "Node renderer restart window must be positive.")
             .Validate(value => value.RestartBackoff >= TimeSpan.Zero && value.RestartBackoff <= TimeSpan.FromMinutes(1),
                 "Node renderer restart backoff must be between zero and one minute.")
+            .Validate(static value => value.PublicEnvironmentVariables.All(static pair =>
+                    DotReactNodeRendererEnvironment.IsSafePublicVariable(pair.Key, pair.Value)),
+                "Node renderer public environment variables contain a reserved name or invalid value.")
             .ValidateOnStart();
         services.TryAddSingleton(static _ => new DotReactManagedRendererCredentials(
             Convert.ToBase64String(RandomNumberGenerator.GetBytes(48))));
@@ -37,8 +51,14 @@ public static class DotReactNodeRendererHostingExtensions
             {
                 var node = configuredNode.Value;
                 options.RendererUrl = new Uri($"http://127.0.0.1:{node.Port}");
+                options.RendererSocketPath = node.UseInterprocessSocket ? node.SocketPath : null;
+                options.RendererFrameSocketPath = node.UseFramedTransport ? node.FrameSocketPath : null;
+                options.UseFramedRendererTransport = node.UseFramedTransport;
+                options.RendererFrameConnectionCount = node.WorkerCount;
+                options.RendererFrameMaxInFlightPerConnection = node.MaxConcurrencyPerWorker;
                 options.RendererToken = credentials.Token;
                 options.RequireRendererToken = true;
+                options.UseBinaryRendererTransport = node.UseBinaryTransport;
             });
         services.AddHostedService<DotReactNodeRendererHostedService>();
         return services;

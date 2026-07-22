@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>SkiaSharp image processing implementation for the DotReact image pipeline.</Description>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../DotReact.AspNetCore/DotReact.AspNetCore.csproj" />

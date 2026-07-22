@@ -26,8 +26,13 @@ test("Image returns accessible lazy defaults and priority overrides", () => {
   assert.equal(lazyProps.width, 640);
   assert.equal(lazyProps.height, 320);
 
-  const priority = Image({ alt: "Hero", src: "/hero.png", width: 1280, priority: true });
+  const priority = Image({ alt: "Hero", src: "/hero.png", width: 1280, height: 720, priority: true });
   const priorityProps = priority.props as Record<string, unknown>;
   assert.equal(priorityProps.loading, "eager");
   assert.equal(priorityProps.fetchPriority, "high");
+  assert.equal(priorityProps.height, 720);
+  assert.throws(
+    () => Image({ alt: "Broken", src: "/broken.png", width: 640, height: 0 }),
+    /height/u
+  );
 });

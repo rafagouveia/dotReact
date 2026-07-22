@@ -78,8 +78,10 @@ Application operation/use case?     Application
 Database/external provider?          Infrastructure
 HTTP/loader/action mapping?          Presentation/Server
 Route view or page loader?           app
-Reusable product interaction?        src/features
-Generic visual component?            src/components
+Reusable application interaction?    app/_components
+Route-private visual component?       app/<route>/_components
+Global Server Action?                 app/_actions/*.server.cs
+Route-private Server Action?          app/<route>/_actions/*.server.cs
 Generated boundary?                  generated files; never hand-edit
 Framework defect?                    upstream framework repository
 ```
@@ -110,7 +112,7 @@ for navigation, hydration or interaction changes. A runtime smoke should verify:
 
 - Did I read every mandatory AI document?
 - Did I keep C# authoritative and React presentational?
-- Did I accidentally edit generated or vendored framework files?
+- Did I accidentally edit generated artifacts or copy framework source into the application?
 - Do the C# module ID and DRX path match exactly?
 - Is the initial render deterministic?
 - Are authorization, validation, cancellation and not-found states tested?

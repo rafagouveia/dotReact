@@ -1,5 +1,8 @@
 import { CliLab, CodeBlock, Flow, PairedCode, ReferenceTable, RouteLab, Step, Steps } from "./components";
 import type { DocPage } from "./types";
+import { guideDocs } from "./content.guides";
+import { securityDocs } from "./content.security";
+import { deploymentDocs, introDocs } from "./content.deploy";
 
 const pageLoader = `public sealed class ProductPage(GetProduct useCase)
     : IDotReactResultPage<ProductPageProps>
@@ -18,7 +21,7 @@ const pageLoader = `public sealed class ProductPage(GetProduct useCase)
 }`;
 
 const pageView = `import type { ProductPageProps } from "../../../src/contracts";
-import type { DotReactMetadataResolver } from "@dotreact/vite";
+import type { DotReactMetadataResolver } from "@rafagouveia/dotreact-vite";
 
 export const metadata: DotReactMetadataResolver<ProductPageProps> = props => ({
   title: \`${"${props.name}"} · Catálogo\`,
@@ -143,31 +146,33 @@ export const docs: readonly DocPage[] = [
         <a href="#first-project"><span>01</span><b>Quero criar uma aplicação</b><small>Scaffold, execução, HMR e primeiro dado C#.</small></a>
         <a href="#next-equivalents"><span>02</span><b>Eu já conheço Next.js</b><small>Veja o equivalente de cada conceito no DotReact.</small></a>
         <a href="#auth-guards"><span>03</span><b>Preciso proteger páginas</b><small>Authentication, policies e auth guard no servidor.</small></a>
-        <a href="#production"><span>04</span><b>Vou colocar em produção</b><small>Segurança, Redis, Azure e observabilidade.</small></a>
+        <a href="#hosting-overview"><span>04</span><b>Vou colocar em produção</b><small>Escolha de hosting, Docker, Azure, rollout e operação.</small></a>
       </div>
     </>
   },
+  ...introDocs,
   {
     id: "installation", group: "Começar", title: "Instalação e requisitos",
-    summary: "Prepare Node, .NET e o modelo vendorizado usado durante o pré-release.",
-    tags: ["Node 24", ".NET 10", "pré-release"],
+    summary: "Prepare Node, .NET e a autenticação dos pacotes privados publicados.",
+    tags: ["Node 24", ".NET 10", "GitHub Packages"],
     body: <>
       <h2>Requisitos suportados</h2>
       <ReferenceTable valueHeading="Versão" rows={[
         { name: ".NET SDK", defaultValue: "10.x", description: "Compila o host, TypeGen e os loaders C#." },
-        { name: "Node.js", defaultValue: "24.x produção; 20.19+ dev", description: "Executa Vite, CLI e renderer React." },
+        { name: "Node.js", defaultValue: "24.x recomendado; 22.19+ suportado", description: "Executa Vite, CLI, Lighthouse e renderer React." },
         { name: "React", defaultValue: "19.2.x", description: "SSR com react-dom/server e hydrateRoot no cliente." },
         { name: "Vite / TypeScript", defaultValue: "8.1.x / 7.0.x", description: "Build, HMR e verificação semântica de .drx." }
       ]} />
-      <h3>Pré-release vendorizado</h3>
-      <p>Os pacotes ainda não foram publicados em npm/NuGet. O comando <code>create</code> copia um runtime fixado para <code>vendor/</code> e reescreve referências para dependências locais. O VS Code oculta essa dependência gerenciada da navegação e da busca normais; não a edite como código da aplicação.</p>
+      <h3>Pré-release privado por pacotes</h3>
+      <p>O runtime, a CLI e o TypeGen são publicados no GitHub Packages sob as versões coordenadas do DotReact. O scaffold fixa versões exatas em <code>package.json</code>, <code>Server.csproj</code> e <code>.config/dotnet-tools.json</code>; ele não copia o código-fonte do framework para a aplicação.</p>
+      <CodeBlock label="PowerShell · autenticação local" code={'npm config set @rafagouveia:registry https://npm.pkg.github.com --location=user\nnpm config set //npm.pkg.github.com/:_authToken "$env:GITHUB_PACKAGES_TOKEN" --location=user\n\n# O NuGet.config do projeto já declara o feed. A credencial fica fora do Git.\n${env:NuGetPackageSourceCredentials_github-dotreact}="Username=rafagouveia;Password=$env:GITHUB_PACKAGES_TOKEN"'} />
       <p>O projeto abre em modo <strong>focus</strong>: páginas, features, componentes, loaders, actions e pontos oficiais de extensão ficam visíveis; contratos gerados, entrypoints, compiladores e deploy permanecem versionados, mas fora da navegação cotidiana. Use <code>dotreact workspace reveal</code> para configurar infraestrutura e <code>dotreact workspace focus</code> para voltar à visão de aplicação.</p>
-      <CodeBlock label="PowerShell" code={'npm install\nnpm run build\nnpm run create -- create minha-app --template starter\ncd minha-app\nnpm install\nnpm exec -- dotreact doctor'} />
+      <CodeBlock label="PowerShell" code={'npm exec --yes --package=@rafagouveia/dotreact-cli@0.1.1 -- dotreact create minha-app --template starter\ncd minha-app\nnpm install\nnpm exec -- dotreact doctor\nnpm run dev'} />
       <h3>Pronto para versionamento</h3>
       <p>O gerador não cria a pasta <code>.git</code> nem executa <code>git init</code>. Ele entrega somente os arquivos portáveis do repositório: <code>.gitignore</code>, <code>.gitattributes</code>, <code>.editorconfig</code>, <code>.dockerignore</code>, <code>.npmrc</code>, <code>.nvmrc</code>, <code>global.json</code>, regras MSBuild e um workflow GitHub Actions.</p>
       <p>Execute <code>npm install</code> e versione o <code>package-lock.json</code>. Contratos gerados em <code>src/contracts.ts</code>, <code>src/actions.ts</code> e <code>src/backend-manifest.json</code> também devem ser versionados: o CI usa esses arquivos para detectar drift entre C# e TypeScript.</p>
       <p>A extensão do VS Code inclui associação para <code>.drx</code>, check-on-save e CodeLens para loaders. Seu núcleo participa dos testes e gates do workspace.</p>
-      <div className="warning"><strong>Publicação pendente</strong><span>A instalação por versões npm/NuGet é um gate externo, não uma capacidade disponível hoje.</span></div>
+      <div className="warning"><strong>Credencial privada</strong><span>Nunca grave tokens no <code>.npmrc</code>, <code>NuGet.config</code>, <code>.env</code> ou workflow versionado. O token precisa apenas de leitura de pacotes para consumir o framework.</span></div>
     </>
   },
   {
@@ -213,7 +218,7 @@ export const docs: readonly DocPage[] = [
       <p>Propague sempre o <code>CancellationToken</code>. O runtime aplica timeout ao carregamento e ao renderer e interrompe trabalho quando o cliente desconecta.</p>
       <h3>CSS modular sem flash</h3>
       <p>Importe o CSS no <code>page.drx</code>, layout ou componente proprietário. No SSR de desenvolvimento, o plugin percorre os imports estáticos da rota e dos layouts e o ASP.NET inclui uma folha bloqueante no <code>&lt;head&gt;</code> antes de enviar o corpo. Em produção, Vite extrai o bundle CSS. Assim a origem continua modular sem exibir HTML sem estilo.</p>
-      <CodeBlock label="src/features/catalog/ProductPanel.tsx" code={'import "./product-panel.css";\n\nexport function ProductPanel() {\n  return <section className="product-panel" />;\n}'} />
+      <CodeBlock label="app/catalog/_components/ProductPanel.tsx" code={'import "./product-panel.css";\n\nexport function ProductPanel() {\n  return <section className="product-panel" />;\n}'} />
       <div className="callout"><strong>O que permanece global</strong><span>Use <code>src/styles.css</code> somente para reset, tokens, fontes e defaults do documento. Não injete tags <code>&lt;style&gt;</code> depois da hidratação para reparar o primeiro paint.</span></div>
     </>
   },
@@ -230,7 +235,7 @@ export const docs: readonly DocPage[] = [
         { name: "*.server.ts", defaultValue: "bundle SSR", description: "Módulo auxiliar exclusivo do entry/renderer; o build falha se ele entrar no bundle do navegador." }
       ]} />
       <h3>Interpolação C# → React</h3>
-      <CodeBlock label="app/products/[id]/page.drx" code={'import type { ProductPageProps } from "../../../src/contracts";\nimport { definePage } from "@dotreact/client/router";\n\nexport default definePage<ProductPageProps>(function Page(Model) {\n  return <h1>{Model.name} · #{Model.id}</h1>;\n});'} />
+      <CodeBlock label="app/products/[id]/page.drx" code={'import type { ProductPageProps } from "../../../src/contracts";\nimport { definePage } from "@rafagouveia/dotreact-client/router";\n\nexport default definePage<ProductPageProps>(function Page(Model) {\n  return <h1>{Model.name} · #{Model.id}</h1>;\n});'} />
       <p><code>Model</code> é uma prop TypeScript gerada do record C#. Essa é a interpolação segura: serialização explícita, nullability e drift check. C# arbitrário dentro do JSX não é interpretado.</p>
       <h3>Escolha prática</h3>
       <ul className="feature-list">
@@ -245,17 +250,17 @@ export const docs: readonly DocPage[] = [
   {
     id: "fonts-assets", group: "Fundamentos", title: "Fontes e arquivos públicos",
     summary: "Use public/ como origem única e gere preload e CSS de fontes locais no framework.",
-    tags: ["@dotreact/font", "public", "preload", "CLS"],
+    tags: ["@rafagouveia/dotreact-font", "public", "preload", "CLS"],
     body: <>
       <h2>Uma pasta pública, uma configuração de fonte</h2>
-      <p>Coloque favicon, imagens e fontes em <code>public/</code>. No desenvolvimento, o host ASP.NET serve essa pasta; no build, o Vite a copia para o bundle publicado. <code>Server/wwwroot</code> é detalhe interno do artefato de produção e não deve receber código ou assets da aplicação.</p>
-      <CodeBlock label="app/fonts.ts" code={'import { localFont } from "@dotreact/font";\n\nexport const satoshi = localFont({\n  family: "Satoshi",\n  variable: "--font-sans",\n  display: "swap",\n  src: [\n    { path: "/fonts/Satoshi-Regular.woff2", weight: 400 },\n    { path: "/fonts/Satoshi-Bold.woff2", weight: 700, preload: false }\n  ]\n});'} />
+      <p>Coloque os assets administrados pelo App Router — favicon, imagens e fontes — em <code>public/</code>. No desenvolvimento, o host serve essa pasta; no build, o Vite a copia para o artefato publicado. <code>Server/wwwroot</code> continua disponível quando a aplicação opta conscientemente por um pipeline estático ASP.NET separado.</p>
+      <CodeBlock label="app/fonts.ts" code={'import { localFont } from "@rafagouveia/dotreact-font";\n\nexport const satoshi = localFont({\n  family: "Satoshi",\n  variable: "--font-sans",\n  display: "swap",\n  src: [\n    { path: "/fonts/Satoshi-Regular.woff2", weight: 400 },\n    { path: "/fonts/Satoshi-Bold.woff2", weight: 700, preload: false }\n  ]\n});'} />
       <CodeBlock label="vite.config.ts + CSS" code={'import { satoshi } from "./app/fonts";\n\ndotReact({ pagesDir: "app", fonts: [satoshi] });\n\n/* src/styles.css */\n:root { font-family: var(--font-sans); }'} />
       <p>O plugin valida URLs locais, gera <code>@font-face</code>, inclui a folha bloqueante no SSR e preloads somente as faces críticas. Use <code>preload: false</code> nos pesos que não aparecem acima da dobra.</p>
       <div className="callout"><strong>Escopo atual</strong><span>Fontes locais são estáveis. Download e self-host automático de Google Fonts, cálculo automático de métricas de fallback e subset por caracteres continuam no roadmap.</span></div>
       <h3>Scripts de terceiros sem bloquear a página inteira</h3>
-      <CodeBlock label="metadata da página" code={'import { script } from "@dotreact/script";\n\nexport const metadata = {\n  scripts: [\n    script({ src: "/scripts/consent.js", strategy: "beforeInteractive" }),\n    script({ src: "https://cdn.example.com/analytics.js", id: "analytics", strategy: "lazyOnload" })\n  ]\n};'} />
-      <p><code>@dotreact/script</code> aceita apenas arquivos externos locais ou HTTPS. O framework deduplica scripts, emite os críticos no SSR e agenda os demais após a hidratação ou o evento <code>load</code>.</p>
+      <CodeBlock label="metadata da página" code={'import { script } from "@rafagouveia/dotreact-script";\n\nexport const metadata = {\n  scripts: [\n    script({ src: "/scripts/consent.js", strategy: "beforeInteractive" }),\n    script({\n      src: "https://cdn.example.com/analytics.js",\n      id: "analytics",\n      strategy: "lazyOnload",\n      integrity: "sha384-YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"\n    })\n  ]\n};'} />
+      <p><code>@rafagouveia/dotreact-script</code> aceita apenas arquivos externos locais ou HTTPS. O framework deduplica scripts, emite os críticos no SSR e agenda os demais após a hidratação ou o evento <code>load</code>.</p>
     </>
   },
   {
@@ -278,9 +283,9 @@ export const docs: readonly DocPage[] = [
         { name: "middleware.ts", defaultValue: "ASP.NET middleware + endpoint metadata", description: "Autenticação, policies, rate limiting, tenancy e headers ficam no pipeline público." },
         { name: "generateStaticParams", defaultValue: "IDotReactStaticPathProvider<TPage>", description: "Produz rotas tipadas para o manifest e o export automático." },
         { name: "revalidate / ISR", defaultValue: "DotReactPrerender + Redis", description: "Fresh/stale windows, single-flight, tags e invalidação após actions." },
-        { name: "next/image", defaultValue: "@dotreact/image", description: "Componente acessível e endpoint ASP.NET endurecido com processor SkiaSharp substituível." },
+        { name: "next/image", defaultValue: "@rafagouveia/dotreact-image", description: "Componente acessível e endpoint ASP.NET endurecido com processor SkiaSharp substituível." },
         { name: "use client", defaultValue: "React universal por padrão", description: "Estado e eventos hidratam normalmente; DotReactClientOnly isola APIs exclusivas do browser." },
-        { name: "React Server Components", defaultValue: "@dotreact/rsc experimental", description: "Flight/PPR reais no laboratório versionado; não fazem parte da API DRX estável." }
+        { name: "React Server Components", defaultValue: "@rafagouveia/dotreact-rsc experimental", description: "Flight/PPR reais no laboratório versionado; não fazem parte da API DRX estável." }
       ]} />
       <h2>Como escolher o local de execução</h2>
       <div className="decision-grid">
@@ -390,7 +395,7 @@ app.MapDotReactFallback();`} />
         { name: "Link, prefetch e navegação client-side", defaultValue: "Estável", description: "History API, scroll, loading e preservação de layouts compatíveis." },
         { name: "Server Actions e contratos", defaultValue: "Estável", description: "C# tipado, antiforgery, auth, idempotência e revalidation." },
         { name: "SSG, ISR e export", defaultValue: "Estável", description: "Paths tipados, stale/fresh window e coordenação Redis opcional." },
-        { name: "Metadata, imagens, fontes e scripts", defaultValue: "Estável", description: "Metadata estruturada, imagens, @dotreact/font e @dotreact/script com estratégias seguras." }
+        { name: "Metadata, imagens, fontes e scripts", defaultValue: "Estável", description: "Metadata estruturada, imagens, @rafagouveia/dotreact-font e @rafagouveia/dotreact-script com estratégias seguras." }
       ]} />
       <h3>Equivalente nativo do ASP.NET Core</h3>
       <ReferenceTable valueHeading="Implementação" rows={[
@@ -404,7 +409,7 @@ app.MapDotReactFallback();`} />
       ]} />
       <h3>Experimental ou roadmap</h3>
       <ReferenceTable valueHeading="Status" rows={[
-        { name: "React Server Components / Flight", defaultValue: "Experimental", description: "Pacote @dotreact/rsc isolado; não integra a API DRX estável." },
+        { name: "React Server Components / Flight", defaultValue: "Experimental", description: "Pacote @rafagouveia/dotreact-rsc isolado; não integra a API DRX estável." },
         { name: "Partial Prerendering", defaultValue: "Experimental", description: "Shell estático e retomada de holes existem no laboratório RSC." },
         { name: "Parallel e Intercepting Routes", defaultValue: "Roadmap", description: "Ainda não há convenções @slot/(.) equivalentes no router estável." },
         { name: "MDX integrado ao roteamento", defaultValue: "Roadmap", description: "Hoje pode ser compilado pelo app, mas não existe plugin oficial DotReact." },
@@ -426,7 +431,7 @@ app.MapDotReactFallback();`} />
       <h2>Convenção de diretórios</h2>
       <CodeBlock label="Árvore" code={'app/\n  layout.drx\n  page.drx\n  page.server.cs\n  (shop)/\n    products/\n      layout.drx\n      [id]/\n        page.drx\n        page.server.cs\n      _components/'} />
       <p>A página de produto é renderizada como <code>RootLayout → ProductsLayout → ProductPage</code>. O mesmo registry virtual é consumido no SSR e na hydration, evitando árvores diferentes.</p>
-      <CodeBlock label="app/(shop)/products/layout.drx" code={'import { defineLayout, type DotReactLayoutProps } from "@dotreact/client/router";\nimport type { ProductPageProps } from "../../../src/contracts";\n\nexport default defineLayout<ProductPageProps>(function ProductsLayout({ children, pageProps, url }: DotReactLayoutProps<ProductPageProps>) {\n  return <section className="catalog" data-route={url}>\n    <p>Catálogo carregado pelo C#: {pageProps.name}</p>\n    {children}\n  </section>;\n});'} />
+      <CodeBlock label="app/(shop)/products/layout.drx" code={'import { defineLayout, type DotReactLayoutProps } from "@rafagouveia/dotreact-client/router";\nimport type { ProductPageProps } from "../../../src/contracts";\n\nexport default defineLayout<ProductPageProps>(function ProductsLayout({ children, pageProps, url }: DotReactLayoutProps<ProductPageProps>) {\n  return <section className="catalog" data-route={url}>\n    <p>Catálogo carregado pelo C#: {pageProps.name}</p>\n    {children}\n  </section>;\n});'} />
       <div className="callout"><strong>Organização sem rota acidental</strong><span><code>(shop)</code> agrupa arquivos sem entrar na URL. Diretórios iniciados por <code>_</code> são privados; mesmo um <code>page.drx</code> dentro deles não vira endpoint.</span></div>
       <div className="callout"><strong>Dados do backend no shell</strong><span>Cada layout recebe <code>pageProps</code> — o mesmo DTO C# da página — e a URL atual. O checker calcula a união dos contratos das páginas descendentes; um layout específico pode usar <code>defineLayout&lt;TProps&gt;</code>, enquanto um layout raiz deve estreitar a união com type guards.</span></div>
     </>
@@ -476,10 +481,12 @@ app.MapDotReactFallback();`} />
     tags: ["DotReactLink", "prefetch", "Suspense", "loading.drx"],
     body: <>
       <h2>Fluxo semelhante ao App Router</h2>
-      <p><code>DotReactLink</code> mantém um link nativo e acessível, faz prefetch em hover/focus, busca somente props C# no media type privado e troca a rota com History API. Layouts compartilhados mantêm identidade e estado; back/forward, scroll, refresh e invalidação de Server Actions fazem parte do router.</p>
+      <p><code>DotReactLink</code> mantém um link nativo e acessível, faz prefetch por intenção após breve hover ou foco, busca somente props C# no media type privado e troca a rota com History API. <code>prefetch="viewport"</code> é opt-in; assim uma sidebar extensa não dispara dezenas de requests. Payloads usam cache LRU limitado com TTL informado pelo servidor. Layouts compartilhados mantêm identidade e estado; back/forward, scroll, refresh e invalidação de Server Actions fazem parte do router.</p>
+      <p>Em desenvolvimento, <code>X-DotReact-Render-Mode</code> diferencia <code>streaming-ssr</code>, <code>ssr</code>, <code>client-navigation</code> e resoluções de prerender no DevTools. O header é omitido em produção.</p>
       <CodeBlock label="page.drx" code={'<DotReactLink href="/products/42">Produto 42</DotReactLink>\n\n// app/products/loading.drx\nexport default function Loading() {\n  return <p aria-busy="true">Carregando catálogo…</p>;\n}'} />
       <h3>Streaming e Suspense reais</h3>
-      <p>Com <code>EnableStreaming = true</code>, ASP.NET usa o protocolo JSONL v2 e <code>ResponseHeadersRead</code>. O entry React usa <code>renderToPipeableStream</code>: shell e fallback chegam antes da boundary assíncrona. Backpressure, cancelamento, ordem, tamanho, correlação e erros antes/depois do shell são validados nos dois processos.</p>
+      <p>O caminho padrão usa SSR bufferizado, com menos frames e alocações. Adicione <code>[DotReactStreaming]</code> ao loader de uma página com uma boundary Suspense relevante; com <code>EnableStreaming = true</code>, ASP.NET usa então o protocolo JSONL v2 e <code>ResponseHeadersRead</code>. O entry React usa <code>renderToPipeableStream</code>: shell e fallback chegam antes da boundary assíncrona. Backpressure, cancelamento, ordem, tamanho, correlação e erros antes/depois do shell são validados nos dois processos.</p>
+      <CodeBlock label="page.server.cs" code={'[DotReactStreaming]\npublic sealed class ReportsPage : IDotReactPage<ReportsProps>\n{\n    // carregue somente os props iniciais; a boundary React pode continuar depois\n}'} />
       <p>Scripts de continuação recebem um nonce por requisição; a CSP de produção continua sem <code>unsafe-inline</code>. O exemplo <code>/streaming</code> e o E2E provam que o fallback chega antes do conteúdo atrasado.</p>
     </>
   },
@@ -529,13 +536,14 @@ app.MapDotReactFallback();`} />
     body: <>
       <h2>Exposição explícita</h2>
       <p>Somente classes marcadas com <code>[DotReactAction]</code> são descobertas. A action é um adapter fino que traduz request, invoca um caso de uso e mapeia o resultado.</p>
-      <PairedCode csharp={actionClass} react={actionClient} csharpLabel="Server/Actions/CreateOrderAction.cs" reactLabel="app/orders/page.drx" />
+      <PairedCode csharp={actionClass} react={actionClient} csharpLabel="app/orders/_actions/CreateOrderAction.server.cs" reactLabel="app/orders/page.drx" />
       <h3>Segurança padrão</h3>
       <div className="cards">
         <article><b>Autorização</b><span>Sem atributo, a action exige usuário autorizado. <code>[AllowAnonymous]</code> é explícito.</span></article>
-        <article><b>Antiforgery</b><span>JSON e formulário precisam do token emitido no documento SSR.</span></article>
+        <article><b>Antiforgery</b><span>O client adquire o token no primeiro POST; formulário sem JS renderiza token explícito.</span></article>
         <article><b>Binding</b><span>JSON e form fields simples são aceitos; uploads exigem endpoint dedicado.</span></article>
       </div>
+      <p>SSR e navegação não criam cookie antiforgery antecipadamente. Na primeira mutação, o client chama <code>/_dotreact/csrf</code>, mantém o token em memória e o envia em <code>X-DotReact-CSRF</code>. Páginas somente leitura evitam criptografia e bytes de cookie; a validação same-origin permanece obrigatória.</p>
       <h3>Policies e recurso de domínio</h3>
       <p><code>[Authorize(Policy = "orders.write")]</code> aplica policies normais no endpoint. Quando a decisão depende do registro carregado, use <code>[DotReactAuthorizeResource]</code> e implemente <code>IDotReactActionResourceProvider&lt;TRequest&gt;</code>. O runtime faz binding, carrega o recurso e chama <code>IAuthorizationService</code> antes da action; recurso ausente retorna 404 e policy negada retorna 403.</p>
       <CodeBlock label="C#" code={'[DotReactAction("orders/update")]\n[DotReactAuthorizeResource("orders.owner")]\npublic sealed class UpdateOrderAction :\n  IDotReactAction<UpdateOrderRequest, OrderDto>,\n  IDotReactActionResourceProvider<UpdateOrderRequest>\n{\n  public ValueTask<object?> LoadAuthorizationResourceAsync(\n    UpdateOrderRequest request, CancellationToken ct) => LoadOrder(request.Id, ct);\n  // ExecuteAsync roda somente depois da autorização do recurso.\n}'} />
@@ -555,9 +563,10 @@ app.MapDotReactFallback();`} />
       <div className="warning"><strong>Multi-réplica</strong><span>Defina <code>DOTREACT_REDIS_CONNECTION</code> ou registre <code>AddDotReactRedis</code>. O plugin usa lease renovável e commit Lua atômico para coordenar replay entre instâncias; sem Redis, o default continua process-local.</span></div>
       <CodeBlock label="Program.cs" code={'var redis = ConfigurationOptions.Parse(connectionString);\nservices.AddDotReactRedis(redis); // ISR + tags + idempotência compartilhados'} />
       <h3>Cache distribuído automático</h3>
-      <p>Páginas anônimas com <code>[DotReactCache(60)]</code> armazenam somente o resultado serializado do loader em <code>IDistributedCache</code>; HTML, usuário e token antiforgery nunca são compartilhados. Configure Redis/SQL antes de <code>AddDotReactDistributedCaching</code>.</p>
-      <CodeBlock label="Program.cs" code={'builder.Services.AddStackExchangeRedisCache(options =>\n  options.Configuration = connectionString);\nbuilder.Services.AddDotReactDistributedCaching();'} />
-      <p>Em uma action bem-sucedida, os paths de <code>Success(value, revalidatePaths)</code> são removidos automaticamente do cache distribuído antes da resposta. O header e o callback cliente continuam disponíveis para atualizar UI local.</p>
+      <p>Páginas anônimas com <code>[DotReactCache(60, Tags = ["catalog"])]</code> armazenam somente o resultado serializado do loader; HTML, usuário e token antiforgery nunca são compartilhados. <code>AddDotReactApplication()</code> configura memória distribuída para uma única instância e troca automaticamente para Redis quando <code>DOTREACT_REDIS_CONNECTION</code> existe, reutilizando um único multiplexer por processo.</p>
+      <CodeBlock label="Configuração de produção" code={'# uma instância: nenhuma dependência externa\n# múltiplas réplicas: cache, invalidação, sessões e idempotência compartilhados\nDOTREACT_REDIS_CONNECTION=<connection-string>\nDOTREACT_REDIS_KEY_PREFIX=orders:production'} />
+      <CodeBlock label="Action com invalidação seletiva" code={'return DotReactActionResult<ProductDto>.Success(\n  product,\n  revalidatePaths: ["/products", $"/products/{product.Id}"],\n  revalidateTags: ["catalog"]);'} />
+      <p>Em uma action bem-sucedida, paths e tags são invalidados automaticamente antes da resposta. A invalidação do cache de props gira tokens versionados sem enumerar chaves Redis; entradas antigas ficam inacessíveis imediatamente e somem pelo TTL. O header e o callback cliente continuam usando paths para atualizar a UI local.</p>
     </>
   },
   {
@@ -567,12 +576,13 @@ app.MapDotReactFallback();`} />
     body: <>
       <h2>Static generation e ISR no backend C#</h2>
       <CodeBlock label="app/products/[id]/page.server.cs" code={'[DotReactPrerender(60, StaleWhileRevalidateSeconds = 300, Tags = ["products"])]\npublic sealed class ProductPage : IDotReactResultPage<ProductPageProps> { /* loader */ }\n\npublic sealed class ProductPaths : IDotReactStaticPathProvider<ProductPage> {\n  public async IAsyncEnumerable<DotReactStaticPath> GetPathsAsync(CancellationToken token) {\n    yield return new(new Dictionary<string,string> { ["id"] = "1" }, ["products"]);\n  }\n}'} />
-      <p>O store é isolado por <code>PrerenderBuildId</code>, limitado por bytes/entradas e substituível por uma implementação distribuída. Cold miss usa single-flight; conteúdo vencido pode ser servido enquanto uma regeneração segura ocorre ao fundo; falha conserva o último artefato válido. Server Actions invalidam paths do cache de props e do ISR.</p>
+      <p>O store é isolado por <code>PrerenderBuildId</code>, limitado por bytes/entradas e substituível por uma implementação distribuída. Cold miss usa single-flight; conteúdo vencido pode ser servido enquanto uma regeneração segura ocorre ao fundo; falha conserva o último artefato válido. Server Actions invalidam paths e tags do cache de props e do ISR.</p>
+      <p>Artefatos Redis finitos expiram após a janela stale mais a retenção de recuperação. Artefatos estáticos também recebem retenção máxima — 30 dias por padrão — e podem ser regenerados, impedindo que builds abandonados consumam armazenamento indefinidamente.</p>
       <p>Artefatos persistidos nunca contêm cookie, token CSRF ou estado de usuário. Quando uma página estática executa sua primeira Server Action, o client adquire um token antiforgery por <code>/_dotreact/csrf</code> e o reutiliza.</p>
       <p><code>/_dotreact/prerender-manifest</code> expande os providers tipados, limita a cardinalidade e rejeita paths duplicados/incompletos. Hits fresh pulam o loader C#; o HTML usa request ID determinístico e não emite cookie antiforgery.</p>
       <CodeBlock label="Export estático" code={'# descobre as rotas no manifest C#\nnpm exec -- dotreact export --url http://127.0.0.1:5080 --out dist/static\n\n# --routes continua disponível como override explícito\nnpm exec -- dotreact export --routes /,/products/1'} />
       <h3>Image component + processor real</h3>
-      <PairedCode csharp={'// AddDotReactApplication usa public/ por convenção.\n// Configure apenas origens remotas adicionais quando necessário.\nbuilder.AddDotReactApplication(options => { /* extensões */ });'} react={'import { Image } from "@dotreact/image";\n\n<Image src="/images/product.jpg" width={640} height={480}\n  quality={75} alt="Produto" />'} csharpLabel="Program.cs" reactLabel="page.drx" />
+      <PairedCode csharp={'// AddDotReactApplication usa public/ por convenção.\n// Configure apenas origens remotas adicionais quando necessário.\nbuilder.AddDotReactApplication(options => { /* extensões */ });'} react={'import { Image } from "@rafagouveia/dotreact-image";\n\n<Image src="/images/product.jpg" width={640} height={480}\n  quality={75} alt="Produto" />'} csharpLabel="Program.cs" reactLabel="page.drx" />
       <p>O plugin SkiaSharp separado faz resize e encode JPEG/PNG/WebP em Windows/Linux. O endpoint limita origem, bytes, pixels, width e quality, bloqueia SSRF/traversal e responde ETag/cache. O core continua aceitando outro <code>IDotReactImageProcessor</code>.</p>
     </>
   },
@@ -604,24 +614,60 @@ app.MapDotReactFallback();`} />
     body: <>
       <h2>Comandos implementados</h2>
       <ReferenceTable valueHeading="Argumentos principais" rows={[
-        { name: "create", defaultValue: "<name> --template starter|minimal", description: "Cria projeto vendorizado e transacional." },
+        { name: "create", defaultValue: "<name> --template starter|minimal", description: "Cria um projeto autônomo com pacotes npm, NuGet e TypeGen alinhados." },
         { name: "templates", description: "Lista starter e minimal." },
         { name: "generate page", defaultValue: "<route> [--dry-run]", description: "Cria page.drx e companion C# sem sobrescrever." },
         { name: "generate layout", defaultValue: "<route>", description: "Cria layout.drx." },
         { name: "generate boundary", defaultValue: "<route> --kind error|not-found|loading|global-error", description: "Cria um override opcional do fallback do core; global-error personaliza falhas fatais em produção." },
-        { name: "generate action", defaultValue: "<PascalCaseName>", description: "Cria action C# e DTOs iniciais." },
+        { name: "generate component", defaultValue: "<PascalCaseName> [--route route]", description: "Cria UI privada em app/_components ou junto da rota." },
+        { name: "generate action", defaultValue: "<PascalCaseName> [--route route]", description: "Cria adapter C# em app/**/_actions com autorização segura por padrão." },
         { name: "sync", description: "Executa o script npm generate." },
         { name: "check", description: "Executa drift check e typecheck." },
-        { name: "dev / build / start", description: "Orquestra os scripts do projeto e o publish local." },
+        { name: "dev / build / start", description: "O executor do framework coordena contratos, bundles client/SSR, Release ASP.NET, publish e runtime." },
         { name: "analyze", defaultValue: "--max-client-kb / --max-ssr-kb", description: "Mede bundle raw/gzip e aplica budgets." },
-        { name: "benchmark", defaultValue: "[url] --requests --concurrency", description: "Mede p50/p95/p99 SSR e falhas." },
+        { name: "benchmark", defaultValue: "[url] --compare baseline --json", description: "Mede TTFB, resposta completa, p50/p95/p99, throughput e budgets comparativos." },
         { name: "export", defaultValue: "[--routes] --url --out", description: "Descobre o prerender manifest C# ou usa override e materializa HTML portátil." },
-        { name: "doctor", description: "Valida runtimes, estrutura e scripts obrigatórios." },
+        { name: "architecture", description: "Valida o contrato App Router e apresenta correções acionáveis." },
+        { name: "security", defaultValue: "[--static-only]", description: "Procura sinks inseguros e, no modo completo, audita dependências npm e .NET." },
+        { name: "health", description: "Executa doctor e o gate completo do projeto: contratos, testes, build, budgets e auditorias." },
+        { name: "doctor", description: "Valida runtimes, zonas, scripts, assets públicos, Lighthouse, Docker e manifests Azure." },
         { name: "workspace", defaultValue: "focus|reveal|status", description: "Alterna entre a visão limpa da aplicação e a infraestrutura avançada." }
       ]} />
-      <CodeBlock label="Terminal" code={'npm exec -- dotreact generate page catalog/[slug] --dry-run\nnpm exec -- dotreact generate page catalog/[slug]\nnpm exec -- dotreact generate boundary catalog --kind loading\nnpm exec -- dotreact generate boundary --kind global-error\nnpm exec -- dotreact sync\nnpm exec -- dotreact check\nnpm exec -- dotreact analyze --max-client-kb 100 --max-ssr-kb 50\nnpm exec -- dotreact benchmark http://127.0.0.1:5080/ --requests 100 --concurrency 8\nnpm exec -- dotreact export\nnpm exec -- dotreact workspace reveal\nnpm exec -- dotreact workspace focus'} />
-      <p>Durante o pré-release, projetos gerados incluem <code>vendor/cli</code> como dependência local. Portanto <code>npm exec dotreact</code> funciona sem instalação global e sem depender do checkout original do framework.</p>
+      <CodeBlock label="Terminal" code={'npm exec -- dotreact generate page catalog/[slug] --dry-run\nnpm exec -- dotreact generate page catalog/[slug]\nnpm exec -- dotreact generate component ProductCard --route catalog\nnpm exec -- dotreact generate action SaveProduct --route catalog\nnpm exec -- dotreact generate boundary catalog --kind loading\nnpm exec -- dotreact sync\nnpm exec -- dotreact architecture\nnpm exec -- dotreact check\nnpm exec -- dotreact security\nnpm exec -- dotreact build\nnpm exec -- dotreact analyze --max-client-kb 100 --max-ssr-kb 50\nnpm exec -- dotreact health\nnpm exec -- dotreact workspace focus'} />
+      <p>Projetos gerados fixam <code>@rafagouveia/dotreact-cli</code> como devDependency. Portanto <code>npm exec -- dotreact</code> usa a versão do próprio projeto, sem instalação global e sem depender de um checkout do framework.</p>
       <p><code>add</code> é alias de <code>generate</code>. Generators rejeitam traversal e colisões; não há flag de overwrite.</p>
+    </>
+  },
+  {
+    id: "vscode-extension", group: "Ferramentas", title: "Extensão do VS Code",
+    summary: "Edite DRX, navegue para loaders C# e execute o checker oficial sem sair do editor.",
+    tags: ["VS Code", "DRX", "diagnósticos"],
+    body: <>
+      <h2>A experiência oficial de edição</h2>
+      <p>A extensão associa <code>.drx</code> ao serviço TypeScript React nativo do VS Code. Syntax highlight, autocomplete, formatação, navegação e ferramentas React continuam funcionando porque DRX é TSX comum; a extensão não mantém um segundo parser nem interpreta C# dentro da view.</p>
+      <div className="cards">
+        <article><b>Diagnósticos confiáveis</b><span>O mesmo checker semântico usado pelo build publica problemas diretamente no editor.</span></article>
+        <article><b>Navegação entre runtimes</b><span>O CodeLens abre o <code>page.server.cs</code> associado à view sem procurar manualmente pelo backend.</span></article>
+        <article><b>Execução controlada</b><span>Salvamentos repetidos são agrupados e existe no máximo um checker ativo por workspace.</span></article>
+      </div>
+      <h3>Instalar durante o pré-release</h3>
+      <CodeBlock label="Terminal" code={'npm ci\nnpm run package:vsix -w dotreact-vscode\ncode --install-extension editors/vscode-dotreact/dotreact-vscode.vsix'} />
+      <p>Quando a publicação no Marketplace estiver ativa, procure por <strong>DotReact — React SSR para .NET</strong> na aba Extensions. Atualizações passam a ser entregues pelo próprio VS Code; o VSIX manual continua disponível como artefato testado do workflow de release.</p>
+      <h3>Comandos e configurações</h3>
+      <ReferenceTable valueHeading="Finalidade" rows={[
+        { name: "DotReact: Verificar projeto", description: "Executa a validação semântica de app/, contratos e manifest do backend." },
+        { name: "DotReact: Abrir loader C#", description: "Abre primeiro o loader colocalizado e mantém fallback para registros explícitos." },
+        { name: "DotReact: Exibir saída da validação", description: "Mostra duração, falhas do processo e detalhes que não cabem no painel Problems." },
+        { name: "dotreact.checkOnSave", defaultValue: "true", description: "Valida depois de salvar um arquivo .drx." },
+        { name: "dotreact.validation.debounceMs", defaultValue: "350", description: "Agrupa rajadas de salvamento entre 100 e 2000 ms." }
+      ]} />
+      <CodeBlock label="settings.json" code={'{\n  "dotreact.checkOnSave": true,\n  "dotreact.validation.debounceMs": 350\n}'} />
+      <h3>Segurança e desempenho</h3>
+      <p>A associação de linguagem permanece disponível em Restricted Mode, mas a extensão não executa o checker instalado pelo projeto enquanto o workspace não for confiável. Workspaces virtuais também não executam o toolchain local. O processo usa <code>execFile</code> sem shell, argumentos fechados, timeout e limite de saída.</p>
+      <p>O checker é resolvido pelo pacote publicado <code>@rafagouveia/dotreact-vite</code> fixado no projeto. A validação é coalescida por workspace, preserva diagnósticos de outras raízes e evita varrer o backend quando o loader está junto da rota.</p>
+      <div className="callout"><strong>Autoridade única</strong><span>O editor acelera o feedback, mas <code>dotreact check</code> e o build continuam sendo os gates oficiais. Desabilitar check-on-save não reduz a validação do CI.</span></div>
+      <h3>Publicação e versionamento</h3>
+      <p>Cada release executa teste unitário, inicia um Extension Host real, empacota o VSIX e publica exatamente o artefato testado por um ambiente GitHub protegido. Tags <code>vscode-v*</code> promovem versões estáveis; execuções manuais podem publicar um pré-release. GitHub OIDC e Microsoft Entra ID fornecem uma credencial curta ao job, sem PAT permanente ou secret dentro do pacote.</p>
     </>
   },
   {
@@ -632,14 +678,21 @@ app.MapDotReactFallback();`} />
       <h2>DotReactOptions</h2>
       <ReferenceTable rows={[
         { name: "RendererUrl", defaultValue: "http://127.0.0.1:5178", description: "Base HTTP do sidecar." },
+        { name: "RendererSocketPath", defaultValue: "automático por plataforma", description: "Named Pipe no Windows ou socket Unix em Linux/macOS, substituindo o TCP interno." },
+        { name: "RendererFrameSocketPath", defaultValue: "automático no renderer gerenciado", description: "Canal separado, persistente e multiplexado para SSR bufferizado; não é exposto na rede." },
+        { name: "RendererFrameConnectionCount", defaultValue: "1 no core; igual aos workers no facade", description: "Pool limitado de canais persistentes. Evita uma conexão por request e mantém o consumo previsível." },
+        { name: "RendererFrameMaxInFlightPerConnection", defaultValue: "32", description: "Limita renders ativos por canal e impede concorrência interna sem controle." },
+        { name: "RendererMaxQueuedRequests", defaultValue: "-1 (automático)", description: "Fila global de SSR bufferizado e streaming. O automático acompanha a capacidade ativa, limitado a 256; ao lotar, responde 503 sem reter memória indefinidamente." },
+        { name: "RendererOverloadRetryAfter", defaultValue: "1 s", description: "Valor de Retry-After enviado quando o budget de SSR está saturado." },
         { name: "RendererToken", defaultValue: "null", description: "Bearer compartilhado; produção gerenciada gera credencial em memória." },
         { name: "RequireRendererToken", defaultValue: "false", description: "Quando true exige token de ao menos 32 caracteres." },
         { name: "Development", defaultValue: "false", description: "Habilita diagnósticos e integração Vite de desenvolvimento." },
         { name: "RequestTimeout", defaultValue: "10 s", description: "Timeout de loader mais renderer." },
-        { name: "EnableStreaming", defaultValue: "false", description: "Ativa streaming SSR/Suspense pelo protocolo v2." },
+        { name: "EnableStreaming", defaultValue: "false no core; true no facade", description: "Habilita a capacidade. Cada página ainda precisa optar com [DotReactStreaming]." },
         { name: "PrerenderBuildId", defaultValue: "development", description: "Identificador imutável que isola artefatos SSG/ISR por deployment." },
         { name: "MaxStaticPaths", defaultValue: "10000", description: "Limite fail-closed do prerender manifest por request." },
         { name: "MaxSerializedPropsBytes", defaultValue: "512 KiB", description: "Bloqueia props grandes antes de SSR, hydration e navegação parcial." },
+        { name: "MaxCoalescedRenders", defaultValue: "2048", description: "Limite de renders idênticos em voo coordenados sem persistir HTML de usuário." },
         { name: "ClientScriptSrc", defaultValue: "/_dotreact/client.js", description: "Entry module de hydration." },
         { name: "ClientStyleSrc", defaultValue: "null", description: "Stylesheet global do client; o facade define o caminho do bundle ou do gateway Vite." },
         { name: "ClientRouteStyleSrc", defaultValue: "null", description: "Template da folha CSS bloqueante por rota; o facade configura automaticamente no desenvolvimento." },
@@ -651,15 +704,27 @@ app.MapDotReactFallback();`} />
       <h3>DotReactNodeRendererOptions</h3>
       <ReferenceTable rows={[
         { name: "Port", defaultValue: "5178", description: "Porta loopback do renderer." },
+        { name: "UseInterprocessSocket / SocketPath", defaultValue: "true", description: "Evita TCP entre ASP.NET e Node com Named Pipe no Windows ou socket Unix em Linux/macOS." },
+        { name: "UseFramedTransport / FrameSocketPath", defaultValue: "true", description: "Multiplexa SSR bufferizado em um canal autenticado por worker. HTTP continua atendendo streaming, health e fallback." },
         { name: "StartupTimeout / ShutdownTimeout", defaultValue: "30 s / 10 s", description: "Readiness e drain supervisionado." },
         { name: "NodeMemoryMb", defaultValue: "384", description: "Heap máximo do V8." },
-        { name: "MaxRestarts", defaultValue: "3 em 5 min", description: "Limite de crash loop, com backoff inicial de 1 s." }
+        { name: "WorkerCount", defaultValue: "CPUs disponíveis, máximo 4", description: "Pool isolado de renderers no mesmo loopback; escala SSR dinâmico sem expor o Node." },
+        { name: "MaxConcurrencyPerWorker", defaultValue: "32", description: "Limite de renders React simultâneos por worker, compartilhado com o backpressure do host." },
+        { name: "MaxRestarts", defaultValue: "3 em 5 min", description: "Limite de crash loop, com backoff inicial de 1 s." },
+        { name: "PublicEnvironmentVariables", defaultValue: "vazio", description: "Allowlist explícita de valores não secretos. O renderer nunca herda o environment privado do host ASP.NET." }
       ]} />
       <h3>Renderer Node</h3>
       <ReferenceTable rows={[
         { name: "DOTREACT_RENDERER_PORT", defaultValue: "5178", description: "Porta privada." },
+        { name: "DOTREACT_RENDERER_IPC", defaultValue: "true", description: "Permite desativar o transporte IPC nativo e voltar ao loopback autenticado para diagnóstico ou compatibilidade." },
+        { name: "DOTREACT_RENDERER_SOCKET", defaultValue: "gerado pelo host", description: "Caminho interno passado somente ao processo Node supervisionado." },
+        { name: "DOTREACT_RENDERER_FRAMED_PROTOCOL", defaultValue: "true", description: "Desative somente para diagnóstico ou renderer externo; retorna ao protocolo HTTP binário/JSON compatível." },
+        { name: "DOTREACT_RENDERER_FRAME_SOCKET", defaultValue: "gerado pelo host", description: "Named Pipe ou socket Unix privado usado pelo canal multiplexado." },
         { name: "DOTREACT_RENDERER_HOST", defaultValue: "127.0.0.1", description: "Produção aceita somente loopback." },
         { name: "DOTREACT_RENDERER_TOKEN", description: "Obrigatório em produção, mínimo 32 caracteres." },
+        { name: "DOTREACT_RENDERER_WORKERS", defaultValue: "CPUs disponíveis, máximo 4", description: "Override entre 1 e 32 workers para ajustar CPU e memória do host." },
+        { name: "DOTREACT_MAX_RENDER_QUEUE", defaultValue: "-1 (automático)", description: "Ajusta a fila global de SSR. Use 0 para fail-fast ou mantenha -1 para o framework dimensionar pela capacidade dos workers." },
+        { name: "DOTREACT_RENDERER_BINARY_PROTOCOL", defaultValue: "true no renderer gerenciado", description: "Mantém props em UTF-8 e envia HTML bruto no transporte bufferizado. Use false somente para diagnosticar compatibilidade com o endpoint JSON legado." },
         { name: "DOTREACT_SERVER_ENTRY", description: "Caminho do bundle SSR compilado." },
         { name: "DOTREACT_MAX_RENDER_BODY_BYTES", defaultValue: "1048576", description: "Limite do request interno." },
         { name: "DOTREACT_MAX_RENDER_RESPONSE_BYTES", defaultValue: "4194304", description: "Limite do response interno." },
@@ -667,18 +732,26 @@ app.MapDotReactFallback();`} />
         { name: "DOTREACT_KEEP_ALIVE_TIMEOUT_MS", defaultValue: "65000", description: "Keep-alive HTTP." },
         { name: "DOTREACT_RENDER_REQUEST_TIMEOUT_MS", defaultValue: "30000", description: "Timeout do servidor Node." },
         { name: "OTEL_EXPORTER_OTLP_ENDPOINT", description: "Ativa exportação OTLP no starter quando definida." },
-        { name: "DOTREACT_REDIS_CONNECTION", description: "Ativa stores Redis compartilhados de ISR/tags/idempotência." },
+        { name: "DOTREACT_REDIS_CONNECTION", description: "Ativa stores Redis compartilhados de ISR, tags, idempotência e revogação de sessões." },
+        { name: "DOTREACT_REDIS_KEY_PREFIX", description: "Override opcional do namespace Redis. O default é derivado do nome da aplicação para isolar produtos." },
         { name: "DOTREACT_BUILD_ID", description: "Build/revision imutável; possui fallbacks específicos de Azure." },
         { name: "DOTREACT_PRODUCTION_RUNTIME", defaultValue: "true fora de Development/Testing", description: "Override avançado para desativar supervisão Node e rate limiting em testes de integração; produção deve manter true." }
       ]} />
       <h3>DotReactDistributedCacheOptions</h3>
       <ReferenceTable rows={[
-        { name: "KeyPrefix", defaultValue: "dotreact:pages:v1:", description: "Namespace de cache por aplicação/schema." },
-        { name: "MaxEntryBytes", defaultValue: "1 MiB", description: "Limite do resultado serializado do loader." }
+        { name: "KeyPrefix", defaultValue: "dotreact:pages:v2:", description: "Namespace de cache por aplicação/schema." },
+        { name: "MaxEntryBytes", defaultValue: "1 MiB", description: "Limite do resultado serializado do loader." },
+        { name: "InvalidationTokenLifetime", defaultValue: "25 horas", description: "Retém versões de path/tag por mais tempo que qualquer entrada para impedir que valores invalidados voltem a ficar acessíveis." }
+      ]} />
+      <h3>DotReactRedisOptions</h3>
+      <ReferenceTable rows={[
+        { name: "ArtifactRetentionAfterStale", defaultValue: "1 dia", description: "Mantém o último ISR válido para recuperação após a janela stale." },
+        { name: "StaticArtifactRetention", defaultValue: "30 dias", description: "Limite de retenção de artefatos estáticos por build; um miss posterior regenera o conteúdo." }
       ]} />
       <h3>Actions e segurança</h3>
       <p>Configure <code>DotReactActionOptions</code> com <code>services.Configure&lt;DotReactActionOptions&gt;</code>. Defaults: request 256 KiB, replay 512 KiB, 1.024 entradas, chave até 128 caracteres e retenção de 10 minutos.</p>
-      <p><code>AddDotReactRateLimiting</code> usa por padrão 120 requests/minuto, sem fila, particionando usuários autenticados. <code>DotReactSecurityHeadersOptions</code> controla CSP, frame, referrer, permissions e COOP.</p>
+      <p><code>AddDotReactRateLimiting</code> usa por padrão 120 requests/minuto, sem fila, particionando usuários autenticados e protegendo também o otimizador de imagens. Cada processo aceita no máximo quatro transforms simultâneos por padrão. <code>DotReactSecurityHeadersOptions</code> controla CSP, frame, referrer, permissions e COOP; origins adicionais precisam ser HTTPS/WSS exatas.</p>
+      <div className="warning"><strong>Cache compartilhado</strong><span><code>[DotReactCache]</code> exige <code>[AllowAnonymous]</code>. Dados por usuário ou tenant precisam de cache privado com chave de identidade explícita.</span></div>
     </>
   },
   {
@@ -707,14 +780,14 @@ app.MapDotReactFallback();`} />
     body: <>
       <h2>Starter</h2>
       <p>Demonstra a experiência recomendada: <code>page.drx</code>, rota dinâmica, layout preservado, router/prefetch, loading, streaming/Suspense, ISR, imagem SkiaSharp, action gerada, CSP, OTel, Docker e renderer supervisionado.</p>
-      <CodeBlock label="Terminal" code={'npm run generate -w @dotreact/example-starter\nnpm run dev -w @dotreact/example-starter\n# http://127.0.0.1:5080'} />
+      <CodeBlock label="Terminal" code={'npm run generate -w @rafagouveia/dotreact-example-starter\nnpm run dev -w @rafagouveia/dotreact-example-starter\n# http://127.0.0.1:5080'} />
       <h2>CRUD SQLite</h2>
       <p>Demonstra a arquitetura atual de ponta a ponta: separação Domain/Application/Infrastructure/Presentation, rota <code>page.drx</code>, loader C# descoberto, SSR e hidratação, contratos e actions gerados, autorização por policy, revalidação automática e persistência SQLite. A API ASP.NET convencional permanece apenas como exemplo de Route Handler; a interface usa Server Actions tipadas.</p>
-      <CodeBlock label="Terminal" code={'npm run generate -w @dotreact/example-crud\nnpm run dev -w @dotreact/example-crud\n# http://127.0.0.1:5090'} />
+      <CodeBlock label="Terminal" code={'npm run generate -w @rafagouveia/dotreact-example-crud\nnpm run dev -w @rafagouveia/dotreact-example-crud\n# http://127.0.0.1:5090'} />
       <div className="warning"><strong>Segurança e persistência</strong><span>A autenticação de demonstração existe somente em Development/Testing e falha fechada em Production. Substitua-a por identidade real e migre o SQLite para persistência externa antes de escalar horizontalmente.</span></div>
       <h2>RSC experimental</h2>
       <p><code>examples/rsc</code> separa ambientes Vite rsc/ssr/client, renderiza um Server Component com modelo serializável, injeta Flight no HTML e hidrata um <code>"use client"</code> stateful. O guard rejeita <code>"use server"</code>: mutações continuam obrigatoriamente em C#.</p>
-      <CodeBlock label="Terminal" code={'npm run build -w @dotreact/example-rsc\nnpm run dev -w @dotreact/example-rsc\n# http://127.0.0.1:5110'} />
+      <CodeBlock label="Terminal" code={'npm run build -w @rafagouveia/dotreact-example-rsc\nnpm run dev -w @rafagouveia/dotreact-example-rsc\n# http://127.0.0.1:5110'} />
     </>
   },
   {
@@ -730,9 +803,15 @@ app.MapDotReactFallback();`} />
         { name: "Presentation", defaultValue: "Application + DotReact", description: "Loaders, actions e endpoints finos." },
         { name: "Renderer Node", defaultValue: "Protocol + React", description: "Importa módulos e produz HTML; não contém backend." }
       ]} />
-      <h3>Organização por feature</h3>
-      <CodeBlock label="Árvore recomendada" code={'Server/\n  Billing/\n    Domain/\n      Invoice.cs\n      Money.cs\n    Application/\n      IInvoiceStore.cs\n      GetInvoice.cs\n      CloseInvoice.cs\n    Infrastructure/\n      EfInvoiceStore.cs\n    Actions/\n      CloseInvoiceAction.cs\n    Composition/\n      BillingServices.cs\napp/\n  billing/[id]/\n    page.server.cs\n    page.drx'} />
+      <h3>App Router e backend SOLID</h3>
+      <CodeBlock label="Contrato obrigatório + exemplo livre de backend" code={'app/                           # contrato do framework\n  _components/\n  billing/[id]/\n    _components/\n    _actions/                   # convenção, não obrigação\n      CloseInvoiceAction.server.cs\n    page.server.cs\n    page.drx\nServer/                        # estrutura escolhida pelo produto\n  Modules/                     # exemplo: vertical slices\n  Program.cs\npublic/                        # assets administrados pelo App Router\nsrc/                           # somente contratos gerados'} />
       <p>Loader, Server Action, Minimal API ou controller é um adapter de Presentation: lê o transporte, aplica autorização, chama um caso de uso e mapeia o resultado. Cada caso de uso público fica em seu próprio arquivo e depende de portas pequenas definidas pela Application. Domain não conhece ASP.NET, banco, serialização ou React; Infrastructure implementa as portas; Composition escolhe as implementações.</p>
+      <p>Pastas iniciadas por <code>_</code> são privadas e nunca viram segmentos de URL. <code>dotreact architecture</code> rejeita React fora do <code>app/</code>. Organização de C# e assets ASP.NET específicos dentro de <code>Server/</code> recebem no máximo recomendações e nunca invalidam o build.</p>
+      <div className="callout"><strong>Server é livre</strong><span>Você pode usar vertical slices, Clean Architecture, módulos, controllers, Minimal APIs ou uma estrutura simples. O framework verifica contratos técnicos, não nomes de pastas do backend.</span></div>
+      <h3>Por que não src/app?</h3>
+      <p>O Next.js aceita tanto <code>app/</code> quanto <code>src/app/</code>; <code>src</code> é opcional. Na linha estável atual, DotReact usa somente <code>app/</code> na raiz e reserva <code>src/</code> para contratos gerados. Isso reduz raízes ambíguas entre o source generator C#, Vite, SSR e hidratação. Não é uma limitação do React, mas uma convenção explícita do framework.</p>
+      <h3>Jobs e cron sem execução duplicada</h3>
+      <p>Jobs reutilizam casos de uso da Application; não acessam React nem o renderer. Trabalho leve e descartável pode usar <code>BackgroundService</code> em <code>Server/Jobs</code>. Processamento durável ou agendado deve rodar em worker dedicado, Azure Container Apps Jobs, Azure Functions ou scheduler escolhido pela aplicação. Assim, escalar o web para três réplicas não executa a mesma rotina três vezes.</p>
       <div className="warning"><strong>Interface não é sinônimo de SOLID</strong><span>Abstraia efeitos voláteis — persistência, APIs, filas, arquivos, identidade e tempo. Não crie interface para toda classe, repositório genérico ou serviço amplo. O objetivo é responsabilidade e direção de dependência, não quantidade de arquivos.</span></div>
       <h3>Envelope SSR v1</h3>
       <CodeBlock label="Request interno" code={'{\n  "protocolVersion": 1,\n  "requestId": "trace-id",\n  "moduleId": "products/[id]/page",\n  "url": "/products/42",\n  "props": { "id": 42, "name": "Produto" },\n  "renderMode": "ssr"\n}'} />
@@ -754,10 +833,11 @@ app.MapDotReactFallback();`} />
         <article><b>Assets</b><span>Fingerprinted: immutable; nomes estáveis: revalidate.</span></article>
       </div>
       <p>SSR personalizado e actions usam <code>private,no-store</code>. Somente páginas anotadas para prerender entram no store de HTML público; o artefato é rejeitado se contiver indicadores de antiforgery/cookie.</p>
-      <p><code>UseDotReactSecurityHeaders</code> gera CSP estrita com nonce por requisição, nosniff, frame, referrer, permissions e COOP. Ajuste origins conscientemente para CDN ou integrações externas.</p>
+      <p><code>UseDotReactSecurityHeaders</code> gera CSP estrita com nonce por requisição, nosniff, frame, referrer, permissions, COOP e HSTS no facade de produção. Scripts HTTPS externos precisam de Subresource Integrity; origins adicionais aceitam somente HTTPS/WSS exatas.</p>
+      <p>O cookie antiforgery de produção usa <code>Secure</code>, <code>HttpOnly</code> e <code>SameSite=Strict</code>. Em múltiplas réplicas, persista e proteja o key ring do ASP.NET Core Data Protection para que autenticação e antiforgery sejam consistentes entre instâncias.</p>
       <h3>Container e Azure</h3>
       <p>O Dockerfile usa Node e ASP.NET no mesmo container, executa como usuário não-root e expõe 8080. Os templates Bicep cobrem App Service e Container Apps; deployment real e registry privado dependem de credenciais externas.</p>
-      <p><code>@dotreact/adapter/azure</code> emite manifest determinístico para App Service/Container Apps, valida streaming, imagem, shared cache e PPR de forma fail-closed e nunca grava valores de secrets. PPR no adapter exige Azure Managed Redis explicitamente.</p>
+      <p><code>@rafagouveia/dotreact-adapter/azure</code> emite manifest determinístico para App Service/Container Apps, valida streaming, imagem, shared cache e PPR de forma fail-closed e nunca grava valores de secrets. PPR no adapter exige Azure Managed Redis explicitamente.</p>
       <p>Em múltiplas réplicas, configure <code>DOTREACT_REDIS_CONNECTION</code> para o Azure Managed Redis e <code>DOTREACT_BUILD_ID</code> para o ID imutável do rollout. O starter também usa <code>CONTAINER_APP_REVISION</code> ou <code>WEBSITE_DEPLOYMENT_ID</code> como fallback.</p>
     </>
   },
@@ -769,10 +849,14 @@ app.MapDotReactFallback();`} />
       <h2>Fontes estáveis</h2>
       <div className="meter"><span>ActivitySource + Meter</span><strong>DotReact.AspNetCore</strong><small>renderer, actions, props e Web Vitals, sem conteúdo sensível como labels</small></div>
       <div className="meter"><span>Node host meter</span><strong>DotReact.Hosting.Node</strong><small>startup, unexpected exits, restarts e crash-loop limit</small></div>
-      <p>O starter registra ASP.NET, HttpClient e fontes DotReact. O runtime coleta CLS, INP, LCP e TTFB, envia amostras limitadas ao endpoint same-origin do framework e continua o trace do SSR sem transformar URL ou request ID em label. Defina <code>OTEL_EXPORTER_OTLP_ENDPOINT</code> para adicionar o exporter OTLP; sem a variável, nenhuma conexão é tentada.</p>
+      <p>DotReact publica ActivitySource e Meter estáveis. Quando <code>OTEL_EXPORTER_OTLP_ENDPOINT</code> está definido, o facade instala instrumentação de ASP.NET, HttpClient e as fontes DotReact; sem exporter, não cria um pipeline que processaria spans apenas para descartá-los. O runtime do navegador coleta CLS, INP, LCP e TTFB com amostras e labels limitados.</p>
+      <h3>SSR e hidratação seletiva</h3>
+      <p>Toda página DRX é renderizada no servidor. No build de produção, o compilador percorre página, layouts e componentes locais: hooks, eventos JSX, APIs do navegador, <code>"use client"</code>, pacote desconhecido ou import não resolvido mantêm a hidratação. Quando a rota é comprovadamente server-only, o documento não envia bootstrap de props, modulepreload nem runtime React. Em desenvolvimento, todas as rotas hidratam para preservar Fast Refresh.</p>
       <h3>Ferramentas de medição</h3>
-      <CodeBlock label="Terminal" code={'dotreact analyze --max-client-kb 100 --max-initial-client-kb 75 --max-async-chunk-kb 30 --max-css-kb 40 --max-ssr-kb 50\ndotreact benchmark http://127.0.0.1:5080/ --requests 500 --concurrency 16'} />
-      <p>O analyzer separa total, JavaScript inicial, maior chunk assíncrono, CSS e SSR. O build gera um manifesto privado por rota; ASP.NET coloca CSS fingerprintado e modulepreload no head antes do HTML, sem configuração na aplicação. Em desenvolvimento, <code>Server-Timing</code> mostra loader/renderer e <code>X-DotReact-Props-Bytes</code> mostra o custo da fronteira. O benchmark relata failures, p50, p95 e p99.</p>
+      <CodeBlock label="Terminal" code={'dotreact analyze --max-client-kb 100 --max-initial-client-kb 75 --max-async-chunk-kb 30 --max-css-kb 40 --max-ssr-kb 50\ndotreact benchmark http://127.0.0.1:5080/ --requests 500 --concurrency 16\ndotreact benchmark https://candidate.example.com/ --compare https://baseline.example.com/ --max-p95-ratio 1.25 --min-throughput-ratio 0.80 --json\n# suite equivalente DotReact × Razor × Blazor × Next interativo/RSC\nnpm run benchmark:compare'} />
+      <p>O analyzer separa total, JavaScript inicial, maior chunk assíncrono, CSS e SSR. O build gera um manifesto privado por rota; ASP.NET coloca CSS fingerprintado e modulepreload no head antes do HTML. Em desenvolvimento, <code>Server-Timing</code> mostra loader/renderer, <code>X-DotReact-Props-Bytes</code> mede a fronteira e <code>X-DotReact-Render-Mode</code> identifica SSR, streaming, prerender ou navegação. Esses diagnósticos não são expostos em produção.</p>
+      <p>O benchmark separa TTFB do tempo da resposta completa, limita o body, relata falhas, bytes, throughput, média, p50/p95/p99, agrega cada métrica pela mediana e publica a dispersão entre rodadas. Antes da carga, valida título, vinte linhas e modelo de interação; durante a suíte, alterna a ordem dos alvos. SSR server-only e SSR interativo são categorias diferentes. Cache e ISR não entram no ranking enquanto todos os concorrentes não tiverem documento, chave e TTL equivalentes.</p>
+      <p>Resultados públicos exigem build de produção, um worker de renderer, runner Linux dedicado e limpo, dez rodadas e dados brutos. A home mostra ganhos e perdas com o mesmo peso. Execuções locais são rotuladas como referência de engenharia: não medem hidratação no navegador, CPU/RSS, custo Azure nem substituem Lighthouse e Web Vitals.</p>
     </>
   },
   {
@@ -800,7 +884,7 @@ app.MapDotReactFallback();`} />
       <h2>Escopo honesto</h2>
       <div className="status-grid">
         <article><b className="done">Implementado</b><p>Streaming SSR/Suspense, hydration, router/prefetch, loading, layouts tipados com props C#, queries escalares/coleções, SSG/ISR/export automático, imagem, Redis, multi-assembly, policies, actions, TypeGen, VSIX, segurança, OTel, CLI e adapters Azure.</p></article>
-        <article><b className="later">Experimental funcional</b><p><code>@dotreact/rsc</code> usa o plugin oficial Vite com versões pinadas; o exemplo entrega HTML + Flight real. PPR gera shell Suspense estático e retoma o hole com APIs React 19.2. A integração segue isolada até o contrato de bundler React ter estabilidade SemVer.</p></article>
+        <article><b className="later">Experimental funcional</b><p><code>@rafagouveia/dotreact-rsc</code> usa o plugin oficial Vite com versões pinadas; o exemplo entrega HTML + Flight real. PPR gera shell Suspense estático e retoma o hole com APIs React 19.2. A integração segue isolada até o contrato de bundler React ter estabilidade SemVer.</p></article>
         <article><b className="external">Gate externo</b><p>Publicar npm/NuGet, scan final da imagem e validar deployments com registry e credenciais Azure.</p></article>
       </div>
       <h3>Decisões deliberadas</h3>
@@ -808,12 +892,15 @@ app.MapDotReactFallback();`} />
         <li>React Server Components/Flight funcionam no laboratório opt-in, mas não são anunciados como API DRX estável.</li>
         <li>Não há C# executado dentro de JSX.</li>
         <li>Cache HTML é opt-in por <code>DotReactPrerender</code> e proíbe representação personalizada.</li>
-        <li>Invalidação automática usa paths exatos; tags estão disponíveis no store de prerender.</li>
+        <li>Invalidação automática aceita paths e tags; stores locais e Redis tornam versões antigas inalcançáveis sem enumerar chaves.</li>
         <li>Idempotência/ISR distribuídos usam o plugin opcional <code>DotReact.Redis</code>; sem configuração, os stores são locais.</li>
         <li>SQLite não é recomendada para múltiplas réplicas.</li>
       </ul>
       <h3>Lacunas em relação ao Next.js</h3>
       <p>A matriz mantida em <a href="#next-feature-status">Paridade e roadmap</a> é a fonte de verdade para migração. Fontes locais e estratégias de Script já são estáveis. RSC e PPR permanecem experimentais; Parallel/Intercepting Routes, MDX oficial, fontes remotas com métricas automáticas e cache arbitrário de funções estão no roadmap. Edge Runtime JavaScript permanece fora de escopo porque o backend público do DotReact é ASP.NET Core.</p>
     </>
-  }
+  },
+  ...guideDocs,
+  ...securityDocs,
+  ...deploymentDocs
 ];

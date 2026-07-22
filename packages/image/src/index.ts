@@ -14,7 +14,8 @@ export interface ImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, "a
   readonly alt: string;
   readonly src: string;
   readonly width: number;
-  readonly height?: number;
+  /** Required to reserve the aspect ratio before CSS and image bytes arrive. */
+  readonly height: number;
   readonly quality?: number;
   readonly format?: DotReactImageFormat;
   readonly endpoint?: string;
@@ -78,6 +79,7 @@ export function Image({
   decoding,
   ...attributes
 }: ImageProps): ReactElement {
+  positiveInteger(height, "height", 8192);
   const optimizedSource = buildImageUrl({
     src,
     width,
@@ -90,7 +92,7 @@ export function Image({
     alt,
     src: optimizedSource,
     width,
-    ...(height === undefined ? {} : { height }),
+    height,
     loading: loading ?? (priority ? "eager" : "lazy"),
     decoding: decoding ?? "async",
     ...(priority ? { fetchPriority: "high" as const } : {})

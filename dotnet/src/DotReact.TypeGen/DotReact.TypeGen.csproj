@@ -3,6 +3,10 @@
     <OutputType>Exe</OutputType>
     <AssemblyName>dotreact-typegen</AssemblyName>
     <RootNamespace>DotReact.TypeGen</RootNamespace>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>dotreact-typegen</ToolCommandName>
+    <PackageId>DotReact.TypeGen.Tool</PackageId>
+    <Description>DotReact command-line tool for generating and validating C# to TypeScript contracts.</Description>
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
