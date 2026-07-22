@@ -2,7 +2,7 @@
 
 [![Quality](https://github.com/rafagouveia/dotReact/actions/workflows/ci.yml/badge.svg)](https://github.com/rafagouveia/dotReact/actions/workflows/ci.yml)
 [![Documentation](https://github.com/rafagouveia/dotReact/actions/workflows/pages.yml/badge.svg)](https://rafagouveia.github.io/dotReact/)
-[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-0b1636.svg)](LICENSE)
+[![License: MPL 2.0](https://img.shields.io/badge/license-MPL--2.0-blue.svg)](LICENSE)
 
 DotReact is an experimental full-stack framework that keeps ASP.NET Core in
 charge of HTTP, authentication, services, and data while React renders the UI
@@ -13,12 +13,11 @@ reference applications. The runtime boundary and production lifecycle are
 implemented; coordinated private npm and NuGet packages are available at version `0.1.4`.
 Public surfaces follow the repository's [compatibility and deprecation policy](COMPATIBILITY.md).
 
-The public source is available under the
-[PolyForm Noncommercial License 1.0.0](LICENSE). It may be studied, modified and
-redistributed for permitted noncommercial purposes; commercial use requires a
-separate license from Black Red Solutions. This is a source-available project,
-not an OSI-approved open-source project. Releases through `0.1.4` remain under
-the MPL 2.0 terms under which they were originally distributed; see [NOTICE](NOTICE).
+The framework is open source under the [Mozilla Public License 2.0](LICENSE).
+Applications may use DotReact in production and may be licensed or sold under
+commercial or proprietary terms. Distributed modifications to covered DotReact
+files remain available under MPL 2.0 with their notices preserved. The DotReact
+name and logos are governed separately by the [trademark policy](TRADEMARKS.md).
 
 ## What works now
 
@@ -288,10 +287,11 @@ through the private process in [SECURITY.md](SECURITY.md). Pull requests must
 keep the full quality gate green and update Portuguese and English documentation
 together when public behavior changes.
 
-Contributor credit is preserved through Git history, release notes and required
-notices. Contributions accepted after the license transition are provided under
-PolyForm Noncommercial 1.0.0. Commercial use, resale and commercial hosted use
-require separate written terms from Black Red Solutions.
+Contributor credit is preserved through Git history, release notes and license
+notices. MPL 2.0 permits commercial use; its file-level copyleft protects
+distributed changes to DotReact itself without forcing unrelated application
+files to use the same license. Official scaffolds include a third-party notice
+that applications should preserve when they redistribute the framework.
 
 Routine CI intentionally validates code, contracts, documentation, dependencies
 and VSIX packaging only. Infrastructure compilation, container builds and full

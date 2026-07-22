@@ -2,7 +2,7 @@
   "name": "@rafagouveia/dotreact-rsc",
   "version": "0.1.4-experimental.0",
   "description": "Experimental React Server Components integration for DotReact.",
-  "license": "PolyForm-Noncommercial-1.0.0",
+  "license": "MPL-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rafagouveia/dotReact.git",

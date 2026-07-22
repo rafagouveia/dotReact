@@ -98,12 +98,11 @@ responsibilities or makes compatibility review difficult.
 ## License and contributor credit
 
 By submitting a contribution, you confirm that you have the right to provide it
-and agree that it is licensed under the repository's
-[PolyForm Noncommercial License 1.0.0](LICENSE). Keep existing copyright,
-license and [required notice](NOTICE) text intact.
+and agree that it is licensed under the repository's [MPL 2.0](LICENSE). Keep
+existing copyright, license and [notice](NOTICE) text intact.
 
-The repository is public and welcomes pull requests, but it is source-available
-rather than OSI-approved open source. The license permits study, modification
-and redistribution for noncommercial purposes. Commercial use requires separate
-written permission from Black Red Solutions. Releases through `0.1.4` retain
-the MPL 2.0 rights under which they were originally distributed.
+MPL 2.0 permits open and commercial use. If covered DotReact files are modified
+and distributed, those files remain available under MPL 2.0; unrelated files in
+an application using DotReact are not automatically covered. Contributor credit
+is retained in Git history and may also appear in release notes. Use of the
+DotReact name and logos must follow the [trademark policy](TRADEMARKS.md).

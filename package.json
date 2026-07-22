@@ -2,7 +2,7 @@
   "name": "dotreact-monorepo",
   "version": "0.1.4",
   "private": true,
-  "license": "PolyForm-Noncommercial-1.0.0",
+  "license": "MPL-2.0",
   "type": "module",
   "workspaces": [
     "packages/*",
@@ -13,7 +13,7 @@
     "build:tooling": "npm run build -w @rafagouveia/dotreact-protocol && npm run build -w @rafagouveia/dotreact-client && npm run build -w @rafagouveia/dotreact-renderer && npm run build -w @rafagouveia/dotreact-image && npm run build -w @rafagouveia/dotreact-font && npm run build -w @rafagouveia/dotreact-script && npm run build -w @rafagouveia/dotreact-adapter && npm run build -w @rafagouveia/dotreact-rsc && npm run build -w @rafagouveia/dotreact-vite && npm run build -w @rafagouveia/dotreact-cli && npm run build -w dotreact-vscode",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "node --test scripts/package-npm.test.mjs && npm run test --workspaces --if-present && dotnet test dotnet/DotReact.slnx -c Release && dotnet test examples/crud/Server.Tests/Server.Tests.csproj -c Release",
+    "test": "node --test scripts/*.test.mjs && npm run test --workspaces --if-present && dotnet test dotnet/DotReact.slnx -c Release && dotnet test examples/crud/Server.Tests/Server.Tests.csproj -c Release",
     "dev": "npm run dev -w @rafagouveia/dotreact-example-starter",
     "create": "npm run start -w @rafagouveia/dotreact-cli --",
     "docs:dev": "npm --prefix docs run dev",

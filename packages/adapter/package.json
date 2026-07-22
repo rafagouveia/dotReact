@@ -2,7 +2,7 @@
   "name": "@rafagouveia/dotreact-adapter",
   "version": "0.1.4",
   "description": "Deployment adapters for DotReact applications.",
-  "license": "PolyForm-Noncommercial-1.0.0",
+  "license": "MPL-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rafagouveia/dotReact.git",

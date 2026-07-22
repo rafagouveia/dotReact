@@ -239,6 +239,7 @@ test("minimal template is self-contained and omits demo actions and routes", () 
     for (const repositoryFile of [
       ".gitignore", ".gitattributes", ".editorconfig", ".dockerignore", ".npmrc", ".nvmrc",
       "global.json", "Directory.Build.props", "NuGet.config", ".config/dotnet-tools.json", ".env.example", "AGENTS.md",
+      "THIRD-PARTY-NOTICES.md",
       "docs/ai/PROJECT.md", "docs/ai/DOTREACT.md", "docs/ai/01-ARCHITECTURE.md",
       "docs/ai/02-DRX-ROUTING.md", "docs/ai/03-SSR-HYDRATION.md",
       "docs/ai/04-DATA-ACTIONS-SECURITY.md", "docs/ai/05-CACHING-PRODUCTION.md",
@@ -249,6 +250,7 @@ test("minimal template is self-contained and omits demo actions and routes", () 
       "deploy/azure/container-apps.bicep", "deploy/azure/container-apps.parameters.example.json",
       "deploy/azure/README.md"
     ]) assert.equal(existsSync(path.join(app, repositoryFile)), true, `missing ${repositoryFile}`);
+    assert.match(readFileSync(path.join(app, "THIRD-PARTY-NOTICES.md"), "utf8"), /Mozilla Public License 2\.0/);
     const gitignore = readFileSync(path.join(app, ".gitignore"), "utf8");
     assert.match(gitignore, /node_modules\//);
     assert.match(gitignore, /\[Bb\]in\//);
@@ -265,6 +267,8 @@ test("minimal template is self-contained and omits demo actions and routes", () 
     assert.equal(existsSync(path.join(app, "vendor")), false,
       "published package projects must not copy framework sources into the application");
     const generatedPackage = JSON.parse(readFileSync(path.join(app, "package.json"), "utf8"));
+    assert.equal(generatedPackage.license, "UNLICENSED",
+      "the framework must not choose a commercial application's source license");
     assert.equal(generatedPackage.devDependencies["@rafagouveia/dotreact-cli"], "0.1.4");
     assert.equal(generatedPackage.dependencies["@rafagouveia/dotreact-image"], "0.1.4");
     assert.equal(generatedPackage.dependencies["@rafagouveia/dotreact-font"], "0.1.4");

@@ -4,7 +4,7 @@
   "description": "%extension.description%",
   "version": "0.2.0",
   "publisher": "rafagouveia",
-  "license": "PolyForm-Noncommercial-1.0.0",
+  "license": "MPL-2.0",
   "icon": "assets/dotreact-extension-icon.png",
   "pricing": "Free",
   "homepage": "https://github.com/rafagouveia/dotReact#readme",
