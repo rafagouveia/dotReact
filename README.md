@@ -272,9 +272,12 @@ npm run docs:dev
 Open `http://127.0.0.1:5100`. Validate the production documentation bundle with
 `npm run docs:typecheck` and `npm run docs:build`.
 
-GitHub Pages is deployed only from `main`. The workflow obtains the repository
-base path from GitHub, so scripts, CSS and images work both at `/` and under
-`/dotReact/` without hard-coded origins.
+The documentation workflow always builds and validates changes from `main`.
+Publishing is opt-in so a private repository without paid GitHub Pages support
+does not leave CI red: enable Pages with GitHub Actions as its source and create
+the repository variable `DOTREACT_PUBLISH_PAGES=true`. The workflow then obtains
+the repository base path from GitHub, so scripts, CSS and images work both at
+`/` and under `/dotReact/` without hard-coded origins.
 
 ## Contributing
 
