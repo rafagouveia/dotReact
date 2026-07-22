@@ -8,9 +8,9 @@ DotReact is an experimental full-stack framework that keeps ASP.NET Core in
 charge of HTTP, authentication, services, and data while React renders the UI
 on the server and hydrates it in the browser.
 
-This repository contains a reusable pre-release framework, CLI scaffold and three
+This repository contains a reusable experimental framework, CLI scaffold and three
 reference applications. The runtime boundary and production lifecycle are
-implemented; coordinated private npm and NuGet packages are available at version `0.1.3`.
+implemented; coordinated private npm and NuGet packages are available at version `0.1.4`.
 Public surfaces follow the repository's [compatibility and deprecation policy](COMPATIBILITY.md).
 
 The source is licensed under [MPL 2.0](LICENSE). Applications may use DotReact,
@@ -86,22 +86,31 @@ the counter proves that React hydrated the same tree in the browser.
 
 ## Create a project
 
-Using the published private CLI package:
+Authenticate the private feed once, then install the CLI launcher once:
 
 ```powershell
-npm exec --yes --package=@rafagouveia/dotreact-cli@0.1.3 -- dotreact create my-app --template starter
+npm install --global @rafagouveia/dotreact-cli@0.1.4 --registry=https://npm.pkg.github.com
+dotreact create my-app --template starter
 cd my-app
 npm install
-npm run dev
+dotreact doctor
+dotreact dev
 ```
 
 Generated projects pin the CLI, browser runtime, renderer, Vite integration,
 NuGet hosting libraries and local TypeGen tool to one exact DotReact version.
+The global command automatically delegates to that project-local CLI, so a
+machine can work on projects using different DotReact versions without drift.
 Framework source is not copied into product repositories. Use
 `dotreact upgrade <version>` to align every runtime surface before reinstalling
 and running the release gates.
 
-Private prerelease packages are hosted under the `rafagouveia` GitHub Packages
+CI should continue using package scripts or `npm exec -- dotreact`: it must not
+depend on a mutable global installation. If the shell cannot find the launcher,
+verify `Get-Command dotreact` after reopening it; the project-local fallback is
+`npm exec -- dotreact doctor`.
+
+Private 0.x packages are hosted under the `rafagouveia` GitHub Packages
 namespace. Publishing remains manual and opt-in; normal CI never republishes a
 package. See [Private GitHub Packages](docs/private-packages.md)
 for package coordinates, token permissions, local archive validation and cost
@@ -126,13 +135,13 @@ resulting lockfile before the first push.
 Inside a generated project, the complete lifecycle is:
 
 ```powershell
-npm exec -- dotreact doctor
-npm exec -- dotreact dev
-npm exec -- dotreact generate page catalog/[slug]
-npm exec -- dotreact generate action SaveCatalog
-npm exec -- dotreact sync
-npm exec -- dotreact check
-npm exec -- dotreact build
+dotreact doctor
+dotreact dev
+dotreact generate page catalog/[slug]
+dotreact generate action SaveCatalog
+dotreact sync
+dotreact check
+dotreact build
 dotreact workspace status
 dotreact workspace reveal
 dotreact workspace focus

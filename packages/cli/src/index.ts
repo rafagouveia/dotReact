@@ -303,7 +303,7 @@ async function applyMinimalTemplate(target: string): Promise<void> {
     }],
     actions: []
   }, null, 2)}\n`);
-  await writeFile(resolve(target, "README.md"), `# DotReact minimal project\n\nASP.NET Core owns HTTP, security and data; React renders on the server and hydrates in the browser. Keep routes, route-private components and Server Actions in \`app/\`; keep Domain, Application, Infrastructure and jobs in \`Server/\`; keep public assets in \`public/\`. Framework runtime dependencies are pinned npm and NuGet packages; do not copy framework source into the application.\n\nThe scaffold is repository-ready but deliberately does not run \`git init\`. Authenticate npm and NuGet for the private GitHub Packages feeds, run \`npm install\`, and commit the resulting \`package-lock.json\` before relying on the included CI workflow. Repository defaults cover Git, editors, Node/npm, .NET, Docker and dependency updates.\n\n\`\`\`powershell\nnpm install\nnpm exec -- dotreact doctor\nnpm exec -- dotreact dev\n\`\`\`\n\nGenerate application artifacts without overwriting existing files:\n\n\`\`\`powershell\nnpm exec -- dotreact generate page catalog/[slug]\nnpm exec -- dotreact generate layout catalog\nnpm exec -- dotreact generate component CatalogCard --route catalog\nnpm exec -- dotreact generate action SaveCatalog --route catalog\nnpm exec -- dotreact sync\nnpm exec -- dotreact check\n\`\`\`\n\nUse \`npm exec -- dotreact build\`, \`npm exec -- dotreact analyze\` and \`npm exec -- dotreact start\` for the production lifecycle. Run \`npm run verify\` before integration. Set \`OTEL_EXPORTER_OTLP_ENDPOINT\` to export DotReact traces and metrics through OTLP. Update the pinned DotReact package versions together and validate with \`npm run verify\`.\n`);
+  await writeFile(resolve(target, "README.md"), `# DotReact minimal project\n\nASP.NET Core owns HTTP, security and data; React renders on the server and hydrates in the browser. Keep routes, route-private components and Server Actions in \`app/\`; keep Domain, Application, Infrastructure and jobs in \`Server/\`; keep public assets in \`public/\`. Framework runtime dependencies are pinned npm and NuGet packages; do not copy framework source into the application.\n\nThe scaffold is repository-ready but deliberately does not run \`git init\`. Authenticate npm and NuGet for the private GitHub Packages feeds, run \`npm install\`, and commit the resulting \`package-lock.json\` before relying on the included CI workflow. Repository defaults cover Git, editors, Node/npm, .NET, Docker and dependency updates. Install the global launcher once; it delegates commands to this project's pinned local CLI.\n\n\`\`\`powershell\nnpm install\ndotreact doctor\ndotreact dev\n\`\`\`\n\nGenerate application artifacts without overwriting existing files:\n\n\`\`\`powershell\ndotreact generate page catalog/[slug]\ndotreact generate layout catalog\ndotreact generate component CatalogCard --route catalog\ndotreact generate action SaveCatalog --route catalog\ndotreact sync\ndotreact check\n\`\`\`\n\nUse \`dotreact build\`, \`dotreact analyze\` and \`dotreact start\` for the production lifecycle. Run \`npm run verify\` before integration. Set \`OTEL_EXPORTER_OTLP_ENDPOINT\` to export DotReact traces and metrics through OTLP. Update the pinned DotReact package versions together and validate with \`npm run verify\`.\n`);
 }
 
 function run(executable: string, commandArgs: string[], cwd = process.cwd(), env?: NodeJS.ProcessEnv): Promise<void> {
@@ -561,6 +561,9 @@ async function doctor(): Promise<void> {
     };
     if (runtime.schemaVersion !== 1 || typeof runtime.frameworkVersion !== "string")
       throw new Error("Managed runtime metadata is invalid. Run dotreact upgrade from a valid framework checkout.");
+    const cliVersion = await frameworkVersion();
+    if (runtime.frameworkVersion !== cliVersion)
+      throw new Error(`DotReact CLI ${cliVersion} cannot diagnose managed runtime ${runtime.frameworkVersion}. Use the project-local CLI.`);
     process.stdout.write(`[dotreact] Managed runtime ${runtime.frameworkVersion}.\n`);
   } else {
     const dependencies = { ...packageJson.dependencies, ...packageJson.devDependencies };
@@ -575,6 +578,9 @@ async function doctor(): Promise<void> {
     if (versions.size !== 1)
       throw new Error("DotReact npm packages must use one aligned framework version. Run dotreact upgrade <version>.");
     const frameworkPackageVersion = [...versions][0]!;
+    const cliVersion = await frameworkVersion();
+    if (frameworkPackageVersion !== cliVersion)
+      throw new Error(`DotReact CLI ${cliVersion} does not match project packages ${frameworkPackageVersion}. Run npm install and use the project-local CLI.`);
     const projectSource = await readFile(resolve(root, "Server/Server.csproj"), "utf8");
     for (const packageName of ["DotReact.Hosting", "DotReact.AppGenerator"]) {
       const reference = new RegExp(`<PackageReference Include="${packageName.replace(".", "\\.")}" Version="([^\"]+)"`, "u")
@@ -918,6 +924,7 @@ async function exportStatic(values: string[]): Promise<void> {
 function help(): void {
   process.stdout.write([
     "DotReact CLI",
+    "  dotreact version                         Show the effective CLI version",
     "  dotreact create <name> [--template starter|minimal]",
     "  dotreact templates",
     "  dotreact generate page <route> [--dry-run]",
@@ -947,7 +954,9 @@ function help(): void {
 }
 
 try {
-  if (command === "create") await create(args[0], optionValue(args, "--template"));
+  if (command === "version" || command === "--version" || command === "-v")
+    process.stdout.write(`${await frameworkVersion()}\n`);
+  else if (command === "create") await create(args[0], optionValue(args, "--template"));
   else if (command === "templates") process.stdout.write("Available templates:\n  starter  SSR, hydration, actions, Docker and Azure health checks\n  minimal  One SSR page, hydration, boundaries and production runtime\n");
   else if (command === "generate" || command === "add") await generate(args);
   else if (command === "sync") await sync(args);

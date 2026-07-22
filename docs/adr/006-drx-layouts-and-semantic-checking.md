@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted for the second opt-in DRX slice.
+Accepted. ADR 014 moved the canonical pages root from `src/pages` to `app/`;
+the composition and semantic-checking guarantees in this record remain current.
 
 ## Decision
 

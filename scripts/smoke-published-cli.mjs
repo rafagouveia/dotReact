@@ -38,8 +38,13 @@ await waitForPackage();
 
 const smokeRoot = await mkdtemp(join(tmpdir(), "dotreact-published-cli-"));
 const projectDirectory = join(smokeRoot, "published-app");
+const globalPrefix = join(smokeRoot, "global-cli");
+const dotreact = process.platform === "win32"
+  ? join(globalPrefix, "dotreact.cmd")
+  : join(globalPrefix, "bin", "dotreact");
 try {
-  run(npm, ["exec", "--yes", `--package=${cliPackage}`, "--", "dotreact", "create", "published-app", "--template", "minimal"], smokeRoot);
+  run(npm, ["install", "--global", cliPackage, `--prefix=${globalPrefix}`, `--registry=${registry}`], smokeRoot);
+  run(dotreact, ["create", "published-app", "--template", "minimal"], smokeRoot);
   if (existsSync(join(projectDirectory, "vendor"))) throw new Error("Published scaffolds must not contain vendored framework source.");
 
   run("dotnet", [
@@ -50,10 +55,10 @@ try {
     "--store-password-in-clear-text"
   ], projectDirectory);
   run(npm, ["install"], projectDirectory);
-  run(npm, ["exec", "--", "dotreact", "doctor"], projectDirectory);
+  run(dotreact, ["doctor"], projectDirectory);
   run(npm, ["run", "typecheck"], projectDirectory);
-  run(npm, ["run", "build"], projectDirectory);
-  process.stdout.write(`[dotreact] ${cliPackage} created, installed, diagnosed and built a clean project.\n`);
+  run(dotreact, ["build"], projectDirectory);
+  process.stdout.write(`[dotreact] ${cliPackage} direct command created, delegated, diagnosed and built a clean project.\n`);
 } finally {
   rmSync(smokeRoot, { recursive: true, force: true });
 }
