@@ -22,7 +22,7 @@
     "@rafagouveia/dotreact-protocol": "0.1.1",
     "@rafagouveia/dotreact-renderer": "0.1.1",
     "react": "19.2.7",
-    "react-dom": "19.2.7"
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@rafagouveia/dotreact-cli": "0.1.1",

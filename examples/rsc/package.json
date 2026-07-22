@@ -11,7 +11,7 @@
   "dependencies": {
     "@rafagouveia/dotreact-rsc": "0.1.1-experimental.0",
     "react": "19.2.7",
-    "react-dom": "19.2.7"
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@types/react": "19.2.14",
