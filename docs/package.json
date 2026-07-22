@@ -7,9 +7,10 @@
     "dev": "vite --host 127.0.0.1 --port 5100",
     "validate:content": "node scripts/validate-content.mjs",
     "validate:translations": "node scripts/generate-english-catalog.mjs --check",
+    "validate:syntax": "node scripts/validate-syntax-highlighting.mjs",
     "validate:pages": "node scripts/validate-pages-build.mjs",
-    "build": "npm run validate:content && npm run validate:translations && tsc -b && vite build",
-    "typecheck": "npm run validate:content && npm run validate:translations && tsc -b --pretty false"
+    "build": "npm run validate:content && npm run validate:translations && npm run validate:syntax && tsc -b && vite build",
+    "typecheck": "npm run validate:content && npm run validate:translations && npm run validate:syntax && tsc -b --pretty false"
   },
   "dependencies": {
     "@vitejs/plugin-react": "6.0.4",

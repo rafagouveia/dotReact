@@ -42,4 +42,29 @@ if (!entrySource.includes(`${basePath}dotreact-logo-v4.png`)) {
   throw new Error("The application bundle does not resolve the logo through Vite's base path.");
 }
 
+const assetNames = [...indexHtml.matchAll(/(?:href|src)="[^"]*\/assets\/([^"]+)"/g)]
+  .map((match) => match[1]);
+const discoveredAssets = new Set(assetNames);
+const pendingAssets = [...assetNames.filter((name) => name.endsWith(".js"))];
+const visitedAssets = new Set();
+
+while (pendingAssets.length > 0) {
+  const assetName = pendingAssets.pop();
+  if (!assetName || visitedAssets.has(assetName)) continue;
+
+  visitedAssets.add(assetName);
+  const assetSource = await readFile(new URL(assetName, assetDirectory), "utf8");
+  for (const match of assetSource.matchAll(/["'`]\.\/([^"'`]+\.js)["'`]/g)) {
+    if (!discoveredAssets.has(match[1])) {
+      discoveredAssets.add(match[1]);
+      pendingAssets.push(match[1]);
+    }
+  }
+}
+
+const languageChunks = [...discoveredAssets].filter((name) => /^prism-(?:bash|csharp|powershell)-/.test(name));
+if (languageChunks.length !== 3) {
+  throw new Error("Prism language grammars must remain deferred until the shared Prism instance is initialized.");
+}
+
 console.log(`GitHub Pages artifact validated for ${basePath}`);
