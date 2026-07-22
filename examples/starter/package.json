@@ -26,23 +26,23 @@
     "verify": "npm run check:contracts && npm run typecheck && dotreact security --static-only && npm run build && npm run analyze && npm audit --audit-level=high && npm run audit:dotnet"
   },
   "dependencies": {
-    "@rafagouveia/dotreact-client": "0.1.1",
-    "@rafagouveia/dotreact-font": "0.1.1",
-    "@rafagouveia/dotreact-image": "0.1.1",
-    "@rafagouveia/dotreact-script": "0.1.1",
-    "@rafagouveia/dotreact-protocol": "0.1.1",
-    "@rafagouveia/dotreact-renderer": "0.1.1",
+    "@rafagouveia/dotreact-client": "0.1.2",
+    "@rafagouveia/dotreact-font": "0.1.2",
+    "@rafagouveia/dotreact-image": "0.1.2",
+    "@rafagouveia/dotreact-protocol": "0.1.2",
+    "@rafagouveia/dotreact-renderer": "0.1.2",
+    "@rafagouveia/dotreact-script": "0.1.2",
     "react": "19.2.7",
     "react-dom": "19.2.7"
   },
   "devDependencies": {
-    "@rafagouveia/dotreact-cli": "0.1.1",
-    "@rafagouveia/dotreact-vite": "0.1.1",
+    "@rafagouveia/dotreact-cli": "0.1.2",
+    "@rafagouveia/dotreact-vite": "0.1.2",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "lighthouse": "13.4.1",
     "concurrently": "9.2.4",
     "cross-env": "10.1.0",
+    "lighthouse": "13.4.1",
     "typescript": "7.0.2",
     "vite": "8.1.5"
   }

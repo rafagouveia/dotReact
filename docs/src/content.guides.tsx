@@ -239,7 +239,7 @@ export const guideDocs: readonly DocPage[] = [
         { name: "minimal", defaultValue: "produto limpo", description: "Mantém uma rota SSR, infraestrutura de produção e documentação, removendo demos e actions." }
       ]} />
       <p>O nome passado ao <code>create</code> define package npm, namespace/root namespace C#, assembly, metadata inicial, manifesto e perfil do projeto. Um projeto <code>Arxis</code> não deve conservar <code>DotReact.Starter</code> em código de aplicação.</p>
-      <CodeBlock label="Criar e manter" code={'npm exec --yes --package=@rafagouveia/dotreact-cli@0.1.1 -- dotreact create arxis --template minimal\ncd arxis\nnpm install\n\n# em uma próxima versão, atualize npm, NuGet e TypeGen em conjunto\nnpm exec -- dotreact upgrade 0.1.2\nnpm install\nnpm run verify'} />
+      <CodeBlock label="Criar e manter" code={'npm exec --yes --package=@rafagouveia/dotreact-cli@0.1.2 -- dotreact create arxis --template minimal\ncd arxis\nnpm install\n\n# em uma próxima versão, atualize npm, NuGet e TypeGen em conjunto\nnpm exec -- dotreact upgrade 0.1.3\nnpm install\nnpm run verify'} />
       <h3>O que o upgrade pode alterar</h3>
       <ul className="feature-list">
         <li>dependências DotReact em <code>package.json</code>, <code>Server.csproj</code> e no manifesto da ferramenta local;</li>

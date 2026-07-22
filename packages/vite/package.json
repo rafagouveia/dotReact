@@ -1,11 +1,22 @@
 {
   "name": "@rafagouveia/dotreact-vite",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Vite plugin, App Router compiler and DRX checker for DotReact.",
   "license": "MPL-2.0",
-  "repository": { "type": "git", "url": "git+https://github.com/rafagouveia/dotReact.git", "directory": "packages/vite" },
-  "publishConfig": { "registry": "https://npm.pkg.github.com", "access": "restricted" },
-  "files": ["dist", "scripts", "!dist/**/*.test.*"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rafagouveia/dotReact.git",
+    "directory": "packages/vite"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
+  "files": [
+    "dist",
+    "scripts",
+    "!dist/**/*.test.*"
+  ],
   "type": "module",
   "exports": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,7 +29,7 @@
     "test": "node --test dist/index.test.js"
   },
   "dependencies": {
-    "@rafagouveia/dotreact-font": "0.1.1",
+    "@rafagouveia/dotreact-font": "0.1.2",
     "@vitejs/plugin-react": "6.0.3",
     "typescript": "7.0.2",
     "vite": "8.1.5"
