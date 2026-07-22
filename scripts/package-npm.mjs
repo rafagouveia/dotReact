@@ -1,4 +1,4 @@
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, readFile, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
@@ -30,9 +30,28 @@ if (mode === "pack") {
 }
 
 for (const packageName of packages) {
+  const packageDirectory = packageName.replace("@rafagouveia/dotreact-", "");
+  const manifest = JSON.parse(await readFile(resolve("packages", packageDirectory, "package.json"), "utf8"));
+  if (mode === "publish") {
+    const query = spawnSync(process.execPath, [npmCli, "view", `${packageName}@${manifest.version}`, "version", `--registry=${registry}`], {
+      encoding: "utf8",
+      env: process.env
+    });
+    if (query.error) throw query.error;
+    if (query.status === 0) {
+      process.stdout.write(`[dotreact] ${packageName}@${manifest.version} already exists; skipping.\n`);
+      continue;
+    }
+    const diagnostic = `${query.stdout ?? ""}\n${query.stderr ?? ""}`;
+    if (!/(?:E404|404 Not Found|is not in this registry)/iu.test(diagnostic))
+      throw new Error(`Could not verify ${packageName}@${manifest.version} before publishing:\n${diagnostic.trim()}`);
+  }
   const args = mode === "pack"
     ? ["pack", "--workspace", packageName, "--pack-destination", destination]
-    : ["publish", "--workspace", packageName, `--registry=${registry}`, "--access=restricted"];
+    : [
+        "publish", "--workspace", packageName, `--registry=${registry}`, "--access=restricted",
+        "--tag", manifest.version.includes("-") ? "experimental" : "latest"
+      ];
   const result = spawnSync(process.execPath, [npmCli, ...args], {
     stdio: "inherit",
     env: process.env
