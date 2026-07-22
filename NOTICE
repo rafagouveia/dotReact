@@ -1,5 +1,14 @@
-Required Notice: Copyright © 2026 Black Red Solutions.
+DotReact
+Copyright © 2026 Black Red Solutions.
 
-DotReact releases up to and including version 0.1.4 were distributed under
-the Mozilla Public License 2.0. Rights already granted for those releases are
-not revoked by the repository's later license change.
+DotReact source files are licensed under the Mozilla Public License 2.0 unless
+a file or directory states otherwise. Preserve applicable copyright and license
+notices when redistributing covered framework files.
+
+Applications built with DotReact may be licensed and sold under terms chosen by
+their authors. Using the framework does not place unrelated application files
+under MPL 2.0. Official scaffolds include a THIRD-PARTY-NOTICES.md file as a
+ready-to-use way to carry the framework attribution and source notice.
+
+The MPL 2.0 license does not grant rights to the DotReact name or logos. See
+TRADEMARKS.md for permitted nominative use and fork naming requirements.

@@ -239,9 +239,11 @@ async function create(name: string | undefined, template: string | undefined): P
   const packageJson = JSON.parse(await readFile(packagePath, "utf8")) as {
     dependencies: Record<string, string>;
     devDependencies: Record<string, string>;
+    license?: string;
     name: string;
   };
   packageJson.name = identity.packageName;
+  packageJson.license = "UNLICENSED";
   for (const dependency of Object.keys(packageJson.dependencies)) {
     if (dependency.startsWith("@rafagouveia/dotreact-")) packageJson.dependencies[dependency] = version;
   }
