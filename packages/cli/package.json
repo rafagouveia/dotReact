@@ -5,9 +5,9 @@
   "license": "MPL-2.0",
   "repository": { "type": "git", "url": "git+https://github.com/rafagouveia/dotReact.git", "directory": "packages/cli" },
   "publishConfig": { "registry": "https://npm.pkg.github.com", "access": "restricted" },
-  "files": ["dist", "!dist/**/*.test.*"],
+  "files": ["bin", "dist", "!dist/**/*.test.*"],
   "type": "module",
-  "bin": { "dotreact": "./dist/index.js" },
+  "bin": { "dotreact": "./bin/dotreact.js" },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",

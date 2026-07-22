@@ -25,6 +25,8 @@ blob-report/
 
 # .NET build and test output
 [Bb]in/
+!packages/cli/bin/
+!packages/cli/bin/dotreact.js
 [Oo]bj/
 [Aa]rtifacts/
 [Tt]est[Rr]esults*/
