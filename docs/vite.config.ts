@@ -22,7 +22,7 @@ export default defineConfig({
         codeSplitting: {
           groups: [
             { name: "react-vendor", test: /node_modules[\\/]react(?:-dom)?[\\/]/ },
-            { name: "syntax-vendor", test: /node_modules[\\/](?:prismjs|prism-react-renderer)[\\/]/ },
+            { name: "syntax-vendor", test: /node_modules[\\/]prism-react-renderer[\\/]/ },
             { name: "deployment-guides", test: /content\.deploy\.tsx$/ }
           ]
         }
