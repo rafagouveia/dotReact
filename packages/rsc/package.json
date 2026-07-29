@@ -30,7 +30,7 @@
     "test": "node --test dist/*.test.js"
   },
   "dependencies": {
-    "@vitejs/plugin-rsc": "0.5.29"
+    "@vitejs/plugin-rsc": "0.5.32"
   },
   "peerDependencies": {
     "react": "19.2.8",
