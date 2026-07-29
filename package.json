@@ -38,7 +38,7 @@
     "node": ">=22.19.0 <25"
   },
   "devDependencies": {
-    "@playwright/test": "1.61.1"
+    "@playwright/test": "1.62.0"
   },
   "overrides": {
     "fast-uri": "3.1.4",
