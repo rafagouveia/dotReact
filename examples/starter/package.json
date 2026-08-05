@@ -38,8 +38,8 @@
   "devDependencies": {
     "@rafagouveia/dotreact-cli": "0.1.4",
     "@rafagouveia/dotreact-vite": "0.1.4",
-    "@types/react": "19.2.17",
-    "@types/react-dom": "19.2.3",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
     "concurrently": "9.2.4",
     "cross-env": "10.1.0",
     "lighthouse": "13.4.1",
