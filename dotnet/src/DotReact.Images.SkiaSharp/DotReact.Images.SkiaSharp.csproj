@@ -6,6 +6,6 @@
   <ItemGroup>
     <ProjectReference Include="../DotReact.AspNetCore/DotReact.AspNetCore.csproj" />
     <PackageReference Include="SkiaSharp" Version="4.150.1" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.150.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.151.1" />
   </ItemGroup>
 </Project>
