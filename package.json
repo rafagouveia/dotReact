@@ -42,7 +42,7 @@
   },
   "overrides": {
     "fast-uri": "3.1.4",
-    "postcss": "8.5.21"
+    "postcss": "8.5.26"
   },
   "dependencies": {
     "@rafagouveia/dotreact-cli": "0.1.4"
