@@ -36,7 +36,7 @@
     "@rafagouveia/dotreact-protocol": "0.1.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "vite": "8.1.5"
+    "vite": "8.1.6"
   },
   "devDependencies": {
     "@types/node": "24.13.3",
