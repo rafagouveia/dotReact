@@ -36,7 +36,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-server-dom-webpack": "19.2.8",
-    "vite": "8.1.5"
+    "vite": "8.3.5"
   },
   "devDependencies": {
     "@types/node": "24.13.3",
@@ -46,6 +46,6 @@
     "react-dom": "19.2.8",
     "react-server-dom-webpack": "19.2.8",
     "typescript": "7.0.2",
-    "vite": "8.1.5"
+    "vite": "8.3.5"
   }
 }

@@ -44,6 +44,6 @@
     "cross-env": "10.1.0",
     "lighthouse": "13.4.1",
     "typescript": "7.0.2",
-    "vite": "8.1.5"
+    "vite": "8.3.5"
   }
 }
